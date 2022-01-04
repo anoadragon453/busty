@@ -76,6 +76,11 @@ async def on_message(message: Message):
 
 def stop():
     """Stop playing music."""
+    # Clear the queue
+    global current_channel_content
+    current_channel_content = None
+
+    # Stop playing music
     active_voice_client.stop()
 
 
