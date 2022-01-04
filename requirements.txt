@@ -1,0 +1,2 @@
+pynacl>=1.4.0
+discord.py>=1.7.3
