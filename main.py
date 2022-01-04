@@ -164,9 +164,6 @@ def play_next_song(e=None):
 
 
 async def list(message: Message):
-    # Acknowledge the request
-    await message.channel.send("Workin' on it, sugar...")
-
     # Scrape all tracks in the message's channel and list them
     channel_media_attachments = await scrape_channel_media(message.channel)
 
