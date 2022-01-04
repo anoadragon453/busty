@@ -9,8 +9,14 @@ You'll need at least Python 3.6 and [ffmpeg](https://ffmpeg.org/) installed.
 Create a python virtual environment to install python dependencies in.
 
 ```
-python -m venv env
+python3 -m venv env
 source env/bin/activate
+```
+
+And install the dependencies:
+
+```
+pip install -r requirements.txt
 ```
 
 ## Configure
