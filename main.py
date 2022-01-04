@@ -1,25 +1,28 @@
 import discord
 import asyncio
 import os
-from os import path
-
-from typing import List, Tuple, Optional
 
 from discord import Message, TextChannel, Member, VoiceClient, ClientException, ChannelType
+from os import path
+from typing import List, Tuple, Optional
 
+## SETTINGS
+# How many seconds to wait in-between songs
+seconds_between_songs = 5
+# Where to save media files locally
 attachment_directory_filepath = "attachments"
-
+# The Discord role needed to perform bot commands
 dj_role_name = "bangermeister"
 
+## GLOBAL VARIABLES
 # The channel to send messages in
 current_channel: Optional = None
 # The media in the current channel
 current_channel_content: Optional[List] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
-# How many seconds to wait in-between songs
-seconds_between_songs = 5
 
+## STARTUP
 # This is necessary to query server members
 intents = discord.Intents.default()
 intents.members = True
@@ -31,7 +34,7 @@ client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(client))
+    print('We have logged in as {0.user}.'.format(client))
 
 
 @client.event
