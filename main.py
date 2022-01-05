@@ -176,8 +176,9 @@ async def list(message: Message):
         message_to_send += f"""
 {index+1}. {author.nick or author.name} - `{filename}`"""
 
-    # Send the message
-    await message.channel.send(message_to_send)
+    # Send the message and pin it
+    list_message = await message.channel.send(message_to_send)
+    await list_message.pin()
 
     # Update global channel content
     global current_channel_content
