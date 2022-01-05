@@ -160,7 +160,7 @@ def play_next_song(e=None):
 
         # After the current song has finished, pop another off the front and continue playing
         author, filename, local_filepath = current_channel_content.pop(0)
-        await current_channel.send(f"**Playing:** {author.nick or author.name} - `{filename}`.")
+        await current_channel.send(f"**Playing:** <@{author.id}> - `{filename}`.")
         active_voice_client.play(discord.FFmpegPCMAudio(local_filepath), after=play_next_song)
 
     asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
@@ -174,7 +174,7 @@ async def list(message: Message):
 
     for index, (author, filename, media_content_bytes) in enumerate(channel_media_attachments):
         message_to_send += f"""
-{index+1}. {author.nick or author.name} - `{filename}`"""
+{index+1}. <@{author.id}> - `{filename}`"""
 
     # Send the message
     await message.channel.send(message_to_send)
