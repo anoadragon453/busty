@@ -8,7 +8,7 @@ from typing import List, Tuple, Optional
 
 ## SETTINGS
 # How many seconds to wait in-between songs
-seconds_between_songs = 5
+seconds_between_songs = 10
 # Where to save media files locally
 attachment_directory_filepath = "attachments"
 # The Discord role needed to perform bot commands
