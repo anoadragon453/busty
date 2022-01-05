@@ -91,7 +91,7 @@ async def stop():
 
     # Restore the bot's original nick (if it exists)
     if original_bot_nickname and current_channel:
-        bot_member = current_channel.get_member(client.user.id)
+        bot_member = current_channel.guild.get_member(client.user.id)
         await bot_member.edit(nick=original_bot_nickname)
 
 
