@@ -21,17 +21,19 @@ pip install -r requirements.txt
 
 ## Configure
 
-You'll need to create a Discord app, add a bot component, and copy the bot token. Replace the
-`YOUR_BOT_TOKEN_HERE` at the bottom of `main.py` with that token.
-
+You'll need to create a Discord app, add a bot component, and copy the bot token.
+Ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains the bot token when running the bot.
 Then, add the bot to your desired Discord server.
 
-You can optionally tweak some of the bot's settings and behaviour by modifying the variables
-at the top of `main.py`.
+The complete list of environment variable configuration options is
+1. `BUSTY_DISCORD_TOKEN` - Discord bot API token (required)
+2. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
+3. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
+4. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
 
 ## Run
 
-Start the bot with:
+With the proper environment variables set, start the bot with:
 
 ```
 python main.py
@@ -46,5 +48,5 @@ It should connect to Discord and display the currently logged-in application nam
 3. `!skip` - skips the current track :scream: 
 4. `!stop` - stop busting early :scream: :scream: :scream: 
 
-Users must have the `bangermeister` role to use commands. This can be modified by
-editing the appropriate variable at the top of `main.py`.
+Users must have the `bangermeister` role to use commands by default, though this role can
+be modified by passing the `BUSTY_DJ_ROLE` environment variable.
