@@ -8,7 +8,7 @@ from typing import List, Tuple, Optional
 
 ## SETTINGS
 # How many seconds to wait in-between songs
-seconds_between_songs = int(os.environ.get('BUSTY_COOLDOWN_SECS', 10))
+seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 # Where to save media files locally
 attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
 # The Discord role needed to perform bot commands
