@@ -21,6 +21,9 @@ current_channel: Optional = None
 current_channel_content: Optional[List] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
+# The nickname of the bot. We need to store it as it will be
+# changed while songs are being played.
+original_bot_nickname: Optional[str] = None
 
 ## STARTUP
 # This is necessary to query server members
@@ -94,6 +97,9 @@ async def play(message: Message):
         await message.channel.send("You need to be in an active voice or stage channel, sugar.")
         return
 
+    # Get a reference to the bot's Member object
+    bot_member = message.guild.get_member(client.user.id)
+
     for voice_channel in voice_channels:
         if message.author not in voice_channel.members:
             # Skip this voice channel
@@ -107,16 +113,8 @@ async def play(message: Message):
 
             # If this is a stage voice channel, ensure that we are currently speaking.
             if voice_channel.type == ChannelType.stage_voice:
-                # Get our own member profile
-                # TODO: This seems hacky.
-                for member in voice_channel.members:
-                    if member.id == client.user.id:
-                        # Set the bot's own member to be speaking in the voice channel
-                        await member.edit(suppress=False)
-                        break
-                else:
-                    await current_channel.send("I got fuckin' lost down a dark alleyway...")
-                    return
+                # Set the bot's own member to be speaking in the voice channel
+                await bot_member.edit(suppress=False)
 
             break
         except ClientException as e:
@@ -126,6 +124,11 @@ async def play(message: Message):
         # No voice channel was found
         await message.channel.send("You need to be in an active voice channel, sugar.")
         return
+
+    # Save the bot's current nickname (if it has one).
+    # We'll restore it after songs have finished playing.
+    global original_bot_nickname
+    original_bot_nickname = bot_member.nick
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
@@ -142,9 +145,17 @@ def play_next_song(e=None):
     async def inner_f():
         global current_channel_content
         global current_channel
+
+        # Get a reference to the bot's Member object
+        bot_member = current_channel.guild.get_member(client.user.id)
+
         if not current_channel_content:
             # If there are no more songs to play, leave the active voice channel
             await active_voice_client.disconnect()
+
+            # Restore the bot's original guild nickname (if it had one)
+            if original_bot_nickname:
+                await bot_member.edit(nick=original_bot_nickname)
 
             # Say our goodbyes
             await current_channel.send("Thas it y'all. Hope ya had a good **BUST** ❤️‍🔥 ")
@@ -158,10 +169,20 @@ def play_next_song(e=None):
             await current_channel.send(f"Chillin' for {seconds_between_songs} seconds...")
             await asyncio.sleep(seconds_between_songs)
 
-        # After the current song has finished, pop another off the front and continue playing
+        # Pop a song off the front of the queue and play it
         author, filename, local_filepath = current_channel_content.pop(0)
         await current_channel.send(f"**Playing:** {author.mention} - `{filename}`.")
         active_voice_client.play(discord.FFmpegPCMAudio(local_filepath), after=play_next_song)
+
+        # Change the name of the bot to that of the currently playing song.
+        # This allows people to quickly see which song is currently playing.
+        new_nick = f"{author.nick or author.name} - {filename}"
+
+        # Truncate name to 32 characters
+        new_nick = new_nick[:32]
+
+        # Set the new nickname
+        await bot_member.edit(nick=new_nick)
 
     asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
 
