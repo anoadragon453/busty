@@ -77,10 +77,10 @@ async def on_message(message: Message):
             return
 
         await message.channel.send("Aight I'll shut up.")
-        stop()
+        await stop()
 
 
-def stop():
+async def stop():
     """Stop playing music."""
     # Clear the queue
     global current_channel_content
@@ -88,6 +88,11 @@ def stop():
 
     # Stop playing music
     active_voice_client.stop()
+
+    # Restore the bot's original nick (if it exists)
+    if original_bot_nickname and current_channel:
+        bot_member = current_channel.get_member(client.user.id)
+        await bot_member.edit(nick=original_bot_nickname)
 
 
 async def play(message: Message):
