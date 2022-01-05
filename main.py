@@ -153,6 +153,8 @@ def play_next_song(e=None):
             current_channel = None
             current_channel_content = None
 
+            return
+
         # Wait some time between songs
         if seconds_between_songs:
             await current_channel.send(f"Chillin' for {seconds_between_songs} seconds...")
