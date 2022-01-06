@@ -64,14 +64,14 @@ async def on_message(message: Message):
         return
 
     if message.content.startswith("!list"):
-        await list(message)
+        await command_list(message)
 
     elif message.content.startswith("!bust"):
         if not current_channel_content or not current_channel:
             await message.channel.send("You need to use !list first, sugar.")
             return
 
-        await play(message)
+        await command_play(message)
 
     elif message.content.startswith("!skip"):
         if not active_voice_client.is_playing():
@@ -79,7 +79,7 @@ async def on_message(message: Message):
             return
 
         await message.channel.send("I didn't like that track anyways.")
-        skip()
+        command_skip()
 
     elif message.content.startswith("!stop"):
         if not active_voice_client.is_playing():
@@ -87,10 +87,10 @@ async def on_message(message: Message):
             return
 
         await message.channel.send("Aight I'll shut up.")
-        await stop()
+        await command_stop()
 
 
-async def stop():
+async def command_stop():
     """Stop playing music."""
     # Clear the queue
     global current_channel_content
@@ -106,7 +106,7 @@ async def stop():
         await bot_member.edit(nick=original_bot_nickname)
 
 
-async def play(message: Message):
+async def command_play(message: Message):
     # Join active voice call
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
@@ -153,7 +153,7 @@ async def play(message: Message):
     play_next_song()
 
 
-def skip():
+def command_skip():
     # Stop any currently playing song
     # The next song will play automatically.
     active_voice_client.stop()
@@ -215,7 +215,7 @@ def play_next_song(e=None):
     asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
 
 
-async def list(message: Message):
+async def command_list(message: Message):
     # Scrape all tracks in the message's channel and list them
     channel_media_attachments = await scrape_channel_media(message.channel)
 
