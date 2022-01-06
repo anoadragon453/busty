@@ -8,11 +8,11 @@ from typing import List, Tuple, Optional
 
 ## SETTINGS
 # How many seconds to wait in-between songs
-seconds_between_songs = 10
+seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 # Where to save media files locally
-attachment_directory_filepath = "attachments"
+attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
 # The Discord role needed to perform bot commands
-dj_role_name = "bangermeister"
+dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 
 ## GLOBAL VARIABLES
 # The channel to send messages in
@@ -226,4 +226,7 @@ async def scrape_channel_media(channel: TextChannel) -> List[Tuple[Member, str, 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
 # a valid Discord bot access token.
-client.run('YOUR_BOT_TOKEN_HERE')
+if "BUSTY_DISCORD_TOKEN" in os.environ:
+    client.run(os.environ["BUSTY_DISCORD_TOKEN"])
+else:
+    print("Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable")
