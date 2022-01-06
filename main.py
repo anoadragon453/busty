@@ -1,5 +1,6 @@
 import asyncio
 import os
+import random
 from os import path
 from typing import List, Optional, Tuple
 
@@ -36,6 +37,11 @@ active_voice_client: Optional[VoiceClient] = None
 original_bot_nickname: Optional[str] = None
 
 # STARTUP
+# Import list of emojis from either a custom or the default list
+emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "emoji_list")
+emoji_dict = __import__(emoji_filepath).DISCORD_TO_UNICODE
+emoji_list = list(emoji_dict.values())
+
 # This is necessary to query server members
 intents = discord.Intents.default()
 intents.members = True
@@ -202,7 +208,7 @@ def play_next_song(e=None):
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
-        new_nick = f"{author.nick or author.name} - {filename}"
+        new_nick = f"{pick_random_emoji()}{author.nick or author.name} - {filename}"
 
         # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
         # including an ellipsis on the end.
@@ -279,6 +285,18 @@ async def scrape_channel_media(channel: TextChannel) -> List[Tuple[Member, str, 
             )
 
     return channel_media_attachments
+
+
+def pick_random_emoji() -> str:
+    """Picks a random emoji from the loaded emoji list"""
+
+    # Choose a random emoji
+    encoded_random_emoji = random.choice(emoji_list)
+
+    # Decode the emoji from the unicode characters
+    decoded_random_emoji = encoded_random_emoji.encode("Latin1").decode()
+
+    return decoded_random_emoji
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
