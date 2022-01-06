@@ -220,7 +220,7 @@ async def scrape_channel_media(channel: TextChannel) -> List[Tuple[Member, str, 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
 # a valid Discord bot access token.
-if 'BUSTY_DISCORD_TOKEN' in os.environ:
-    client.run(os.environ['BUSTY_DISCORD_TOKEN'])
+if "BUSTY_DISCORD_TOKEN" in os.environ:
+    client.run(os.environ["BUSTY_DISCORD_TOKEN"])
 else:
-    print('Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable')
+    print("Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable")
