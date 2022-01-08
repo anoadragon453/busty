@@ -83,7 +83,8 @@ def stop():
     global current_channel_content
     current_channel_content = None
 
-    # Stop playing music
+    # Stop playing music. Note that this will run play_next_song, when runs
+    # after each song stops playing.
     active_voice_client.stop()
 
 
@@ -152,6 +153,8 @@ def play_next_song(e=None):
             # Clear the current channel and content
             current_channel = None
             current_channel_content = None
+
+            return
 
         # Wait some time between songs
         if seconds_between_songs:
