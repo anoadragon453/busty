@@ -183,8 +183,10 @@ def play_next_song(e=None):
         # This allows people to quickly see which song is currently playing.
         new_nick = f"{author.nick or author.name} - {filename}"
 
-        # Truncate name to 32 characters
-        new_nick = new_nick[:32]
+        # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
+        # including an ellipsis on the end.
+        if len(new_nick) > 32:
+            new_nick = new_nick[:31] + "…"
 
         # Set the new nickname
         await bot_member.edit(nick=new_nick)
