@@ -11,6 +11,7 @@ from discord import (
     ChannelType,
     Forbidden,
     HTTPException,
+    NotFound,
 )
 from os import path
 from typing import List, Tuple, Optional
