@@ -2,7 +2,16 @@ import discord
 import asyncio
 import os
 
-from discord import Message, TextChannel, Member, VoiceClient, ClientException, ChannelType, Forbidden, HTTPException
+from discord import (
+    Message,
+    TextChannel,
+    Member,
+    VoiceClient,
+    ClientException,
+    ChannelType,
+    Forbidden,
+    HTTPException,
+)
 from os import path
 from typing import List, Tuple, Optional
 
