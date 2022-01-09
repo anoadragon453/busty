@@ -195,7 +195,7 @@ async def list(message: Message):
         await list_message.pin()
     except Forbidden:
         print('Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again')
-    except (HttpException, NotFound)  as e:
+    except (HTTPException, NotFound)  as e:
         print('Pinning tracklist failed: ', e)
 
     # Update global channel content
