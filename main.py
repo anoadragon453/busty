@@ -1,20 +1,20 @@
-import discord
 import asyncio
 import os
+from os import path
+from typing import List, Optional, Tuple
 
+import discord
 from discord import (
-    Message,
-    TextChannel,
-    Member,
-    VoiceClient,
-    ClientException,
     ChannelType,
+    ClientException,
     Forbidden,
     HTTPException,
+    Member,
+    Message,
     NotFound,
+    TextChannel,
+    VoiceClient,
 )
-from os import path
-from typing import List, Tuple, Optional
 
 ## SETTINGS
 # How many seconds to wait in-between songs
