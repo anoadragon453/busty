@@ -2,7 +2,17 @@ import discord
 import asyncio
 import os
 
-from discord import Message, TextChannel, Member, VoiceClient, ClientException, ChannelType, Forbidden, HTTPException
+from discord import (
+    Message,
+    TextChannel,
+    Member,
+    VoiceClient,
+    ClientException,
+    ChannelType,
+    Forbidden,
+    HTTPException,
+    NotFound,
+)
 from os import path
 from typing import List, Tuple, Optional
 
@@ -213,7 +223,7 @@ async def list(message: Message):
         await list_message.pin()
     except Forbidden:
         print('Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again')
-    except (HttpException, NotFound)  as e:
+    except (HTTPException, NotFound)  as e:
         print('Pinning tracklist failed: ', e)
 
     # Update global channel content
