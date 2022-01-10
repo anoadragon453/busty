@@ -16,7 +16,7 @@ from discord import (
     VoiceClient,
 )
 
-## SETTINGS
+# SETTINGS
 # How many seconds to wait in-between songs
 seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 # Where to save media files locally
@@ -24,7 +24,7 @@ attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachme
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 
-## GLOBAL VARIABLES
+# GLOBAL VARIABLES
 # The channel to send messages in
 current_channel: Optional = None
 # The media in the current channel
@@ -35,7 +35,7 @@ active_voice_client: Optional[VoiceClient] = None
 # changed while songs are being played.
 original_bot_nickname: Optional[str] = None
 
-## STARTUP
+# STARTUP
 # This is necessary to query server members
 intents = discord.Intents.default()
 intents.members = True
@@ -223,7 +223,7 @@ async def list(message: Message):
         await list_message.pin()
     except Forbidden:
         print('Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again')
-    except (HTTPException, NotFound)  as e:
+    except (HTTPException, NotFound) as e:
         print('Pinning tracklist failed: ', e)
 
     # Update global channel content
