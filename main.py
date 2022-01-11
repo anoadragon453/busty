@@ -1,22 +1,22 @@
-import discord
 import asyncio
 import os
+from os import path
+from typing import List, Optional, Tuple
 
+import discord
 from discord import (
-    Message,
-    TextChannel,
-    Member,
-    VoiceClient,
-    ClientException,
     ChannelType,
+    ClientException,
     Forbidden,
     HTTPException,
+    Member,
+    Message,
     NotFound,
+    TextChannel,
+    VoiceClient,
 )
-from os import path
-from typing import List, Tuple, Optional
 
-## SETTINGS
+# SETTINGS
 # How many seconds to wait in-between songs
 seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 # Where to save media files locally
@@ -24,7 +24,7 @@ attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachme
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 
-## GLOBAL VARIABLES
+# GLOBAL VARIABLES
 # The channel to send messages in
 current_channel: Optional = None
 # The media in the current channel
@@ -35,7 +35,7 @@ active_voice_client: Optional[VoiceClient] = None
 # changed while songs are being played.
 original_bot_nickname: Optional[str] = None
 
-## STARTUP
+# STARTUP
 # This is necessary to query server members
 intents = discord.Intents.default()
 intents.members = True
@@ -47,7 +47,7 @@ client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-    print('We have logged in as {0.user}.'.format(client))
+    print("We have logged in as {0.user}.".format(client))
 
 
 @client.event
@@ -110,7 +110,9 @@ async def play(message: Message):
     # Join active voice call
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
-        await message.channel.send("You need to be in an active voice or stage channel, sugar.")
+        await message.channel.send(
+            "You need to be in an active voice or stage channel, sugar."
+        )
         return
 
     # Get a reference to the bot's Member object
@@ -174,7 +176,9 @@ def play_next_song(e=None):
                 await bot_member.edit(nick=original_bot_nickname)
 
             # Say our goodbyes
-            await current_channel.send("Thas it y'all. Hope ya had a good **BUST** ❤️‍🔥 ")
+            await current_channel.send(
+                "Thas it y'all. Hope ya had a good **BUST** ❤️‍🔥 "
+            )
 
             # Clear the current channel and content
             current_channel = None
@@ -184,13 +188,17 @@ def play_next_song(e=None):
 
         # Wait some time between songs
         if seconds_between_songs:
-            await current_channel.send(f"Chillin' for {seconds_between_songs} seconds...")
+            await current_channel.send(
+                f"Chillin' for {seconds_between_songs} seconds..."
+            )
             await asyncio.sleep(seconds_between_songs)
 
         # Pop a song off the front of the queue and play it
         author, filename, local_filepath = current_channel_content.pop(0)
         await current_channel.send(f"**Playing:** {author.mention} - `{filename}`.")
-        active_voice_client.play(discord.FFmpegPCMAudio(local_filepath), after=play_next_song)
+        active_voice_client.play(
+            discord.FFmpegPCMAudio(local_filepath), after=play_next_song
+        )
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
@@ -213,7 +221,9 @@ async def list(message: Message):
 
     message_to_send = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥\n\n**Track Listing**"
 
-    for index, (author, filename, media_content_bytes) in enumerate(channel_media_attachments):
+    for index, (author, filename, media_content_bytes) in enumerate(
+        channel_media_attachments
+    ):
         message_to_send += f"""
 {index+1}. {author.mention} - `{filename}`"""
 
@@ -222,9 +232,11 @@ async def list(message: Message):
     try:
         await list_message.pin()
     except Forbidden:
-        print('Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again')
-    except (HTTPException, NotFound)  as e:
-        print('Pinning tracklist failed: ', e)
+        print(
+            'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
+        )
+    except (HTTPException, NotFound) as e:
+        print("Pinning tracklist failed: ", e)
 
     # Update global channel content
     global current_channel_content
@@ -249,25 +261,31 @@ async def scrape_channel_media(channel: TextChannel) -> List[Tuple[Member, str, 
             continue
 
         for attachment in message.attachments:
-            if (
-                not attachment.content_type.startswith("audio")
-                and not attachment.content_type.startswith("video")
-            ):
+            if not attachment.content_type.startswith(
+                "audio"
+            ) and not attachment.content_type.startswith("video"):
                 # Ignore non-audio/video attachments
                 continue
 
             # Save attachment content
             # TODO: Parse mp3 tags and things
-            attachment_filepath = path.join(attachment_directory_filepath, attachment.filename)
+            attachment_filepath = path.join(
+                attachment_directory_filepath, attachment.filename
+            )
             await attachment.save(attachment_filepath)
 
-            channel_media_attachments.append((message.author, attachment.filename, attachment_filepath))
+            channel_media_attachments.append(
+                (message.author, attachment.filename, attachment_filepath)
+            )
 
     return channel_media_attachments
+
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
 # a valid Discord bot access token.
 if "BUSTY_DISCORD_TOKEN" in os.environ:
     client.run(os.environ["BUSTY_DISCORD_TOKEN"])
 else:
-    print("Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable")
+    print(
+        "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable"
+    )
