@@ -194,7 +194,7 @@ def play_next_song(e=None):
             await asyncio.sleep(seconds_between_songs)
 
         # Pop a song off the front of the queue and play it
-        author, filename, local_filepath = current_channel_content.pop(0)
+        author, filename, local_filepath, jump_url = current_channel_content.pop(0)
         await current_channel.send(f"**Playing:** {author.mention} - `{filename}`.")
         active_voice_client.play(
             discord.FFmpegPCMAudio(local_filepath), after=play_next_song
@@ -219,16 +219,18 @@ async def list(message: Message):
     # Scrape all tracks in the message's channel and list them
     channel_media_attachments = await scrape_channel_media(message.channel)
 
-    message_to_send = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥\n\n**Track Listing**"
+    embed_title = "❤🔥 AIGHT. IT'S BUSTY TIME ❤🔥"
+    embed_content = ""
 
-    for index, (author, filename, media_content_bytes) in enumerate(
+    for index, (author, filename, media_content_bytes, jump_url) in enumerate(
         channel_media_attachments
     ):
-        message_to_send += f"""
-{index+1}. {author.mention} - `{filename}`"""
+        embed_content += f"**{index+1}.** {author.mention} - [{discord.utils.escape_markdown(filename)}]({jump_url})\n"
 
     # Send the message and pin it
-    list_message = await message.channel.send(message_to_send)
+    embed = discord.Embed(title=embed_title, description=embed_content)
+    list_message = await message.channel.send(embed=embed)
+
     try:
         await list_message.pin()
     except Forbidden:
@@ -246,9 +248,11 @@ async def list(message: Message):
     current_channel = message.channel
 
 
-async def scrape_channel_media(channel: TextChannel) -> List[Tuple[Member, str, str]]:
-    # A list of (uploader, filename, local filepath)
-    channel_media_attachments: List[Tuple[Member, str, str]] = []
+async def scrape_channel_media(
+    channel: TextChannel,
+) -> List[Tuple[Member, str, str, str]]:
+    # A list of (uploader, filename, local filepath, message jump url)
+    channel_media_attachments: List[Tuple[Member, str, str, str]] = []
 
     # Ensure attachment directory exists
     if not os.path.exists(attachment_directory_filepath):
@@ -275,7 +279,12 @@ async def scrape_channel_media(channel: TextChannel) -> List[Tuple[Member, str, 
             await attachment.save(attachment_filepath)
 
             channel_media_attachments.append(
-                (message.author, attachment.filename, attachment_filepath)
+                (
+                    message.author,
+                    attachment.filename,
+                    attachment_filepath,
+                    message.jump_url,
+                )
             )
 
     return channel_media_attachments
