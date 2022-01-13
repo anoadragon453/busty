@@ -37,7 +37,8 @@ active_voice_client: Optional[VoiceClient] = None
 original_bot_nickname: Optional[str] = None
 
 # STARTUP
-# Import list of emojis from either a custom or the default list
+# Import list of emojis from either a custom or the default list.
+# The default list is expected to be stored at `./emoji_list.py`.
 emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "emoji_list")
 emoji_dict = __import__(emoji_filepath).DISCORD_TO_UNICODE
 emoji_list = list(emoji_dict.values())
