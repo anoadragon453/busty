@@ -220,7 +220,7 @@ async def list(message: Message):
     channel_media_attachments = await scrape_channel_media(message.channel)
 
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
-    embed_content = ""
+    embed_content = "**Track Listing**\n"
 
     for index, (author, filename, media_content_bytes, jump_url) in enumerate(
         channel_media_attachments
