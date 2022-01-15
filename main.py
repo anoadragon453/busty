@@ -150,10 +150,10 @@ async def command_play(message: Message):
         await message.channel.send("You need to be in an active voice channel, sugar.")
         return
 
-    # Save the bot's current nickname (if it has one).
+    # Save the bot's current display name (nick or name)
     # We'll restore it after songs have finished playing.
     global original_bot_nickname
-    original_bot_nickname = bot_member.nick
+    original_bot_nickname = bot_member.display_name
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
@@ -209,7 +209,7 @@ def play_next_song(e=None):
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
-        new_nick = f"{pick_random_emoji()}{author.nick or author.name} - {filename}"
+        new_nick = f"{pick_random_emoji()}{author.display_name} - {filename}"
 
         # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
         # including an ellipsis on the end.
