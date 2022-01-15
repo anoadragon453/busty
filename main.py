@@ -184,7 +184,7 @@ def play_next_song(e=None):
 
             # Say our goodbyes
             embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
-            embed_content = "Hope ya had a good **BUST**!"
+            embed_content = "Hope ya had a good **BUST!**"
             embed = discord.Embed(
                 title=embed_title, description=embed_content, color=0xDD2E44
             )
