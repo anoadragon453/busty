@@ -274,7 +274,7 @@ async def command_list(message: Message):
         )
 
     # Send the message and pin it
-    embed = discord.Embed(title=embed_title, description=embed_content)
+    embed = discord.Embed(title=embed_title, description=embed_content, color=0xDD2E44)
     list_message = await message.channel.send(embed=embed)
 
     try:
