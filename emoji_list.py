@@ -75,7 +75,6 @@ DISCORD_TO_UNICODE = {
     "shushing_face": "\xf0\x9f\xa4\xab",
     "lying_face": "\xf0\x9f\xa4\xa5",
     "liar": "\xf0\x9f\xa4\xa5",
-    "no_mouth": "\xf0\x9f\x98\xb6",
     "neutral_face": "\xf0\x9f\x98\x90",
     "grimacing": "\xf0\x9f\x98\xac",
     "face_with_rolling_eyes": "\xf0\x9f\x99\x84",
