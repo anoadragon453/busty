@@ -297,7 +297,7 @@ async def command_list(message: Message):
 async def scrape_channel_media(
     channel: TextChannel,
 ) -> List[Tuple[Message, Attachment, str]]:
-    # A list of (uploader, filename, local filepath, message jump url)
+    # A list of (original message, message attachment, local filepath)
     channel_media_attachments: List[Tuple[Message, Attachment, str]] = []
 
     # Ensure attachment directory exists
