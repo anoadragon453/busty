@@ -98,7 +98,7 @@ async def on_message(message: Message):
 
 
 # Take a filename as string and return it formatted nicely
-def format_filename(filename):
+def format_filename(filename: str):
     # Remove file extension
     filename = path.splitext(filename)[0]
 
