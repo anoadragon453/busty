@@ -194,9 +194,12 @@ def play_next_song(e=None):
                 await bot_member.edit(nick=original_bot_nickname)
 
             # Say our goodbyes
-            await current_channel.send(
-                "Thas it y'all. Hope ya had a good **BUST** ❤️‍🔥 "
+            embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
+            embed_content = "Hope ya had a good **BUST!**"
+            embed = discord.Embed(
+                title=embed_title, description=embed_content, color=0xDD2E44
             )
+            await current_channel.send(embed=embed)
 
             # Clear the current channel and content
             current_channel = None
