@@ -194,7 +194,13 @@ def play_next_song(e=None):
             await asyncio.sleep(seconds_between_songs)
 
         # Pop a song off the front of the queue and play it
-        author, filename, local_filepath, jump_url = current_channel_content.pop(0)
+        (
+            author,
+            filename,
+            local_filepath,
+            jump_url,
+            attachment_url,
+        ) = current_channel_content.pop(0)
         await current_channel.send(f"**Playing:** {author.mention} - `{filename}`.")
         active_voice_client.play(
             discord.FFmpegPCMAudio(local_filepath), after=play_next_song
@@ -222,10 +228,21 @@ async def list(message: Message):
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_content = "**Track Listing**\n"
 
-    for index, (author, filename, media_content_bytes, jump_url) in enumerate(
-        channel_media_attachments
-    ):
-        embed_content += f"**{index+1}.** {author.mention} - [{discord.utils.escape_markdown(filename)}]({jump_url})\n"
+    for index, (
+        author,
+        filename,
+        media_content_bytes,
+        jump_url,
+        attachment_url,
+    ) in enumerate(channel_media_attachments):
+        list_format = "**{0}.** {1} - [{2}]({3}) [`↲jump`]({4})\n"
+        embed_content += list_format.format(
+            index + 1,
+            author.mention,
+            discord.utils.escape_markdown(filename),
+            attachment_url,
+            jump_url,
+        )
 
     # Send the message and pin it
     embed = discord.Embed(title=embed_title, description=embed_content)
@@ -284,6 +301,7 @@ async def scrape_channel_media(
                     attachment.filename,
                     attachment_filepath,
                     message.jump_url,
+                    attachment.url,
                 )
             )
 
