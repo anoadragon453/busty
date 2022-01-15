@@ -97,6 +97,17 @@ async def on_message(message: Message):
         await command_stop()
 
 
+# Take a filename as string and return it formatted nicely
+def format_filename(filename: str):
+    # Remove file extension
+    filename = path.splitext(filename)[0]
+
+    # Replace all underscores with spaces
+    filename = filename.replace("_", " ")
+
+    return discord.utils.escape_markdown(filename)
+
+
 async def command_stop():
     """Stop playing music."""
     # Clear the queue
@@ -219,7 +230,7 @@ def play_next_song(e=None):
         list_format = "{0} - [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             submit_message.author.mention,
-            discord.utils.escape_markdown(attachment.filename),
+            format_filename(attachment.filename),
             attachment.url,
             submit_message.jump_url,
         )
@@ -268,7 +279,7 @@ async def command_list(message: Message):
         embed_content += list_format.format(
             index + 1,
             submit_message.author.mention,
-            discord.utils.escape_markdown(attachment.filename),
+            format_filename(attachment.filename),
             attachment.url,
             submit_message.jump_url,
         )
