@@ -6,11 +6,11 @@ from typing import List, Optional, Tuple
 
 import discord
 from discord import (
+    Attachment,
     ChannelType,
     ClientException,
     Forbidden,
     HTTPException,
-    Member,
     Message,
     NotFound,
     TextChannel,
@@ -195,27 +195,51 @@ def play_next_song(e=None):
 
         # Wait some time between songs
         if seconds_between_songs:
-            await current_channel.send(
-                f"Chillin' for {seconds_between_songs} seconds..."
+            embed_title = "Currently Chillin'"
+            embed_content = "Waiting for {} second{}...".format(
+                seconds_between_songs, "s" if seconds_between_songs != 1 else ""
             )
+            embed = discord.Embed(title=embed_title, description=embed_content)
+            await current_channel.send(embed=embed)
+
             await asyncio.sleep(seconds_between_songs)
 
         # Pop a song off the front of the queue and play it
         (
-            author,
-            filename,
+            submit_message,
+            attachment,
             local_filepath,
-            jump_url,
-            attachment_url,
         ) = current_channel_content.pop(0)
-        await current_channel.send(f"**Playing:** {author.mention} - `{filename}`.")
+
+        # Associate a random emoji with this song
+        random_emoji = pick_random_emoji()
+
+        # Build and send "Now Playing" embed
+        embed_title = f"{random_emoji} Now Playing {random_emoji}"
+        list_format = "{0} - [{1}]({2}) [`↲jump`]({3})"
+        embed_content = list_format.format(
+            submit_message.author.mention,
+            discord.utils.escape_markdown(attachment.filename),
+            attachment.url,
+            submit_message.jump_url,
+        )
+        embed = discord.Embed(
+            title=embed_title, description=embed_content, color=0x33B86B
+        )
+        if submit_message.content:
+            embed.add_field(
+                name="More Info", value=submit_message.content, inline=False
+            )
+        await current_channel.send(embed=embed)
+
+        # Play song
         active_voice_client.play(
             discord.FFmpegPCMAudio(local_filepath), after=play_next_song
         )
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
-        new_nick = f"{pick_random_emoji()}{author.display_name} - {filename}"
+        new_nick = f"{random_emoji}{submit_message.author.display_name} - {attachment.filename}"
 
         # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
         # including an ellipsis on the end.
@@ -236,19 +260,17 @@ async def command_list(message: Message):
     embed_content = "**Track Listing**\n"
 
     for index, (
-        author,
-        filename,
-        media_content_bytes,
-        jump_url,
-        attachment_url,
+        submit_message,
+        attachment,
+        local_filepath,
     ) in enumerate(channel_media_attachments):
         list_format = "**{0}.** {1} - [{2}]({3}) [`↲jump`]({4})\n"
         embed_content += list_format.format(
             index + 1,
-            author.mention,
-            discord.utils.escape_markdown(filename),
-            attachment_url,
-            jump_url,
+            submit_message.author.mention,
+            discord.utils.escape_markdown(attachment.filename),
+            attachment.url,
+            submit_message.jump_url,
         )
 
     # Send the message and pin it
@@ -274,9 +296,9 @@ async def command_list(message: Message):
 
 async def scrape_channel_media(
     channel: TextChannel,
-) -> List[Tuple[Member, str, str, str]]:
+) -> List[Tuple[Message, Attachment, str]]:
     # A list of (uploader, filename, local filepath, message jump url)
-    channel_media_attachments: List[Tuple[Member, str, str, str]] = []
+    channel_media_attachments: List[Tuple[Message, Attachment, str]] = []
 
     # Ensure attachment directory exists
     if not os.path.exists(attachment_directory_filepath):
@@ -304,11 +326,9 @@ async def scrape_channel_media(
 
             channel_media_attachments.append(
                 (
-                    message.author,
-                    attachment.filename,
+                    message,
+                    attachment,
                     attachment_filepath,
-                    message.jump_url,
-                    attachment.url,
                 )
             )
 
