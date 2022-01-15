@@ -322,9 +322,10 @@ async def scrape_channel_media(
             continue
 
         for attachment in message.attachments:
-            if not attachment.content_type.startswith(
-                "audio"
-            ) and not attachment.content_type.startswith("video"):
+            if attachment.content_type is None or (
+                not attachment.content_type.startswith("audio")
+                and not attachment.content_type.startswith("video")
+            ):
                 # Ignore non-audio/video attachments
                 continue
 
