@@ -108,10 +108,10 @@ def format_filename(filename: str):
     content = ""
     # If the tag does not exist or is whitespace display the file name only
     # Otherwise display in the format @user: <Artist-tag> - <Title-tag>
-    if audio.artist is not None and not audio.artist.isspace():
+    if audio.artist is not None and len(audio.artist.strip()) != 0:
         content = content + f"{str(audio.artist)} - "
 
-    if audio.title is not None and not audio.title.isspace():
+    if audio.title is not None and len(audio.title.strip()) != 0:
         content = content + f"{str(audio.title)}"
     # If the title tag does not exist but the artist tag exists, display the file name along with artist tag
     else:
