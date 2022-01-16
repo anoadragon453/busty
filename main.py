@@ -106,18 +106,14 @@ def format_filename(filename: str):
         str(os.path.join(f"{attachment_directory_filepath}", f"{filename}"))
     )
     content = ""
-    # If the tag doesnot exist or is whitespace display the file name only
+    # If the tag does not exist or is whitespace display the file name only
     # Otherwise display in the format @user: <Artist-tag> - <Title-tag>
-    if audio.artist is not None and len(audio.artist.strip()) != 0:
+    if audio.artist is not None and not audio.artist.isspace():
         content = content + f"{str(audio.artist)} - "
 
-    if audio.title is not None:
-        if len(audio.title.strip()) == 0:
-            filename = path.splitext(filename)[0]
-            content = content + filename.replace("_", " ")
-        else:
-            content = content + f"{str(audio.title)}"
-    # If the title tag doesnot exist but the artist tag exists, display the file name along with artist tag
+    if audio.title is not None and not audio.title.isspace():
+        content = content + f"{str(audio.title)}"
+    # If the title tag does not exist but the artist tag exists, display the file name along with artist tag
     else:
         filename = path.splitext(filename)[0]
         content = content + filename.replace("_", " ")
