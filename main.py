@@ -3,7 +3,6 @@ import os
 import random
 from os import path
 from typing import List, Optional, Tuple
-from tinytag import TinyTag
 
 import discord
 from discord import (
@@ -17,6 +16,7 @@ from discord import (
     TextChannel,
     VoiceClient,
 )
+from tinytag import TinyTag
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -100,7 +100,7 @@ async def on_message(message: Message):
 
 # Take a filename as string and return it formatted nicely
 def format_filename(filename: str):
-    
+
     # Get all the tags for a track
     audio = TinyTag.get(f"{attachment_directory_filepath}/{filename}")
 
@@ -116,11 +116,10 @@ def format_filename(filename: str):
         content = f" {str(audio.title)}"
     if len(audio.artist.strip()) != 0:
         content = content + f" | {str(audio.artist)}"
-    if len(audio.album.strip()) !=0:
+    if len(audio.album.strip()) != 0:
         content = content + f" | {str(audio.album)}"
 
     return discord.utils.escape_markdown(content)
-
 
 
 async def command_stop():
