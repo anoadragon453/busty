@@ -1,2 +1,3 @@
 pynacl>=1.4.0
 discord.py>=1.7.3
+tinytag==1.7.0
