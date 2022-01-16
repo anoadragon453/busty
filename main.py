@@ -2,8 +2,8 @@ import asyncio
 import os
 import random
 from os import path
-from typing import List, Optional, Tuple
 from tinytag import TinyTag
+from typing import List, Optional, Tuple
 
 import discord
 from discord import (
