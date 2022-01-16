@@ -3,6 +3,7 @@ import os
 import random
 from os import path
 from typing import List, Optional, Tuple
+from tinytag import TinyTag
 
 import discord
 from discord import (
@@ -99,13 +100,27 @@ async def on_message(message: Message):
 
 # Take a filename as string and return it formatted nicely
 def format_filename(filename: str):
-    # Remove file extension
-    filename = path.splitext(filename)[0]
+    
+    # Get all the tags for a track
+    audio = TinyTag.get(f"{attachment_directory_filepath}/{filename}")
 
-    # Replace all underscores with spaces
-    filename = filename.replace("_", " ")
+    # If the tag doesnot exist display the file name only
+    if len(audio.title.strip()) == 0:
+        filename = path.splitext(filename)[0]
 
-    return discord.utils.escape_markdown(filename)
+        filename = filename.replace("_", " ")
+        content = filename.replace("_", " ")
+
+    # Otherwise, display the audio title, artist, album in format "title | artist | album"
+    else:
+        content = f" {str(audio.title)}"
+    if len(audio.artist.strip()) != 0:
+        content = content + f" | {str(audio.artist)}"
+    if len(audio.album.strip()) !=0:
+        content = content + f" | {str(audio.album)}"
+
+    return discord.utils.escape_markdown(content)
+
 
 
 async def command_stop():
