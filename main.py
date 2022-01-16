@@ -102,22 +102,25 @@ async def on_message(message: Message):
 def format_filename(filename: str):
 
     # Get all the tags for a track
-    audio = TinyTag.get(f"{attachment_directory_filepath}/{filename}")
+    audio = TinyTag.get(
+        str(os.path.join(f"{attachment_directory_filepath}", f"{filename}"))
+    )
+    content = ""
+    # If the tag doesnot exist or is whitespace display the file name only
+    # Otherwise display in the format @user: <Artist-tag> - <Title-tag>
+    if audio.artist is not None and len(audio.artist.strip()) != 0:
+        content = content + f"{str(audio.artist)} - "
 
-    # If the tag doesnot exist display the file name only
-    if len(audio.title.strip()) == 0:
-        filename = path.splitext(filename)[0]
-
-        filename = filename.replace("_", " ")
-        content = filename.replace("_", " ")
-
-    # Otherwise, display the audio title, artist, album in format "title | artist | album"
+    if audio.title is not None:
+        if len(audio.title.strip()) == 0:
+            filename = path.splitext(filename)[0]
+            content = content + filename.replace("_", " ")
+        else:
+            content = content + f"{str(audio.title)}"
+    # If the title tag doesnot exist but the artist tag exists, display the file name along with artist tag
     else:
-        content = f" {str(audio.title)}"
-    if len(audio.artist.strip()) != 0:
-        content = content + f" | {str(audio.artist)}"
-    if len(audio.album.strip()) != 0:
-        content = content + f" | {str(audio.album)}"
+        filename = path.splitext(filename)[0]
+        content = content + filename.replace("_", " ")
 
     return discord.utils.escape_markdown(content)
 
@@ -244,7 +247,7 @@ def play_next_song(e=None):
 
         # Build and send "Now Playing" embed
         embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        list_format = "{0} - [{1}]({2}) [`↲jump`]({3})"
+        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             submit_message.author.mention,
             format_filename(attachment.filename),
@@ -292,7 +295,7 @@ async def command_list(message: Message):
         attachment,
         local_filepath,
     ) in enumerate(channel_media_attachments):
-        list_format = "**{0}.** {1} - [{2}]({3}) [`↲jump`]({4})\n"
+        list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
         embed_content += list_format.format(
             index + 1,
             submit_message.author.mention,
@@ -347,7 +350,6 @@ async def scrape_channel_media(
                 continue
 
             # Save attachment content
-            # TODO: Parse mp3 tags and things
             attachment_filepath = path.join(
                 attachment_directory_filepath, attachment.filename
             )
