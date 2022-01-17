@@ -52,6 +52,8 @@ intents.members = True
 # the bottom of this file.
 client = discord.Client(intents=intents)
 
+# Store the audio file name being currently played
+currently_playing = None
 
 @client.event
 async def on_ready():
@@ -194,6 +196,7 @@ def play_next_song(e=None):
     async def inner_f():
         global current_channel_content
         global current_channel
+        global currently_playing
 
         # Get a reference to the bot's Member object
         bot_member = current_channel.guild.get_member(client.user.id)
@@ -217,6 +220,7 @@ def play_next_song(e=None):
             # Clear the current channel and content
             current_channel = None
             current_channel_content = None
+            currently_playing = None
 
             return
 
@@ -240,6 +244,9 @@ def play_next_song(e=None):
 
         # Associate a random emoji with this song
         random_emoji = pick_random_emoji()
+
+        # Store the file name of the audio to be played
+        currently_playing = attachment.filename
 
         # Build and send "Now Playing" embed
         embed_title = f"{random_emoji} Now Playing {random_emoji}"
@@ -280,6 +287,9 @@ def play_next_song(e=None):
 
 
 async def command_list(message: Message):
+
+    global currently_playing
+
     # Scrape all tracks in the message's channel and list them
     channel_media_attachments = await scrape_channel_media(message.channel)
 
@@ -291,7 +301,13 @@ async def command_list(message: Message):
         attachment,
         local_filepath,
     ) in enumerate(channel_media_attachments):
-        list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
+
+        # Change the format for the audio currently played so the text style is bold
+        if currently_playing == attachment.filename:
+            list_format = "**{0}.** {1}: **[{2}]({3})** [`↲jump`]({4})\n"
+        else:
+            list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
+
         embed_content += list_format.format(
             index + 1,
             submit_message.author.mention,
