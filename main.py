@@ -105,17 +105,17 @@ async def on_message(message: Message):
 
 
 # Format a song as text nicely using artist/title tags if available
-# filepath is the actual path on disc
+# local_filepath is the actual path on disc
 # filename is the filename on Discord
 # artist_fallback is the fallback author value (no fallback if not passed)
-def song_format(filepath: str, filename: str, artist_fallback: str = ""):
+def song_format(local_filepath: str, filename: str, artist_fallback: str = ""):
     # tag from tag list is valid as an entry
     def valid_tag(tag):
         return tag is not None and tag.strip()
 
     content = ""
     # load tags
-    tags = TinyTag.get(os.path.join(filepath))
+    tags = TinyTag.get(local_filepath)
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
     if valid_tag(tags.artist):
@@ -123,7 +123,7 @@ def song_format(filepath: str, filename: str, artist_fallback: str = ""):
     elif valid_tag(artist_fallback):
         content += artist_fallback + " - "
 
-    # Always display either title or formatted filepath
+    # Always display either title or formatted filename
     if valid_tag(tags.title):
         content += tags.title
     else:
