@@ -317,7 +317,6 @@ async def command_list(message: Message):
     if len(channel_media_attachments) == 0:
         await message.channel.send("There aint any songs there.")
         return
-
     # Title of !list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_description_prefix = "**Track Listing**\n"
