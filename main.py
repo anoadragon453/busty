@@ -305,7 +305,6 @@ def play_next_song(e=None):
 async def command_list(message: Message):
     target_channel = message.channel
 
-<<<<<<< HEAD
     # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
@@ -314,6 +313,8 @@ async def command_list(message: Message):
         else:
             await message.channel.send("That ain't a text channel.")
             return
+    else:
+        target_channel = message.channel
 
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
@@ -329,14 +330,6 @@ async def command_list(message: Message):
 
     # List of embed descriptions to circumvent the Discord character embed limit
     embed_description_list = []
-=======
-    # title of !list embed
-    embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
-    embed_description_prefix = "**Track Listing**\n"
-
-    # stack of embed descriptions to circumvent the 4096 character embed limit
-    embed_description_stack = []
->>>>>>> 7200f3f (split !list to avoid 4096 embed char limit)
     embed_description_current = ""
 
     for index, (
@@ -345,18 +338,13 @@ async def command_list(message: Message):
         local_filepath,
     ) in enumerate(channel_media_attachments):
         list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
-<<<<<<< HEAD
         song_list_entry = list_format.format(
-=======
-        list_entry = list_format.format(
->>>>>>> 7200f3f (split !list to avoid 4096 embed char limit)
             index + 1,
             submit_message.author.mention,
             song_format(local_filepath, attachment.filename),
             attachment.url,
             submit_message.jump_url,
         )
-<<<<<<< HEAD
         # We only add the embed description prefix to the first message
         description_prefix_charcount = 0
         if len(embed_description_list) == 0:
@@ -410,50 +398,6 @@ async def command_list(message: Message):
             except (HTTPException, NotFound) as e:
                 print("Pinning tracklist failed: ", e)
                 break
-=======
-        if (
-            len(embed_description_prefix)
-            + len(embed_description_current)
-            + len(list_entry)
-            > embed_description_limit
-        ):
-            # if adding a new list entry would go over, push our current list entries to an embed
-            embed_description_stack.append(embed_description_current)
-            # start a new embed
-            embed_description_current = list_entry
-        else:
-            embed_description_current += list_entry
-
-    # add the leftover part to a new embed (it it exists)
-    if len(embed_description_current) > 0:
-        embed_description_stack.append(embed_description_current)
-
-    # iterate through each embed description, send and stack messages
-    message_stack = []
-    if len(embed_description_stack) == 0:
-        await message.channel.send("There aint any songs there.")
-        return
-
-    for embed_description in embed_description_stack:
-        embed = discord.Embed(
-            title=embed_title,
-            description=embed_description_prefix + embed_description,
-            color=list_embed_color,
-        )
-        list_message = await message.channel.send(embed=embed)
-        message_stack.append(list_message)
-
-    # pin sent messages in reverse order
-    for list_message in reversed(message_stack):
-        try:
-            await list_message.pin()
-        except Forbidden:
-            print(
-                'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
-            )
-        except (HTTPException, NotFound) as e:
-            print("Pinning tracklist failed: ", e)
->>>>>>> 7200f3f (split !list to avoid 4096 embed char limit)
 
     # Update global channel content
     global current_channel_content
