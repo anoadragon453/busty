@@ -313,7 +313,7 @@ async def command_list(message: Message):
         local_filepath,
     ) in enumerate(channel_media_attachments):
         list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
-        list_entry = list_format.format(
+        song_list_entry = list_format.format(
             index + 1,
             submit_message.author.mention,
             format_filename(attachment.filename),
@@ -329,15 +329,15 @@ async def command_list(message: Message):
         if (
             description_prefix_charcount
             + len(embed_description_current)
-            + len(list_entry)
+            + len(song_list_entry)
             > EMBED_DESCRIPTION_LIMIT
         ):
             # If adding a new list entry would go over, push our current list entries to an embed
             embed_description_stack.append(embed_description_current)
             # Start a new embed
-            embed_description_current = list_entry
+            embed_description_current = song_list_entry
         else:
-            embed_description_current += list_entry
+            embed_description_current += song_list_entry
 
     # Add the leftover part to a new embed (it it exists)
     if len(embed_description_current) > 0:
