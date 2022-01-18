@@ -284,6 +284,13 @@ async def command_list(message: Message):
     # if any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         target_channel = message.channel_mentions[0]
+    if message.channel_mentions:
+        mentioned_channel = message.channel_mentions[0]
+        if isinstance(mentioned_channel, TextChannel):
+            target_channel = mentioned_channel
+        else:
+            await message.channel.send("That ain't a text channel.")
+            return
 
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
@@ -309,7 +316,7 @@ async def command_list(message: Message):
     embed = discord.Embed(title=embed_title, description=embed_content, color=0xDD2E44)
     list_message = await message.channel.send(embed=embed)
 
-    # Only pin message if command is called from the target channel
+    # Only pin the message if the command is called from the target channel
     if target_channel == message.channel:
         try:
             await list_message.pin()
