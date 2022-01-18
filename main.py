@@ -303,8 +303,8 @@ async def command_list(message: Message):
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_description_prefix = "**Track Listing**\n"
 
-    # Stack of embed descriptions to circumvent the 4096 character embed limit
-    embed_description_stack = []
+    # List of embed descriptions to circumvent the 4096 character embed limit
+    embed_description_list = []
     embed_description_current = ""
 
     for index, (
@@ -323,7 +323,7 @@ async def command_list(message: Message):
 
         # We only add the embed description prefix to the first message
         description_prefix_charcount = 0
-        if len(embed_description_stack) == 0:
+        if len(embed_description_list) == 0:
             description_prefix_charcount = len(embed_description_prefix)
 
         if (
@@ -332,8 +332,8 @@ async def command_list(message: Message):
             + len(song_list_entry)
             > EMBED_DESCRIPTION_LIMIT
         ):
-            # If adding a new list entry would go over, push our current list entries to an embed
-            embed_description_stack.append(embed_description_current)
+            # If adding a new list entry would go over, push our current list entries to a new embed
+            embed_description_list.append(embed_description_current)
             # Start a new embed
             embed_description_current = song_list_entry
         else:
@@ -341,16 +341,16 @@ async def command_list(message: Message):
 
     # Add the leftover part to a new embed (it it exists)
     if len(embed_description_current) > 0:
-        embed_description_stack.append(embed_description_current)
+        embed_description_list.append(embed_description_current)
 
-    # Iterate through each embed description, send and stack messages
-    message_stack = []
-    if len(embed_description_stack) == 0:
+    # Iterate through each embed description, send and list messages
+    message_list = []
+    if len(embed_description_list) == 0:
         await message.channel.send("There aint any songs there.")
         return
 
     # Send messages, only first message gets title and prefix
-    for index, embed_description in enumerate(embed_description_stack):
+    for index, embed_description in enumerate(embed_description_list):
         if index == 0:
             embed = discord.Embed(
                 title=embed_title,
@@ -363,11 +363,11 @@ async def command_list(message: Message):
                 color=LIST_EMBED_COLOR,
             )
         list_message = await message.channel.send(embed=embed)
-        message_stack.append(list_message)
+        message_list.append(list_message)
 
     # If message channel == target channel, pin messages in reverse order
     if target_channel == message.channel:
-        for list_message in reversed(message_stack):
+        for list_message in reversed(message_list):
             try:
                 await list_message.pin()
             except Forbidden:
