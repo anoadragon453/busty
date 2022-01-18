@@ -18,6 +18,12 @@ from discord import (
 )
 from tinytag import TinyTag
 
+# CONSTANTS
+# Max number of characters in an embed description (currently 4096 in Discord)
+EMBED_DESCRIPTION_LIMIT = 4096
+# Color of !list embed
+LIST_EMBED_COLOR = 0xDD2E44
+
 # SETTINGS
 # How many seconds to wait in-between songs
 seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
@@ -25,10 +31,6 @@ seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
-# Max number of characters in an embed description (currently 4096 in Discord)
-embed_description_limit = 4096
-# Color of !list embed
-list_embed_color = 0xDD2E44
 
 # GLOBAL VARIABLES
 # The channel to send messages in
@@ -322,7 +324,7 @@ async def command_list(message: Message):
             len(embed_description_prefix)
             + len(embed_description_current)
             + len(list_entry)
-            > embed_description_limit
+            > EMBED_DESCRIPTION_LIMIT
         ):
             # if adding a new list entry would go over, push our current list entries to an embed
             embed_description_stack.append(embed_description_current)
@@ -345,7 +347,7 @@ async def command_list(message: Message):
         embed = discord.Embed(
             title=embed_title,
             description=embed_description_prefix + embed_description,
-            color=list_embed_color,
+            color=LIST_EMBED_COLOR,
         )
         list_message = await message.channel.send(embed=embed)
         message_stack.append(list_message)
