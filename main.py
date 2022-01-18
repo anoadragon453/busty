@@ -280,8 +280,20 @@ def play_next_song(e=None):
 
 
 async def command_list(message: Message):
-    # Scrape all tracks in the message's channel and list them
-    channel_media_attachments = await scrape_channel_media(message.channel)
+    target_channel = message.channel
+    # if any channels were mentioned in the message, use the first from the list
+    if message.channel_mentions:
+        target_channel = message.channel_mentions[0]
+    if message.channel_mentions:
+        mentioned_channel = message.channel_mentions[0]
+        if isinstance(mentioned_channel, TextChannel):
+            target_channel = mentioned_channel
+        else:
+            await message.channel.send("That ain't a text channel.")
+            return
+
+    # Scrape all tracks in the target channel and list them
+    channel_media_attachments = await scrape_channel_media(target_channel)
 
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_content = "**Track Listing**\n"
@@ -300,25 +312,27 @@ async def command_list(message: Message):
             submit_message.jump_url,
         )
 
-    # Send the message and pin it
+    # Send the list message
     embed = discord.Embed(title=embed_title, description=embed_content, color=0xDD2E44)
     list_message = await message.channel.send(embed=embed)
 
-    try:
-        await list_message.pin()
-    except Forbidden:
-        print(
-            'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
-        )
-    except (HTTPException, NotFound) as e:
-        print("Pinning tracklist failed: ", e)
+    # Only pin the message if the command is called from the target channel
+    if target_channel == message.channel:
+        try:
+            await list_message.pin()
+        except Forbidden:
+            print(
+                'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
+            )
+        except (HTTPException, NotFound) as e:
+            print("Pinning tracklist failed: ", e)
 
     # Update global channel content
     global current_channel_content
     current_channel_content = channel_media_attachments
 
     global current_channel
-    current_channel = message.channel
+    current_channel = target_channel
 
 
 async def scrape_channel_media(
