@@ -301,7 +301,7 @@ async def command_list(message: Message):
     channel_media_attachments = await scrape_channel_media(target_channel)
 
     # Break on no songs to list
-    if len(embed_description_list) == 0:
+    if len(channel_media_attachments) == 0:
         await message.channel.send("There aint any songs there.")
         return
 
