@@ -34,6 +34,10 @@ seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
+# Max number of characters in an embed description (currently 4096 in Discord)
+embed_description_limit = 4096
+# Color of !list embed
+list_embed_color = 0xDD2E44
 
 # GLOBAL VARIABLES
 # The channel to send messages in
@@ -329,7 +333,6 @@ async def command_list(message: Message):
             attachment.url,
             submit_message.jump_url,
         )
-
         # We only add the embed description prefix to the first message
         description_prefix_charcount = 0
         if len(embed_description_list) == 0:
