@@ -320,8 +320,14 @@ async def command_list(message: Message):
             attachment.url,
             submit_message.jump_url,
         )
+
+        # We only add the embed description prefix to the first message
+        description_prefix_charcount = 0
+        if len(embed_description_stack) == 0:
+            description_prefix_charcount = len(embed_description_prefix)
+
         if (
-            len(embed_description_prefix)
+            description_prefix_charcount
             + len(embed_description_current)
             + len(list_entry)
             > EMBED_DESCRIPTION_LIMIT
@@ -343,12 +349,19 @@ async def command_list(message: Message):
         await message.channel.send("There aint any songs there.")
         return
 
-    for embed_description in embed_description_stack:
-        embed = discord.Embed(
-            title=embed_title,
-            description=embed_description_prefix + embed_description,
-            color=LIST_EMBED_COLOR,
-        )
+    # Send messages, only first message gets title and prefix
+    for index, embed_description in enumerate(embed_description_stack):
+        if index == 0:
+            embed = discord.Embed(
+                title=embed_title,
+                description=embed_description_prefix + embed_description,
+                color=LIST_EMBED_COLOR,
+            )
+        else:
+            embed = discord.Embed(
+                description=embed_description,
+                color=LIST_EMBED_COLOR,
+            )
         list_message = await message.channel.send(embed=embed)
         message_stack.append(list_message)
 
