@@ -303,8 +303,6 @@ async def command_list(message: Message):
         else:
             await message.channel.send("That ain't a text channel.")
             return
-    else:
-        target_channel = message.channel
 
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
