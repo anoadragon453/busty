@@ -298,7 +298,6 @@ async def command_list(message: Message):
 
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
-
     # title of !list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_description_prefix = "**Track Listing**\n"
@@ -333,7 +332,6 @@ async def command_list(message: Message):
         else:
             embed_description_current += list_entry
 
-
     # add the leftover part to a new embed (it it exists)
     if len(embed_description_current) > 0:
         embed_description_stack.append(embed_description_current)
@@ -364,6 +362,16 @@ async def command_list(message: Message):
                 )
             except (HTTPException, NotFound) as e:
                 print("Pinning tracklist failed: ", e)
+    # pin sent messages in reverse order
+    for list_message in reversed(message_stack):
+        try:
+            await list_message.pin()
+        except Forbidden:
+            print(
+                'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
+            )
+        except (HTTPException, NotFound) as e:
+            print("Pinning tracklist failed: ", e)
 
     # Update global channel content
     global current_channel_content
