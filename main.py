@@ -284,10 +284,9 @@ def play_next_song(e=None):
 
 
 async def command_list(message: Message):
-    target_channel = message.channel
+    target_channel = None
+
     # if any channels were mentioned in the message, use the first from the list
-    if message.channel_mentions:
-        target_channel = message.channel_mentions[0]
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
         if isinstance(mentioned_channel, TextChannel):
@@ -295,6 +294,8 @@ async def command_list(message: Message):
         else:
             await message.channel.send("That ain't a text channel.")
             return
+    else:
+        target_channel = message.channel
 
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
@@ -362,16 +363,6 @@ async def command_list(message: Message):
                 )
             except (HTTPException, NotFound) as e:
                 print("Pinning tracklist failed: ", e)
-    # pin sent messages in reverse order
-    for list_message in reversed(message_stack):
-        try:
-            await list_message.pin()
-        except Forbidden:
-            print(
-                'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
-            )
-        except (HTTPException, NotFound) as e:
-            print("Pinning tracklist failed: ", e)
 
     # Update global channel content
     global current_channel_content
