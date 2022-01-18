@@ -25,6 +25,10 @@ seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
+# Max number of characters in an embed description (currently 4096 in Discord)
+embed_description_limit = 4096
+# Color of !list embed
+list_embed_color = 0xDD2E44
 
 # GLOBAL VARIABLES
 # The channel to send messages in
@@ -295,8 +299,13 @@ async def command_list(message: Message):
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
 
+    # title of !list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
-    embed_content = "**Track Listing**\n"
+    embed_description_prefix = "**Track Listing**\n"
+
+    # stack of embed descriptions to circumvent the 4096 character embed limit
+    embed_description_stack = []
+    embed_description_current = ""
 
     for index, (
         submit_message,
@@ -304,28 +313,57 @@ async def command_list(message: Message):
         local_filepath,
     ) in enumerate(channel_media_attachments):
         list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
-        embed_content += list_format.format(
+        list_entry = list_format.format(
             index + 1,
             submit_message.author.mention,
             format_filename(attachment.filename),
             attachment.url,
             submit_message.jump_url,
         )
+        if (
+            len(embed_description_prefix)
+            + len(embed_description_current)
+            + len(list_entry)
+            > embed_description_limit
+        ):
+            # if adding a new list entry would go over, push our current list entries to an embed
+            embed_description_stack.append(embed_description_current)
+            # start a new embed
+            embed_description_current = list_entry
+        else:
+            embed_description_current += list_entry
 
-    # Send the list message
-    embed = discord.Embed(title=embed_title, description=embed_content, color=0xDD2E44)
-    list_message = await message.channel.send(embed=embed)
 
-    # Only pin the message if the command is called from the target channel
+    # add the leftover part to a new embed (it it exists)
+    if len(embed_description_current) > 0:
+        embed_description_stack.append(embed_description_current)
+
+    # iterate through each embed description, send and stack messages
+    message_stack = []
+    if len(embed_description_stack) == 0:
+        await message.channel.send("There aint any songs there.")
+        return
+
+    for embed_description in embed_description_stack:
+        embed = discord.Embed(
+            title=embed_title,
+            description=embed_description_prefix + embed_description,
+            color=list_embed_color,
+        )
+        list_message = await message.channel.send(embed=embed)
+        message_stack.append(list_message)
+
+    # If message channel == target channel, pin messages in reverse order
     if target_channel == message.channel:
-        try:
-            await list_message.pin()
-        except Forbidden:
-            print(
-                'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
-            )
-        except (HTTPException, NotFound) as e:
-            print("Pinning tracklist failed: ", e)
+        for list_message in reversed(message_stack):
+            try:
+                await list_message.pin()
+            except Forbidden:
+                print(
+                    'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
+                )
+            except (HTTPException, NotFound) as e:
+                print("Pinning tracklist failed: ", e)
 
     # Update global channel content
     global current_channel_content
