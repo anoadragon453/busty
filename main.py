@@ -288,7 +288,7 @@ def play_next_song(e=None):
 async def command_list(message: Message):
     target_channel = message.channel
 
-    # if any channels were mentioned in the message, use the first from the list
+    # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
         if isinstance(mentioned_channel, TextChannel):
@@ -299,11 +299,11 @@ async def command_list(message: Message):
 
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
-    # title of !list embed
+    # Title of !list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_description_prefix = "**Track Listing**\n"
 
-    # stack of embed descriptions to circumvent the 4096 character embed limit
+    # Stack of embed descriptions to circumvent the 4096 character embed limit
     embed_description_stack = []
     embed_description_current = ""
 
@@ -332,18 +332,18 @@ async def command_list(message: Message):
             + len(list_entry)
             > EMBED_DESCRIPTION_LIMIT
         ):
-            # if adding a new list entry would go over, push our current list entries to an embed
+            # If adding a new list entry would go over, push our current list entries to an embed
             embed_description_stack.append(embed_description_current)
-            # start a new embed
+            # Start a new embed
             embed_description_current = list_entry
         else:
             embed_description_current += list_entry
 
-    # add the leftover part to a new embed (it it exists)
+    # Add the leftover part to a new embed (it it exists)
     if len(embed_description_current) > 0:
         embed_description_stack.append(embed_description_current)
 
-    # iterate through each embed description, send and stack messages
+    # Iterate through each embed description, send and stack messages
     message_stack = []
     if len(embed_description_stack) == 0:
         await message.channel.send("There aint any songs there.")
