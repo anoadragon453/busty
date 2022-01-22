@@ -111,7 +111,7 @@ async def on_message(message: Message):
 # local_filepath is the actual path on disc
 # filename is the filename on Discord
 # artist_fallback is the fallback artist value (no fallback if not passed)
-def song_format(local_filepath: str, filename: str, artist_fallback: str = ""):
+def song_format(local_filepath: str, filename: str, artist_fallback: str = "") -> str:
     # tag from tag list is valid as an entry
     def valid_tag(tag):
         return tag is not None and tag.strip()
