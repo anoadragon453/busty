@@ -110,7 +110,7 @@ async def on_message(message: Message):
 # Format a song as text nicely using artist/title tags if available
 # local_filepath is the actual path on disc
 # filename is the filename on Discord
-# artist_fallback is the fallback author value (no fallback if not passed)
+# artist_fallback is the fallback artist value (no fallback if not passed)
 def song_format(local_filepath: str, filename: str, artist_fallback: str = ""):
     # tag from tag list is valid as an entry
     def valid_tag(tag):
