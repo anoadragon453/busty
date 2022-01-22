@@ -113,7 +113,7 @@ async def on_message(message: Message):
 # artist_fallback is the fallback artist value (no fallback if not passed)
 def song_format(local_filepath: str, filename: str, artist_fallback: str = "") -> str:
     # tag from tag list is valid as an entry
-    def valid_tag(tag):
+    def valid_tag(tag: Optional[str]) -> bool:
         return tag is not None and tag.strip()
 
     content = ""
