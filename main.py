@@ -19,10 +19,13 @@ from discord import (
 from tinytag import TinyTag
 
 # CONSTANTS
-# Max number of characters in an embed description (currently 4096 in Discord)
+# Max number of characters in an embed description
+# See https://discord.com/developers/docs/resources/channel#embed-limits
 EMBED_DESCRIPTION_LIMIT = 4096
 # Color of !list embed
 LIST_EMBED_COLOR = 0xDD2E44
+# Color of "Now Playing" embed
+PLAY_EMBED_COLOR = 0x33B86B
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -216,7 +219,7 @@ def play_next_song(e=None):
             embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
             embed_content = "Hope ya had a good **BUST!**"
             embed = discord.Embed(
-                title=embed_title, description=embed_content, color=0xDD2E44
+                title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
             )
             await current_channel.send(embed=embed)
 
@@ -257,7 +260,7 @@ def play_next_song(e=None):
             submit_message.jump_url,
         )
         embed = discord.Embed(
-            title=embed_title, description=embed_content, color=0x33B86B
+            title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
         )
         if submit_message.content:
             embed.add_field(
@@ -309,7 +312,7 @@ async def command_list(message: Message):
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_description_prefix = "**Track Listing**\n"
 
-    # List of embed descriptions to circumvent the 4096 character embed limit
+    # List of embed descriptions to circumvent the Discord character embed limit
     embed_description_list = []
     embed_description_current = ""
 
@@ -348,7 +351,7 @@ async def command_list(message: Message):
     # Add the leftover part to a new embed
     embed_description_list.append(embed_description_current)
 
-    # Iterate through each embed description, send and list messages
+    # Iterate through each embed description, send and pin messages
     message_list = []
 
     # Send messages, only first message gets title and prefix
