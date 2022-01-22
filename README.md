@@ -63,7 +63,19 @@ python main.py
 
 It should connect to Discord and display the currently logged-in application name.
 
-## Command reference
+## Usage
+
+The expected flow for running a bust is:
+
+* Users submit songs into a channel.
+* All users join a voice channel or stage.
+* An admin runs `!list` to list all submitted songs and the order they will be played in.
+* An admin runs `!bust` to start the show. The bot will join the channel and begin playing songs in the order they were submitted.
+* Users comment on songs while they play.
+* An admin can run `!skip` at any time to skip the current song, or `!stop` to manually stop the show.
+* Once the last song has played, the bot will post a concluding message and leave the call.
+
+### Command Reference
 
 1. `!list` - download and list all media files in the text channel this is used in. This needs to be run before `!bust` can be.
 2. `!bust` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work.
