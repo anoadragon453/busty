@@ -1,6 +1,28 @@
 # Busty
 
-Discord bot used for the Busty server.
+Busty is a bot for showcasing entries for music competitions hosted on Discord. Users 
+can submit audio to a channel as file attachments. The bot can then list and queue all 
+submitted audio, then play each media file sequentially in a Stage or Voice Call for all
+to hear. These shows are known as "busts".
+
+## Features
+
+* Display all submitted media in a formatted list on command.
+* Support for displaying embedded artist and title tags.
+* Automatic pinning of track listing.
+* Configurable cooldown period between each song.
+* Display currently playing song as well as any text that was sent in the message.
+* Display a random emoji per song. The list of emoji can be configured.
+* Skip the currently playing song.
+* Role-based permissions for using bot commands.
+
+Please see the [issue list](https://github.com/anoadragon453/busty/issues) for planned 
+features, or to suggest your own.
+
+## Screenshots
+
+![an example of listing tracks](screenshots/track_listing.png)
+![an example of a bust in action](screenshots/bust.png)
 
 ## Install
 
