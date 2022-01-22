@@ -139,13 +139,13 @@ def song_format(
     tags = TinyTag.get(local_filepath)
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
-    if valid_tag(tags.artist):
+    if is_valid_tag(tags.artist):
         content += tags.artist + " - "
-    elif valid_tag(artist_fallback):
+    elif is_valid_tag(artist_fallback):
         content += artist_fallback + " - "
 
     # Always display either title or formatted filename
-    if valid_tag(tags.title):
+    if is_valid_tag(tags.title):
         content += tags.title
     else:
         filename = path.splitext(filename)[0]
