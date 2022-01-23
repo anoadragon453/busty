@@ -43,10 +43,11 @@ It should connect to Discord and display the currently logged-in application nam
 
 ## Command reference
 
-1. `!list` - download and list all media files in the text channel this is used in. This needs to be run before `!bust` can be.
+1. `!list` - Download and list all media files in the text channel this is used in. This needs to be run before `!bust` can be.
 2. `!bust` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work.
-3. `!skip` - skips the current track :scream: 
-4. `!stop` - stop busting early :scream: :scream: :scream: 
+   1. `!bust <song #>` - Same as `!bust`, but start playback from a given position in the song list.
+3. `!skip` - Skips the current track :scream: 
+4. `!stop` - Stop busting early :scream: :scream: :scream: 
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
