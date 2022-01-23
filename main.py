@@ -79,9 +79,7 @@ async def on_message(message: Message):
             await message.channel.send("You need to use !list first, sugar.")
             return
 
-        # split on spaces
-        # TODO: Possibly parse arguments before casing on command
-        command_args = message.content.split(" ")
+        command_args = message.content.split()[1:]
         skip_count = 0
         if len(command_args) > 1:
             bust_index = 0
@@ -160,7 +158,7 @@ async def command_stop():
         await bot_member.edit(nick=original_bot_nickname)
 
 
-async def command_play(message: Message, skip_count=0):
+async def command_play(message: Message, skip_count: int = 0):
     # Join active voice call
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
@@ -213,7 +211,7 @@ def command_skip():
     active_voice_client.stop()
 
 
-def play_next_song(e=None, skip_count=0):
+def play_next_song(e: BaseException = None, skip_count: int = 0):
     async def inner_f():
         global current_channel_content
         global current_channel
