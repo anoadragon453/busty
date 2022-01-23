@@ -82,7 +82,7 @@ async def on_message(message: Message):
         await command_play(message)
 
     elif message.content.startswith("!skip"):
-        if not active_voice_client.is_playing():
+        if not active_voice_client or not active_voice_client.is_playing():
             await message.channel.send("Nothin' is playin'.")
             return
 
@@ -90,7 +90,7 @@ async def on_message(message: Message):
         command_skip()
 
     elif message.content.startswith("!stop"):
-        if not active_voice_client.is_playing():
+        if not active_voice_client or not active_voice_client.is_playing():
             await message.channel.send("Nothin' is playin'.")
             return
 
