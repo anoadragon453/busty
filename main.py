@@ -72,6 +72,10 @@ async def on_message(message: Message):
         return
 
     if message.content.startswith("!list"):
+        if active_voice_client and active_voice_client.is_connected():
+            await message.channel.send("We're busy bustin', sugar.")
+            return
+
         await command_list(message)
 
     elif message.content.startswith("!bust"):
