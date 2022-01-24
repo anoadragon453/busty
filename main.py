@@ -18,6 +18,15 @@ from discord import (
 )
 from tinytag import TinyTag
 
+# CONSTANTS
+# Max number of characters in an embed description
+# See https://discord.com/developers/docs/resources/channel#embed-limits
+EMBED_DESCRIPTION_LIMIT = 4096
+# Color of !list embed
+LIST_EMBED_COLOR = 0xDD2E44
+# Color of "Now Playing" embed
+PLAY_EMBED_COLOR = 0x33B86B
+
 # SETTINGS
 # How many seconds to wait in-between songs
 seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
@@ -103,7 +112,7 @@ async def on_message(message: Message):
         await command_play(message, skip_count)
 
     elif message.content.startswith("!skip"):
-        if not active_voice_client.is_playing():
+        if not active_voice_client or not active_voice_client.is_playing():
             await message.channel.send("Nothin' is playin'.")
             return
 
@@ -111,7 +120,7 @@ async def on_message(message: Message):
         command_skip()
 
     elif message.content.startswith("!stop"):
-        if not active_voice_client.is_playing():
+        if not active_voice_client or not active_voice_client.is_playing():
             await message.channel.send("Nothin' is playin'.")
             return
 
@@ -231,7 +240,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
             embed_content = "Hope ya had a good **BUST!**"
             embed = discord.Embed(
-                title=embed_title, description=embed_content, color=0xDD2E44
+                title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
             )
             await current_channel.send(embed=embed)
 
@@ -275,7 +284,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             submit_message.jump_url,
         )
         embed = discord.Embed(
-            title=embed_title, description=embed_content, color=0x33B86B
+            title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
         )
         if submit_message.content:
             embed.add_field(
@@ -305,9 +314,8 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
 
 async def command_list(message: Message):
     target_channel = message.channel
-    # if any channels were mentioned in the message, use the first from the list
-    if message.channel_mentions:
-        target_channel = message.channel_mentions[0]
+
+    # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
         if isinstance(mentioned_channel, TextChannel):
@@ -319,8 +327,18 @@ async def command_list(message: Message):
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
 
+    # Break on no songs to list
+    if len(channel_media_attachments) == 0:
+        await message.channel.send("There aint any songs there.")
+        return
+
+    # Title of !list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
-    embed_content = "**Track Listing**\n"
+    embed_description_prefix = "**Track Listing**\n"
+
+    # List of embed descriptions to circumvent the Discord character embed limit
+    embed_description_list = []
+    embed_description_current = ""
 
     for index, (
         submit_message,
@@ -328,7 +346,7 @@ async def command_list(message: Message):
         local_filepath,
     ) in enumerate(channel_media_attachments):
         list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
-        embed_content += list_format.format(
+        song_list_entry = list_format.format(
             index + 1,
             submit_message.author.mention,
             format_filename(attachment.filename),
@@ -336,20 +354,59 @@ async def command_list(message: Message):
             submit_message.jump_url,
         )
 
-    # Send the list message
-    embed = discord.Embed(title=embed_title, description=embed_content, color=0xDD2E44)
-    list_message = await message.channel.send(embed=embed)
+        # We only add the embed description prefix to the first message
+        description_prefix_charcount = 0
+        if len(embed_description_list) == 0:
+            description_prefix_charcount = len(embed_description_prefix)
 
-    # Only pin the message if the command is called from the target channel
-    if target_channel == message.channel:
-        try:
-            await list_message.pin()
-        except Forbidden:
-            print(
-                'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
+        if (
+            description_prefix_charcount
+            + len(embed_description_current)
+            + len(song_list_entry)
+            > EMBED_DESCRIPTION_LIMIT
+        ):
+            # If adding a new list entry would go over, push our current list entries to a new embed
+            embed_description_list.append(embed_description_current)
+            # Start a new embed
+            embed_description_current = song_list_entry
+        else:
+            embed_description_current += song_list_entry
+
+    # Add the leftover part to a new embed
+    embed_description_list.append(embed_description_current)
+
+    # Iterate through each embed description, send and pin messages
+    message_list = []
+
+    # Send messages, only first message gets title and prefix
+    for index, embed_description in enumerate(embed_description_list):
+        if index == 0:
+            embed = discord.Embed(
+                title=embed_title,
+                description=embed_description_prefix + embed_description,
+                color=LIST_EMBED_COLOR,
             )
-        except (HTTPException, NotFound) as e:
-            print("Pinning tracklist failed: ", e)
+        else:
+            embed = discord.Embed(
+                description=embed_description,
+                color=LIST_EMBED_COLOR,
+            )
+        list_message = await message.channel.send(embed=embed)
+        message_list.append(list_message)
+
+    # If message channel == target channel, pin messages in reverse order
+    if target_channel == message.channel:
+        for list_message in reversed(message_list):
+            try:
+                await list_message.pin()
+            except Forbidden:
+                print(
+                    'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again'
+                )
+                break
+            except (HTTPException, NotFound) as e:
+                print("Pinning tracklist failed: ", e)
+                break
 
     # Update global channel content
     global current_channel_content
