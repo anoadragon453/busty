@@ -30,12 +30,12 @@ The complete list of environment variable configuration options is
 2. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
 3. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 4. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
-5. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The path to a file containing a custom list of emoji to display.
+5. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
 
 A random emoji is displayed for each song played during a bust. The list of possible
 emoji is defined in [emoji_list.py](emoji_list.py). If you would like to customize
 this list, simply copy the file, edit it, and set `BUSTY_CUSTOM_EMOJI_FILEPATH` to
-the path of the new file.
+the import path (often simply the filename without an extension) of the new module.
 
 ## Run
 
