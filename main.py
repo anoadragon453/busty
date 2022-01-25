@@ -161,7 +161,7 @@ def get_cover_art(filename: str) -> Optional[discord.File]:
     # get image data as bytes, make sure it doesn't go over 8MB
     # This is a safe lower bound on the Discord upload limit of 8MiB
     image_data = tags.get_image()
-    if image_data is None or len(image_data) > 8000000:
+    if image_data is None or len(image_data) > 8_000_000:
         return None
     image = Image.open(BytesIO(image_data))
     cover_filename = f"cover.{image.format}".lower()
