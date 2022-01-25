@@ -37,7 +37,7 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 
 # GLOBAL VARIABLES
 # The channel to send messages in
-current_channel: Optional = None
+current_channel: Optional[TextChannel] = None
 # The media in the current channel
 current_channel_content: Optional[List] = None
 # The actively connected voice client
