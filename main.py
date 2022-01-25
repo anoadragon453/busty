@@ -1,6 +1,7 @@
 import asyncio
 import os
 import random
+from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple
 
@@ -16,6 +17,7 @@ from discord import (
     TextChannel,
     VoiceClient,
 )
+from PIL import Image
 from tinytag import TinyTag
 
 # CONSTANTS
@@ -154,6 +156,20 @@ def song_format(
     return content
 
 
+def get_cover_art(filename: str) -> Optional[discord.File]:
+    tags = TinyTag.get(filename, image=True)
+    # get image data as bytes, make sure it doesn't go over 8MB
+    # This is a safe lower bound on the Discord upload limit of 8MiB
+    image_data = tags.get_image()
+    if image_data is None or len(image_data) > 8000000:
+        return None
+    image = Image.open(BytesIO(image_data))
+    cover_filename = f"cover.{image.format}".lower()
+    cover_filepath = path.join(attachment_directory_filepath, cover_filename)
+    image.save(cover_filepath)
+    return discord.File(cover_filepath, filename=cover_filename)
+
+
 async def command_stop():
     """Stop playing music."""
     # Clear the queue
@@ -288,11 +304,18 @@ def play_next_song(e=None):
         embed = discord.Embed(
             title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
         )
+
         if submit_message.content:
             embed.add_field(
                 name="More Info", value=submit_message.content, inline=False
             )
-        await current_channel.send(embed=embed)
+
+        cover_art = get_cover_art(local_filepath)
+        if cover_art is not None:
+            embed.set_image(url=f"attachment://{cover_art.filename}")
+            await current_channel.send(file=cover_art, embed=embed)
+        else:
+            await current_channel.send(embed=embed)
 
         # Play song
         active_voice_client.play(
