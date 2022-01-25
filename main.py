@@ -18,6 +18,7 @@ from discord import (
     VoiceClient,
 )
 from PIL import Image
+from PIL import UnidentifiedImageError
 from tinytag import TinyTag
 
 # CONSTANTS
@@ -157,17 +158,34 @@ def song_format(
 
 
 def get_cover_art(filename: str) -> Optional[discord.File]:
+    # Get image data as bytes
     tags = TinyTag.get(filename, image=True)
-    # get image data as bytes, make sure it doesn't go over 8MB
-    # This is a safe lower bound on the Discord upload limit of 8MiB
     image_data = tags.get_image()
+
+    # Make sure it doesn't go over 8MB
+    # This is a safe lower bound on the Discord upload limit of 8MiB
     if image_data is None or len(image_data) > 8_000_000:
         return None
-    image = Image.open(BytesIO(image_data))
-    cover_filename = f"cover.{image.format}".lower()
-    cover_filepath = path.join(attachment_directory_filepath, cover_filename)
-    image.save(cover_filepath)
-    return discord.File(cover_filepath, filename=cover_filename)
+
+    # Get a file pointer to the bytes
+    image_bytes_fp = BytesIO(image_data)
+    
+    # Read the filetype of the bytes and discern the appropriate file extension
+    try:
+        image = Image.open(image_bytes_fp)
+    except UnidentifiedImageError as e:
+        print(f"Warning: Skipping unidentifiable cover art field in {filename}")
+        return None
+    image_file_extension = image.format
+
+    # Wind back the file pointer in order to read it a second time
+    image_bytes_fp.seek(0)
+
+    # Make up a filename
+    cover_filename = f"cover.{image_file_extension}".lower()
+
+    # Create a new discord file from the file pointer and name
+    return discord.File(image_bytes_fp, filename=cover_filename)
 
 
 async def command_stop():
