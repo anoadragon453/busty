@@ -84,3 +84,11 @@ The expected flow for running a bust is:
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
+
+## Development
+
+This should probably be started in a separate PR...
+
+- `pip install requirements-dev.txt`
+- `./scripts-dev/lint.sh`
+
