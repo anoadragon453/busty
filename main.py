@@ -1,6 +1,7 @@
 import asyncio
 import os
 import random
+from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple
 
@@ -16,6 +17,7 @@ from discord import (
     TextChannel,
     VoiceClient,
 )
+from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 # CONSTANTS
@@ -154,6 +156,37 @@ def song_format(
     return content
 
 
+def get_cover_art(filename: str) -> Optional[discord.File]:
+    # Get image data as bytes
+    tags = TinyTag.get(filename, image=True)
+    image_data = tags.get_image()
+
+    # Make sure it doesn't go over 8MB
+    # This is a safe lower bound on the Discord upload limit of 8MiB
+    if image_data is None or len(image_data) > 8_000_000:
+        return None
+
+    # Get a file pointer to the bytes
+    image_bytes_fp = BytesIO(image_data)
+
+    # Read the filetype of the bytes and discern the appropriate file extension
+    try:
+        image = Image.open(image_bytes_fp)
+    except UnidentifiedImageError:
+        print(f"Warning: Skipping unidentifiable cover art field in {filename}")
+        return None
+    image_file_extension = image.format
+
+    # Wind back the file pointer in order to read it a second time
+    image_bytes_fp.seek(0)
+
+    # Make up a filename
+    cover_filename = f"cover.{image_file_extension}".lower()
+
+    # Create a new discord file from the file pointer and name
+    return discord.File(image_bytes_fp, filename=cover_filename)
+
+
 async def command_stop():
     """Stop playing music."""
     # Clear the queue
@@ -288,11 +321,18 @@ def play_next_song(e=None):
         embed = discord.Embed(
             title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
         )
+
         if submit_message.content:
             embed.add_field(
                 name="More Info", value=submit_message.content, inline=False
             )
-        await current_channel.send(embed=embed)
+
+        cover_art = get_cover_art(local_filepath)
+        if cover_art is not None:
+            embed.set_image(url=f"attachment://{cover_art.filename}")
+            await current_channel.send(file=cover_art, embed=embed)
+        else:
+            await current_channel.send(embed=embed)
 
         # Play song
         active_voice_client.play(
