@@ -111,27 +111,47 @@ async def on_message(message: Message):
         await command_stop()
 
 
-# Take a filename as string and return it formatted nicely
-def format_filename(filename: str):
+def song_format(
+    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
+) -> str:
+    """
+    Format a song as text nicely using artist/title tags if available
 
-    # Get all the tags for a track
-    audio = TinyTag.get(
-        str(os.path.join(f"{attachment_directory_filepath}", f"{filename}"))
-    )
+    Aims for the format "Artist - Title", however if the Artist tag is not
+    available and no fallback artist is passed, just "Title" will be used.
+    The fallback song title if no title tag is present is a beautified version of
+    its filename.
+
+    Args:
+        local_filepath: the actual path on disc
+        filename: the filename on Discord
+        artist_fallback: the fallback author value (no fallback if not passed)
+
+    Returns:
+        A string presenting the given song information in a human-readable way.
+    """
+    # a valid tag is string with at least one non-whitespace character
+    def is_valid_tag(tag: Optional[str]) -> bool:
+        return tag is not None and tag.strip()
+
     content = ""
-    # If the tag does not exist or is whitespace display the file name only
-    # Otherwise display in the format @user: <Artist-tag> - <Title-tag>
-    if audio.artist is not None and len(audio.artist.strip()) != 0:
-        content = content + f"{str(audio.artist)} - "
+    # load tags
+    tags = TinyTag.get(local_filepath)
+    # Display in the format <Artist-tag> - <Title-tag>
+    # If no artist tag use fallback if valid. Otherwise, skip artist
+    if is_valid_tag(tags.artist):
+        content += tags.artist + " - "
+    elif is_valid_tag(artist_fallback):
+        content += artist_fallback + " - "
 
-    if audio.title is not None and len(audio.title.strip()) != 0:
-        content = content + f"{str(audio.title)}"
-    # If the title tag does not exist but the artist tag exists, display the file name along with artist tag
+    # Always display either title or beautified filename
+    if is_valid_tag(tags.title):
+        content += tags.title
     else:
         filename = path.splitext(filename)[0]
-        content = content + filename.replace("_", " ")
+        content += filename.replace("_", " ")
 
-    return discord.utils.escape_markdown(content)
+    return content
 
 
 async def command_stop():
@@ -259,7 +279,9 @@ def play_next_song(e=None):
         list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             submit_message.author.mention,
-            format_filename(attachment.filename),
+            discord.utils.escape_markdown(
+                song_format(local_filepath, attachment.filename)
+            ),
             attachment.url,
             submit_message.jump_url,
         )
@@ -279,7 +301,9 @@ def play_next_song(e=None):
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
-        new_nick = f"{random_emoji}{submit_message.author.display_name} - {attachment.filename}"
+        new_nick = random_emoji + song_format(
+            local_filepath, attachment.filename, submit_message.author.display_name
+        )
 
         # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
         # including an ellipsis on the end.
@@ -329,7 +353,7 @@ async def command_list(message: Message):
         song_list_entry = list_format.format(
             index + 1,
             submit_message.author.mention,
-            format_filename(attachment.filename),
+            song_format(local_filepath, attachment.filename),
             attachment.url,
             submit_message.jump_url,
         )
