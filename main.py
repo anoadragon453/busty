@@ -21,9 +21,11 @@ from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 # CONSTANTS
+# See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
 # Max number of characters in an embed description
-# See https://discord.com/developers/docs/resources/channel#embed-limits
 EMBED_DESCRIPTION_LIMIT = 4096
+# Max number of characters in an embed field.value
+EMBED_FIELD_VALUE_LIMIT = 1024
 # Color of !list embed
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
@@ -322,9 +324,12 @@ def play_next_song(e=None):
             title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
         )
 
+        # Add message content as "More Info", truncating to the embed field.value character limit
         if submit_message.content:
             embed.add_field(
-                name="More Info", value=submit_message.content, inline=False
+                name="More Info",
+                value=submit_message.content[:EMBED_FIELD_VALUE_LIMIT],
+                inline=False,
             )
 
         cover_art = get_cover_art(local_filepath)
