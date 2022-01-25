@@ -107,10 +107,6 @@ async def on_message(message: Message):
         await command_stop()
 
 
-# Format a song as text nicely using artist/title tags if available
-# local_filepath is the actual path on disc
-# filename is the filename on Discord
-# artist_fallback is the fallback artist value (no fallback if not passed)
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None
 ) -> str:
@@ -130,7 +126,7 @@ def song_format(
     Returns:
         A string presenting the given song information in a human-readable way.
     """
-    # a valid tag a string with at least one non-whitespace character
+    # a valid tag is string with at least one non-whitespace character
     def is_valid_tag(tag: Optional[str]) -> bool:
         return tag is not None and tag.strip()
 
