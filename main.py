@@ -17,8 +17,7 @@ from discord import (
     TextChannel,
     VoiceClient,
 )
-from PIL import Image
-from PIL import UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 # CONSTANTS
@@ -169,11 +168,11 @@ def get_cover_art(filename: str) -> Optional[discord.File]:
 
     # Get a file pointer to the bytes
     image_bytes_fp = BytesIO(image_data)
-    
+
     # Read the filetype of the bytes and discern the appropriate file extension
     try:
         image = Image.open(image_bytes_fp)
-    except UnidentifiedImageError as e:
+    except UnidentifiedImageError:
         print(f"Warning: Skipping unidentifiable cover art field in {filename}")
         return None
     image_file_extension = image.format
