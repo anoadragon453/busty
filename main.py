@@ -132,7 +132,7 @@ def song_format(
     """
     # a valid tag is string with at least one non-whitespace character
     def is_valid_tag(tag: Optional[str]) -> bool:
-        return tag is not None and tag.strip()
+        return tag is not None and bool(tag.strip())
 
     content = ""
     # load tags
@@ -341,7 +341,7 @@ async def command_list(message: Message):
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
-    embed_description_list = []
+    embed_description_list: List[str] = []
     embed_description_current = ""
 
     for index, (
