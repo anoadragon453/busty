@@ -446,7 +446,10 @@ async def scrape_channel_media(
 
             # Save attachment content
             attachment_filepath = path.join(
-                attachment_directory_filepath, attachment.filename
+                attachment_directory_filepath,
+                "{:03d}.{}".format(
+                    len(channel_media_attachments) + 1, attachment.filename
+                ),
             )
             await attachment.save(attachment_filepath)
 
