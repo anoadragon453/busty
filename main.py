@@ -326,11 +326,10 @@ def play_next_song(e=None):
 
         # Add message content as "More Info", truncating to the embed field.value character limit
         if submit_message.content:
-            embed.add_field(
-                name="More Info",
-                value=submit_message.content[:EMBED_FIELD_VALUE_LIMIT],
-                inline=False,
-            )
+            more_info = submit_message.content
+            if len(more_info) > EMBED_FIELD_VALUE_LIMIT:
+                more_info = more_info[: EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+            embed.add_field(name="More Info", value=more_info, inline=False)
 
         cover_art = get_cover_art(local_filepath)
         if cover_art is not None:
