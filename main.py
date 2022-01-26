@@ -44,6 +44,8 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 current_channel: Optional[TextChannel] = None
 # The media in the current channel
 current_channel_content: Optional[List] = None
+# The media from the last bust
+current_bust_content: Optional[List] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
@@ -281,6 +283,7 @@ def command_skip():
 def play_next_song(e: BaseException = None, skip_count: int = 0):
     async def inner_f():
         global current_channel_content
+        global current_bust_content
         global current_channel
 
         # Get a reference to the bot's Member object
@@ -302,9 +305,12 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             )
             await current_channel.send(embed=embed)
 
+            remove_attachments(current_bust_content)
+
             # Clear the current channel and content
-            current_channel = None
             current_channel_content = None
+            current_bust_content = None
+            current_channel = None
 
             return
 
@@ -381,6 +387,17 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         await bot_member.edit(nick=new_nick)
 
     asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
+
+
+def remove_attachments(attachments: Optional[List]):
+    """
+    Removes attachments from disk.
+
+    Args:
+        attachments: the list of attachments
+    """
+    for (_, _, filepath) in attachments:
+        os.remove(filepath)
 
 
 async def command_list(message: Message):
@@ -482,6 +499,9 @@ async def command_list(message: Message):
     # Update global channel content
     global current_channel_content
     current_channel_content = channel_media_attachments
+
+    global current_bust_content
+    current_bust_content = channel_media_attachments.copy()
 
     global current_channel
     current_channel = target_channel
