@@ -96,7 +96,27 @@ async def on_message(message: Message):
             await message.channel.send("You need to use !list first, sugar.")
             return
 
-        await command_play(message)
+        command_args = message.content.split()[1:]
+        skip_count = 0
+        if len(command_args) > 1:
+            try:
+                # Expects a positive integer
+                bust_index = int(command_args[0])
+            except ValueError:
+                await message.channel.send("That ain't a number, sugar.")
+                return
+            if bust_index < 0:
+                await message.channel.send("That ain't possible, sugar.")
+                return
+            if bust_index == 0:
+                await message.channel.send("We start from 1 'round here, sugar.")
+                return
+            if bust_index > len(current_channel_content):
+                await message.channel.send("There ain't that many tracks, sugar.")
+                return
+            skip_count = bust_index - 1
+
+        await command_play(message, skip_count)
 
     elif message.content.startswith("!skip"):
         if not active_voice_client or not active_voice_client.is_playing():
@@ -205,7 +225,7 @@ async def command_stop():
         await bot_member.edit(nick=original_bot_nickname)
 
 
-async def command_play(message: Message):
+async def command_play(message: Message, skip_count: int = 0):
     # Join active voice call
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
@@ -249,7 +269,7 @@ async def command_play(message: Message):
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
-    play_next_song()
+    play_next_song(None, skip_count)
 
 
 def command_skip():
@@ -258,7 +278,7 @@ def command_skip():
     active_voice_client.stop()
 
 
-def play_next_song(e=None):
+def play_next_song(e: BaseException = None, skip_count: int = 0):
     async def inner_f():
         global current_channel_content
         global current_channel
@@ -298,6 +318,9 @@ def play_next_song(e=None):
             await current_channel.send(embed=embed)
 
             await asyncio.sleep(seconds_between_songs)
+
+        # Remove skip_count number of songs from the front of the queue
+        current_channel_content = current_channel_content[skip_count:]
 
         # Pop a song off the front of the queue and play it
         (
