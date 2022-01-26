@@ -91,10 +91,9 @@ async def on_message(message: Message):
         command_args = message.content.split()[1:]
         skip_count = 0
         if len(command_args) > 1:
-            bust_index = 0
             try:
                 # Expects a positive integer
-                bust_index = int(command_args[1])
+                bust_index = int(command_args[0])
             except ValueError:
                 await message.channel.send("That ain't a number, sugar.")
                 return
