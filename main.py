@@ -5,8 +5,8 @@ from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple
 
-import discord
-from discord import (
+import nextcord as discord
+from nextcord import (
     Attachment,
     ChannelType,
     ClientException,
