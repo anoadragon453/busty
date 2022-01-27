@@ -349,9 +349,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             submit_message.author.mention,
-            escape_markdown(
-                song_format(local_filepath, attachment.filename)
-            ),
+            escape_markdown(song_format(local_filepath, attachment.filename)),
             attachment.url,
             submit_message.jump_url,
         )
@@ -374,9 +372,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             await current_channel.send(embed=embed)
 
         # Play song
-        active_voice_client.play(
-            FFmpegPCMAudio(local_filepath), after=play_next_song
-        )
+        active_voice_client.play(FFmpegPCMAudio(local_filepath), after=play_next_song)
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
