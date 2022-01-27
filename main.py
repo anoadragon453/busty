@@ -5,18 +5,23 @@ from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple
 
-import discord
-from discord import (
+from nextcord import (
     Attachment,
     ChannelType,
+    Client,
     ClientException,
+    Embed,
+    FFmpegPCMAudio,
+    File,
     Forbidden,
     HTTPException,
+    Intents,
     Message,
     NotFound,
     TextChannel,
     VoiceClient,
 )
+from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag, TinyTagException
 
@@ -58,12 +63,12 @@ emoji_dict = __import__(emoji_filepath).DISCORD_TO_UNICODE
 emoji_list = list(emoji_dict.values())
 
 # This is necessary to query server members
-intents = discord.Intents.default()
+intents = Intents.default()
 intents.members = True
 
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
-client = discord.Client(intents=intents)
+client = Client(intents=intents)
 
 
 @client.event
@@ -185,7 +190,7 @@ def song_format(
     return content
 
 
-def get_cover_art(filename: str) -> Optional[discord.File]:
+def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
     tags = TinyTag.get(filename, image=True)
     image_data = tags.get_image()
@@ -213,7 +218,7 @@ def get_cover_art(filename: str) -> Optional[discord.File]:
     cover_filename = f"cover.{image_file_extension}".lower()
 
     # Create a new discord file from the file pointer and name
-    return discord.File(image_bytes_fp, filename=cover_filename)
+    return File(image_bytes_fp, filename=cover_filename)
 
 
 async def command_stop():
@@ -304,7 +309,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             # Say our goodbyes
             embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
             embed_content = "Hope ya had a good **BUST!**"
-            embed = discord.Embed(
+            embed = Embed(
                 title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
             )
             await current_channel.send(embed=embed)
@@ -321,7 +326,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             embed_content = "Waiting for {} second{}...".format(
                 seconds_between_songs, "s" if seconds_between_songs != 1 else ""
             )
-            embed = discord.Embed(title=embed_title, description=embed_content)
+            embed = Embed(title=embed_title, description=embed_content)
             await current_channel.send(embed=embed)
 
             await asyncio.sleep(seconds_between_songs)
@@ -344,13 +349,11 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             submit_message.author.mention,
-            discord.utils.escape_markdown(
-                song_format(local_filepath, attachment.filename)
-            ),
+            escape_markdown(song_format(local_filepath, attachment.filename)),
             attachment.url,
             submit_message.jump_url,
         )
-        embed = discord.Embed(
+        embed = Embed(
             title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
         )
 
@@ -369,9 +372,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             await current_channel.send(embed=embed)
 
         # Play song
-        active_voice_client.play(
-            discord.FFmpegPCMAudio(local_filepath), after=play_next_song
-        )
+        active_voice_client.play(FFmpegPCMAudio(local_filepath), after=play_next_song)
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
@@ -459,13 +460,13 @@ async def command_list(message: Message):
     # Send messages, only first message gets title and prefix
     for index, embed_description in enumerate(embed_description_list):
         if index == 0:
-            embed = discord.Embed(
+            embed = Embed(
                 title=embed_title,
                 description=embed_description_prefix + embed_description,
                 color=LIST_EMBED_COLOR,
             )
         else:
-            embed = discord.Embed(
+            embed = Embed(
                 description=embed_description,
                 color=LIST_EMBED_COLOR,
             )

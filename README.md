@@ -41,6 +41,8 @@ And install the dependencies:
 pip install -r requirements.txt
 ```
 
+To install additional packages for speedup, install the `nextcord[speed]` package as well.
+
 ## Configure
 
 You'll need to create a Discord app, add a bot component, and copy the bot token.
