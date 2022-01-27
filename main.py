@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import os
 import random
 from io import BytesIO
@@ -7,8 +8,11 @@ from typing import List, Optional, Tuple
 
 from mutagen import (
     File as MutagenFile,
-    MutagenError
+    MutagenError,
 )
+from mutagen.id3 import ID3FileType
+from mutagen.ogg import OggFileType
+from mutagen.flac import FLAC, Picture
 
 from nextcord import (
     Attachment,
@@ -179,18 +183,18 @@ def song_format(
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
     if (tags
-        and "artist" in tags
-        and len(tags["artist"]) > 0
-        and is_valid_tag(tags["artist"][0])):
+            and "artist" in tags
+            and len(tags["artist"]) > 0
+            and is_valid_tag(tags["artist"][0])):
         content += str(tags["artist"][0]) + " - "
     elif is_valid_tag(artist_fallback):
         content += artist_fallback + " - "
 
     # Always display either title or beautified filename
     if (tags
-        and "title" in tags
-        and len(tags["title"]) > 0
-        and is_valid_tag(tags["title"][0])):
+            and "title" in tags
+            and len(tags["title"]) > 0
+            and is_valid_tag(tags["title"][0])):
         content += tags["title"][0]
     else:
         filename = path.splitext(filename)[0]
@@ -201,11 +205,19 @@ def song_format(
 
 def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
-    image_data = None
     try:
+        image_data = None
         mt = MutagenFile(filename)
-        if len(mt.pictures) > 0:
-            image_data = mt.pictures[0].data
+        if isinstance(mt, ID3FileType):
+            if 'APIC:cover' in mt.tags:
+                image_data = mt.tags['APIC:cover'].data
+        elif isinstance(mt, OggFileType):
+            if "metadata_block_picture" in mt.tags and len(mt.tags["metadata_block_picture"]) > 0:
+                raw_data = base64.b64decode(mt.tags["metadata_block_picture"][0])
+                image_data = Picture(raw_data).data
+        elif isinstance(mt, FLAC):
+            if len(mt.pictures) > 0:
+                image_data = mt.pictures[0].data
     except MutagenError:
         # Ignore file and move on
         return None
