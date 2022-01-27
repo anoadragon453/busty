@@ -52,6 +52,12 @@ The complete list of environment variable configuration options is
 2. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
 3. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 4. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
+5. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
+
+A random emoji is displayed for each song played during a bust. The list of possible
+emoji is defined in [emoji_list.py](emoji_list.py). If you would like to customize
+this list, simply copy the file, edit it, and set `BUSTY_CUSTOM_EMOJI_FILEPATH` to
+the import path (often simply the filename without an extension) of the new module.
 
 ## Run
 
@@ -77,7 +83,7 @@ The expected flow for running a bust is:
 
 ### Command Reference
 
-1. `!list` - Download and list all media files in the text channel this is used in. This needs to be run before `!bust` can be.
+1. `!list [<channel>]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`.
 1. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
 1. `!skip` - Skips the current track :scream: 
 1. `!stop` - Stop busting early :scream: :scream: :scream: 
