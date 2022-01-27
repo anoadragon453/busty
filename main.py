@@ -43,9 +43,9 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 # The channel to send messages in
 current_channel: Optional[TextChannel] = None
 # The media in the current channel
-current_channel_content: Optional[List] = None
+current_channel_content: Optional[List[Tuple[Message, Attachment, str]]] = None
 # The local filepaths of media from the current bust
-current_bust_content: Optional[List] = None
+current_bust_content: Optional[List[str]] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
