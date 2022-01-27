@@ -41,7 +41,7 @@ And install the dependencies:
 pip install -r requirements.txt
 ```
 
-To install additional packages for speedup, install the `nextcord[speed]` package as well.
+To install an additional set of python dependencies for speeding up the bot, install the `nextcord[speed]` package as well. You may need to install additional system packages.
 
 ## Configure
 
