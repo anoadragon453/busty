@@ -20,8 +20,8 @@ from nextcord import (
     NotFound,
     TextChannel,
     VoiceClient,
-    utils,
 )
+from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag, TinyTagException
 
@@ -159,7 +159,6 @@ def song_format(
     Returns:
         A string presenting the given song information in a human-readable way.
     """
-    print('formatting the song...')
     # a valid tag is string with at least one non-whitespace character
     def is_valid_tag(tag: Optional[str]) -> bool:
         return tag is not None and tag.strip()
@@ -350,7 +349,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             submit_message.author.mention,
-            utils.escape_markdown(
+            escape_markdown(
                 song_format(local_filepath, attachment.filename)
             ),
             attachment.url,
