@@ -18,7 +18,7 @@ from discord import (
     VoiceClient,
 )
 from PIL import Image, UnidentifiedImageError
-from tinytag import TinyTag
+from tinytag import TinyTag, TinyTagException
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -159,17 +159,24 @@ def song_format(
         return tag is not None and tag.strip()
 
     content = ""
+    tags = None
+
     # load tags
-    tags = TinyTag.get(local_filepath)
+    try:
+        tags = TinyTag.get(local_filepath)
+    except TinyTagException:
+        # Ignore and move on
+        pass
+
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
-    if is_valid_tag(tags.artist):
+    if tags and is_valid_tag(tags.artist):
         content += tags.artist + " - "
     elif is_valid_tag(artist_fallback):
         content += artist_fallback + " - "
 
     # Always display either title or beautified filename
-    if is_valid_tag(tags.title):
+    if tags and is_valid_tag(tags.title):
         content += tags.title
     else:
         filename = path.splitext(filename)[0]
