@@ -1,6 +1,28 @@
 # Busty
 
-Discord bot used for the Busty server.
+Busty is a bot for showcasing entries for music competitions hosted on Discord. Users 
+can submit audio to a channel as file attachments. The bot can then list and queue all 
+submitted audio, then play each media file sequentially in a Stage or Voice Call for all
+to hear. These shows are known as "busts".
+
+## Features
+
+* Display all submitted media in a formatted list on command.
+* Support for displaying embedded artist and title tags.
+* Automatic pinning of track listing.
+* Configurable cooldown period between each song.
+* Display currently playing song as well as any text that was sent in the message.
+* Display a random emoji per song. The list of emoji can be configured.
+* Skip the currently playing song.
+* Role-based permissions for using bot commands.
+
+Please see the [issue list](https://github.com/anoadragon453/busty/issues) for planned 
+features, or to suggest your own.
+
+## Screenshots
+
+![an example of listing tracks](screenshots/track_listing.png)
+![an example of a bust in action](screenshots/bust.png)
 
 ## Install
 
@@ -47,12 +69,24 @@ python main.py
 
 It should connect to Discord and display the currently logged-in application name.
 
-## Command reference
+## Usage
 
-1. `!list [<channel>]` - download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`.
-1. `!bust` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work.
-1. `!skip` - skips the current track :scream: 
-1. `!stop` - stop busting early :scream: :scream: :scream: 
+The expected flow for running a bust is:
+
+* Users submit songs into a channel.
+* All users join a voice channel or stage.
+* An admin runs `!list` to list all submitted songs and the order they will be played in.
+* An admin runs `!bust` to start the show. The bot will join the channel and begin playing songs in the order they were submitted.
+* Users comment on songs while they play.
+* An admin can run `!skip` at any time to skip the current song, or `!stop` to manually stop the show.
+* Once the last song has played, the bot will post a concluding message and leave the call.
+
+### Command Reference
+
+1. `!list [<channel>]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`.
+1. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
+1. `!skip` - Skips the current track :scream: 
+1. `!stop` - Stop busting early :scream: :scream: :scream: 
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
