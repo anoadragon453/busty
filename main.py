@@ -44,7 +44,7 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 current_channel: Optional[TextChannel] = None
 # The media in the current channel
 current_channel_content: Optional[List] = None
-# The media from the last bust
+# The local filepaths of media from the current bust
 current_bust_content: Optional[List] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
@@ -305,7 +305,9 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             )
             await current_channel.send(embed=embed)
 
-            remove_attachments(current_bust_content)
+            # Always clean up after you bust
+            for local_filepath in current_bust_content:
+                os.remove(local_filepath)
 
             # Clear the current channel and content
             current_channel_content = None
@@ -387,17 +389,6 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         await bot_member.edit(nick=new_nick)
 
     asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
-
-
-def remove_attachments(attachments: Optional[List]):
-    """
-    Removes attachments from disk.
-
-    Args:
-        attachments: the list of attachments
-    """
-    for (_, _, filepath) in attachments:
-        os.remove(filepath)
 
 
 async def command_list(message: Message):
@@ -501,7 +492,7 @@ async def command_list(message: Message):
     current_channel_content = channel_media_attachments
 
     global current_bust_content
-    current_bust_content = channel_media_attachments.copy()
+    current_bust_content = [attachment[2] for attachment in channel_media_attachments]
 
     global current_channel
     current_channel = target_channel
