@@ -5,6 +5,11 @@ from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple
 
+from mutagen import (
+    File as MutagenFile,
+    MutagenError
+)
+
 from nextcord import (
     Attachment,
     ChannelType,
@@ -23,7 +28,6 @@ from nextcord import (
 )
 from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
-from tinytag import TinyTag, TinyTagException
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -164,25 +168,30 @@ def song_format(
         return tag is not None and tag.strip()
 
     content = ""
-    tags = None
 
     # load tags
     try:
-        tags = TinyTag.get(local_filepath)
-    except TinyTagException:
-        # Ignore and move on
-        pass
+        tags = MutagenFile(local_filepath)
+    except MutagenError:
+        # Ignore file and move on
+        tags = None
 
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
-    if tags and is_valid_tag(tags.artist):
-        content += tags.artist + " - "
+    if (tags
+        and "artist" in tags
+        and len(tags["artist"]) > 0
+        and is_valid_tag(tags["artist"][0])):
+        content += str(tags["artist"][0]) + " - "
     elif is_valid_tag(artist_fallback):
         content += artist_fallback + " - "
 
     # Always display either title or beautified filename
-    if tags and is_valid_tag(tags.title):
-        content += tags.title
+    if (tags
+        and "title" in tags
+        and len(tags["title"]) > 0
+        and is_valid_tag(tags["title"][0])):
+        content += tags["title"][0]
     else:
         filename = path.splitext(filename)[0]
         content += filename.replace("_", " ")
@@ -192,8 +201,14 @@ def song_format(
 
 def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
-    tags = TinyTag.get(filename, image=True)
-    image_data = tags.get_image()
+    image_data = None
+    try:
+        mt = MutagenFile(filename)
+        if len(mt.pictures) > 0:
+            image_data = mt.pictures[0].data
+    except MutagenError:
+        # Ignore file and move on
+        return None
 
     # Make sure it doesn't go over 8MB
     # This is a safe lower bound on the Discord upload limit of 8MiB
