@@ -7,6 +7,7 @@ from os import path
 from typing import List, Optional, Tuple
 
 from mutagen import File as MutagenFile, MutagenError
+from mutagen.easyid3 import EasyID3
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType
 from mutagen.ogg import OggFileType
@@ -172,6 +173,9 @@ def song_format(
     # load tags
     try:
         tags = MutagenFile(local_filepath)
+        if isinstance(tags, ID3FileType):
+            # ID3 keys are complicated. EasyID3 unifies the interface with other types
+            tags = EasyID3(local_filepath)
     except MutagenError:
         # Ignore file and move on
         tags = None
