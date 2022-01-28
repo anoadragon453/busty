@@ -48,7 +48,9 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 # The channel to send messages in
 current_channel: Optional[TextChannel] = None
 # The media in the current channel
-current_channel_content: Optional[List] = None
+current_channel_content: Optional[List[Tuple[Message, Attachment, str]]] = None
+# The local filepaths of media from the current bust
+current_bust_content: Optional[List[str]] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
@@ -293,6 +295,7 @@ def command_skip():
 def play_next_song(e: BaseException = None, skip_count: int = 0):
     async def inner_f():
         global current_channel_content
+        global current_bust_content
         global current_channel
 
         # Get a reference to the bot's Member object
@@ -314,9 +317,14 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             )
             await current_channel.send(embed=embed)
 
+            # Always clean up after you bust
+            for local_filepath in current_bust_content:
+                os.remove(local_filepath)
+
             # Clear the current channel and content
-            current_channel = None
             current_channel_content = None
+            current_bust_content = None
+            current_channel = None
 
             return
 
@@ -490,6 +498,9 @@ async def command_list(message: Message):
     # Update global channel content
     global current_channel_content
     current_channel_content = channel_media_attachments
+
+    global current_bust_content
+    current_bust_content = [attachment[2] for attachment in channel_media_attachments]
 
     global current_channel
     current_channel = target_channel
