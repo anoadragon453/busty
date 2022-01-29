@@ -213,8 +213,10 @@ def get_cover_art(filename: str) -> Optional[File]:
         image_data = None
         mt = MutagenFile(filename)
         if isinstance(mt, ID3FileType):
-            if "APIC:cover" in mt.tags:
-                image_data = mt.tags["APIC:cover"].data
+            for tag in mt.tags:
+                # mutagen.id3.PictureType.COVER_FRONT = 3, but we don't have access to that variable
+                if tag.startswith("APIC:") and mt.tags[tag].type == 3:
+                    image_data = mt.tags[tag].data
         elif isinstance(mt, OggFileType):
             if (
                 "metadata_block_picture" in mt.tags
