@@ -164,10 +164,6 @@ def song_format(
     Returns:
         A string presenting the given song information in a human-readable way.
     """
-    # a valid tag is string with at least one non-whitespace character
-    def is_valid_tag(tag: Optional[str]) -> bool:
-        return tag is not None and tag.strip()
-
     content = ""
 
     # load tags
@@ -182,23 +178,13 @@ def song_format(
 
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
-    if (
-        tags
-        and "artist" in tags
-        and len(tags["artist"]) > 0
-        and is_valid_tag(tags["artist"][0])
-    ):
+    if tags and "artist" in tags and len(tags["artist"]) > 0:
         content += str(tags["artist"][0]) + " - "
-    elif is_valid_tag(artist_fallback):
+    elif artist_fallback is not None:
         content += artist_fallback + " - "
 
     # Always display either title or beautified filename
-    if (
-        tags
-        and "title" in tags
-        and len(tags["title"]) > 0
-        and is_valid_tag(tags["title"][0])
-    ):
+    if tags and "title" in tags and len(tags["title"]) > 0:
         content += tags["title"][0]
     else:
         filename = path.splitext(filename)[0]
