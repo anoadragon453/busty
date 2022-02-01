@@ -176,7 +176,7 @@ def song_format(
         title = tags.get("title", [None])[0]
     except MutagenError:
         # Ignore file and move on
-        tags = None
+        print("Error reading tags from file:", local_filepath)
 
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
