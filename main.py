@@ -7,7 +7,6 @@ from os import path
 from typing import List, Optional, Tuple
 
 from mutagen import File as MutagenFile, MutagenError
-from mutagen.easyid3 import EasyID3
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
@@ -165,27 +164,28 @@ def song_format(
         A string presenting the given song information in a human-readable way.
     """
     content = ""
+    artist = ""
+    title = ""
 
     # load tags
     try:
-        tags = MutagenFile(local_filepath)
-        if isinstance(tags, ID3FileType):
-            # ID3 keys are complicated. EasyID3 unifies the interface with other types
-            tags = EasyID3(local_filepath)
+        tags = MutagenFile(local_filepath, easy=True)
+        artist = str(tags.get("artist", [None])[0])
+        title = tags.get("title", [None])[0]
     except MutagenError:
         # Ignore file and move on
         tags = None
 
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
-    if tags and "artist" in tags and len(tags["artist"]) > 0:
-        content += str(tags["artist"][0]) + " - "
-    elif artist_fallback is not None:
+    if artist:
+        content += artist + " - "
+    elif artist_fallback:
         content += artist_fallback + " - "
 
     # Always display either title or beautified filename
-    if tags and "title" in tags and len(tags["title"]) > 0:
-        content += tags["title"][0]
+    if title:
+        content += title
     else:
         filename = path.splitext(filename)[0]
         content += filename.replace("_", " ")
