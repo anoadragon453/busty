@@ -659,11 +659,15 @@ async def command_form(message: Message):
     # Add new data to form TODO: properly escape double quotes and backslashes, etc
     create_line = "[" + ",".join(
         [
-            '"{}: {}"'.format(
+            '"{}. {}: {}"'.format(
+                index,
                 escape_appscript(submit_message.author.display_name),
                 escape_appscript(song_format(local_filepath, attachment.filename)),
             )
-            for submit_message, attachment, local_filepath in current_channel_content
+            for index, (submit_message, attachment, local_filepath) in enumerate(
+                current_channel_content,
+                1,
+            )
         ]
     )
     create_line += '].forEach(s=>f.addScaleItem().setTitle(s).setBounds({},{}).setLabels("{}","{}"))'.format(
