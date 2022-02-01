@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 from mutagen import File as MutagenFile, MutagenError
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import ID3FileType
+from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
 from nextcord import (
     Attachment,
@@ -197,22 +197,20 @@ def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
     try:
         image_data = None
-        mt = MutagenFile(filename)
-        if isinstance(mt, ID3FileType):
-            for tag in mt.tags:
-                # mutagen.id3.PictureType.COVER_FRONT = 3, but we don't have access to that variable
-                if tag.startswith("APIC:") and mt.tags[tag].type == 3:
-                    image_data = mt.tags[tag].data
-        elif isinstance(mt, OggFileType):
-            if (
-                "metadata_block_picture" in mt.tags
-                and len(mt.tags["metadata_block_picture"]) > 0
-            ):
-                raw_data = base64.b64decode(mt.tags["metadata_block_picture"][0])
+        audio = MutagenFile(filename)
+        if isinstance(audio, ID3FileType):
+            for tag_name, tag_value in audio.tags:
+                if tag_name.startswith("APIC:") and tag_value.type == PictureType.COVER_FRONT:
+                    image_data = tag_value.data
+        elif isinstance(audio, OggFileType):
+            artwork_tags = audio.tags.get("metadata_block_picture", [])
+            if artwork_tags:
+                # artwork_tags[0] is the base64-encoded data
+                raw_data = base64.b64decode(artwork_tags[0])
                 image_data = Picture(raw_data).data
-        elif isinstance(mt, FLAC):
-            if len(mt.pictures) > 0:
-                image_data = mt.pictures[0].data
+        elif isinstance(audio, FLAC):
+            if len(audio.pictures) > 0:
+                image_data = audio.pictures[0].data
     except MutagenError:
         # Ignore file and move on
         return None
