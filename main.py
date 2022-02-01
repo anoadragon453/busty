@@ -170,7 +170,7 @@ def song_format(
     # load tags
     try:
         tags = MutagenFile(local_filepath, easy=True)
-        artist = str(tags.get("artist", [None])[0])
+        artist = tags.get("artist", [None])[0]
         title = tags.get("title", [None])[0]
     except MutagenError:
         # Ignore file and move on
