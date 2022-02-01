@@ -39,6 +39,8 @@ EMBED_FIELD_VALUE_LIMIT = 1024
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
 PLAY_EMBED_COLOR = 0x33B86B
+# The maximum character length of any song title or artist name
+MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -146,6 +148,29 @@ async def on_message(message: Message):
         await command_stop()
 
 
+def sanitize_tag(tag_value: str) -> str:
+    """Sanitizes a tag value.
+
+    Sanitizes by:
+        * removing any newline characters.
+        * capping to 1000 characters total.
+
+    Args:
+        tag_value: The tag to sanitize (i.e. an artist or song name).
+
+    Returns:
+        The sanitized string.
+    """
+    # Remove any newlines
+    tag_value = "".join(tag_value.splitlines())
+
+    if len(tag_value) > MAXIMUM_SONG_METADATA_CHARACTERS:
+        # Cap the length of the string and append an ellipsis
+        tag_value = tag_value[: MAXIMUM_SONG_METADATA_CHARACTERS - 1] + "…"
+
+    return tag_value
+
+
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None
 ) -> str:
@@ -166,8 +191,8 @@ def song_format(
         A string presenting the given song information in a human-readable way.
     """
     content = ""
-    artist = ""
-    title = ""
+    artist = None
+    title = None
 
     # load tags
     try:
@@ -177,6 +202,14 @@ def song_format(
     except MutagenError:
         # Ignore file and move on
         print("Error reading tags from file:", local_filepath)
+
+    # Sanitize tag contents.
+    # We explicitly check for None here, as anything else means that the data was
+    # pulled from the audio.
+    if artist is not None:
+        artist = sanitize_tag(artist)
+    if title is not None:
+        title = sanitize_tag(title)
 
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
