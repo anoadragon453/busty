@@ -203,7 +203,9 @@ def song_format(
         # Ignore file and move on
         tags = None
 
-    # Sanitize tag contents
+    # Sanitize tag contents.
+    # We explicitly check for None here, as anything else means that the data was
+    # pulled from the audio.
     if artist is not None:
         artist = sanitize_tag(artist)
     if title is not None:
