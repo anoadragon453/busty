@@ -200,7 +200,10 @@ def get_cover_art(filename: str) -> Optional[File]:
         audio = MutagenFile(filename)
         if isinstance(audio, ID3FileType):
             for tag_name, tag_value in audio.tags:
-                if tag_name.startswith("APIC:") and tag_value.type == PictureType.COVER_FRONT:
+                if (
+                        tag_name.startswith("APIC:")
+                        and tag_value.type == PictureType.COVER_FRONT
+                ):
                     image_data = tag_value.data
         elif isinstance(audio, OggFileType):
             artwork_tags = audio.tags.get("metadata_block_picture", [])
