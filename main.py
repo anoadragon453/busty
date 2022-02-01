@@ -1,10 +1,15 @@
 import asyncio
+import base64
 import os
 import random
 from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple
 
+from mutagen import File as MutagenFile, MutagenError
+from mutagen.flac import FLAC, Picture
+from mutagen.id3 import ID3FileType, PictureType
+from mutagen.ogg import OggFileType
 from nextcord import (
     Attachment,
     ChannelType,
@@ -23,7 +28,6 @@ from nextcord import (
 )
 from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
-from tinytag import TinyTag, TinyTagException
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -161,30 +165,29 @@ def song_format(
     Returns:
         A string presenting the given song information in a human-readable way.
     """
-    # a valid tag is string with at least one non-whitespace character
-    def is_valid_tag(tag: Optional[str]) -> bool:
-        return tag is not None and tag.strip()
-
     content = ""
-    tags = None
+    artist = ""
+    title = ""
 
     # load tags
     try:
-        tags = TinyTag.get(local_filepath)
-    except TinyTagException:
-        # Ignore and move on
-        pass
+        tags = MutagenFile(local_filepath, easy=True)
+        artist = tags.get("artist", [None])[0]
+        title = tags.get("title", [None])[0]
+    except MutagenError:
+        # Ignore file and move on
+        tags = None
 
     # Display in the format <Artist-tag> - <Title-tag>
     # If no artist tag use fallback if valid. Otherwise, skip artist
-    if tags and is_valid_tag(tags.artist):
-        content += tags.artist + " - "
-    elif is_valid_tag(artist_fallback):
+    if artist:
+        content += artist + " - "
+    elif artist_fallback:
         content += artist_fallback + " - "
 
     # Always display either title or beautified filename
-    if tags and is_valid_tag(tags.title):
-        content += tags.title
+    if title:
+        content += title
     else:
         filename = path.splitext(filename)[0]
         content += filename.replace("_", " ")
@@ -194,8 +197,28 @@ def song_format(
 
 def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
-    tags = TinyTag.get(filename, image=True)
-    image_data = tags.get_image()
+    try:
+        image_data = None
+        audio = MutagenFile(filename)
+        if isinstance(audio, ID3FileType):
+            for tag_name, tag_value in audio.tags.items():
+                if (
+                    tag_name.startswith("APIC:")
+                    and tag_value.type == PictureType.COVER_FRONT
+                ):
+                    image_data = tag_value.data
+        elif isinstance(audio, OggFileType):
+            artwork_tags = audio.tags.get("metadata_block_picture", [])
+            if artwork_tags:
+                # artwork_tags[0] is the base64-encoded data
+                raw_data = base64.b64decode(artwork_tags[0])
+                image_data = Picture(raw_data).data
+        elif isinstance(audio, FLAC):
+            if len(audio.pictures) > 0:
+                image_data = audio.pictures[0].data
+    except MutagenError:
+        # Ignore file and move on
+        return None
 
     # Make sure it doesn't go over 8MB
     # This is a safe lower bound on the Discord upload limit of 8MiB
