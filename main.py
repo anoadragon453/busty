@@ -233,21 +233,25 @@ def get_cover_art(filename: str) -> Optional[File]:
     try:
         image_data = None
         audio = MutagenFile(filename)
+
+        # In each case, ensure audio.tags is not None to avoid what seems to be a mutagen bug
         if isinstance(audio, ID3FileType):
-            for tag_name, tag_value in audio.tags.items():
-                if (
-                    tag_name.startswith("APIC:")
-                    and tag_value.type == PictureType.COVER_FRONT
-                ):
-                    image_data = tag_value.data
+            if audio.tags:
+                for tag_name, tag_value in audio.tags.items():
+                    if (
+                        tag_name.startswith("APIC:")
+                        and tag_value.type == PictureType.COVER_FRONT
+                    ):
+                        image_data = tag_value.data
         elif isinstance(audio, OggFileType):
-            artwork_tags = audio.tags.get("metadata_block_picture", [])
-            if artwork_tags:
-                # artwork_tags[0] is the base64-encoded data
-                raw_data = base64.b64decode(artwork_tags[0])
-                image_data = Picture(raw_data).data
+            if audio.tags:
+                artwork_tags = audio.tags.get("metadata_block_picture", [])
+                if artwork_tags:
+                    # artwork_tags[0] is the base64-encoded data
+                    raw_data = base64.b64decode(artwork_tags[0])
+                    image_data = Picture(raw_data).data
         elif isinstance(audio, FLAC):
-            if len(audio.pictures) > 0:
+            if audio.pictures:
                 image_data = audio.pictures[0].data
     except MutagenError:
         # Ignore file and move on
