@@ -62,6 +62,8 @@ active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
 # changed while songs are being played.
 original_bot_nickname: Optional[str] = None
+# The amount of times we have succesfully started a bust
+current_bust_invocation = 0
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -140,8 +142,8 @@ async def on_message(message: Message):
         command_skip()
 
     elif message.content.startswith("!stop"):
-        if not active_voice_client or not active_voice_client.is_playing():
-            await message.channel.send("Nothin' is playin'.")
+        if not active_voice_client:
+            await message.channel.send("I ain't bustin'.")
             return
 
         await message.channel.send("Aight I'll shut up.")
@@ -281,21 +283,12 @@ def get_cover_art(filename: str) -> Optional[File]:
 
 async def command_stop():
     """Stop playing music."""
-    # Clear the queue
-    global current_channel_content
-    current_channel_content = None
-
-    # Stop playing music. Note that this will run play_next_song, when runs
-    # after each song stops playing.
-    active_voice_client.stop()
-
-    # Restore the bot's original nick (if it exists)
-    if original_bot_nickname and current_channel:
-        bot_member = current_channel.guild.get_member(client.user.id)
-        await bot_member.edit(nick=original_bot_nickname)
+    await finish_bust()
 
 
 async def command_play(message: Message, skip_count: int = 0):
+    global current_bust_invocation
+    current_bust_invocation += 1
     # Join active voice call
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
@@ -348,40 +341,56 @@ def command_skip():
     active_voice_client.stop()
 
 
+async def finish_bust():
+    """Clean up all variables and files related to the current bust"""
+    global current_channel
+    global current_channel_content
+    global current_bust_content
+    global active_voice_client
+    global original_bot_nickname
+
+    if active_voice_client.is_connected():
+        await active_voice_client.disconnect()
+
+    # Get a reference to the bot's Member object
+    bot_member = current_channel.guild.get_member(client.user.id)
+
+    # Restore the bot's original guild nickname (if it had one)
+    if original_bot_nickname:
+        await bot_member.edit(nick=original_bot_nickname)
+
+    # Always clean up after you bust
+    for local_filepath in current_bust_content:
+        os.remove(local_filepath)
+
+    # Say our goodbyes
+    embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
+    embed_content = "Hope ya had a good **BUST!**"
+    embed = Embed(title=embed_title, description=embed_content, color=LIST_EMBED_COLOR)
+    await current_channel.send(embed=embed)
+
+    # Clear the current channel and content
+    current_channel = None
+    current_channel_content = None
+    current_bust_content = None
+    active_voice_client = None
+    original_bot_nickname = None
+
+
 def play_next_song(e: BaseException = None, skip_count: int = 0):
     async def inner_f():
         global current_channel_content
         global current_bust_content
         global current_channel
+        global current_bust_invocation
 
-        # Get a reference to the bot's Member object
-        bot_member = current_channel.guild.get_member(client.user.id)
+        # We must have run !stop mid-song and cleaned up already
+        if current_channel_content is None:
+            return
 
+        # We have run out of tracks to play (but were not stopped)
         if not current_channel_content:
-            # If there are no more songs to play, leave the active voice channel
-            await active_voice_client.disconnect()
-
-            # Restore the bot's original guild nickname (if it had one)
-            if original_bot_nickname:
-                await bot_member.edit(nick=original_bot_nickname)
-
-            # Say our goodbyes
-            embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
-            embed_content = "Hope ya had a good **BUST!**"
-            embed = Embed(
-                title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
-            )
-            await current_channel.send(embed=embed)
-
-            # Always clean up after you bust
-            for local_filepath in current_bust_content:
-                os.remove(local_filepath)
-
-            # Clear the current channel and content
-            current_channel_content = None
-            current_bust_content = None
-            current_channel = None
-
+            await finish_bust()
             return
 
         # Wait some time between songs
@@ -393,7 +402,15 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             embed = Embed(title=embed_title, description=embed_content)
             await current_channel.send(embed=embed)
 
+            bust_num = current_bust_invocation
             await asyncio.sleep(seconds_between_songs)
+
+            # We ensure the current bust invocation is the same as
+            # when we started, since it is possible we stopped this bust
+            # and started a new one while sleeping
+            if current_channel_content is None or current_bust_invocation != bust_num:
+                # We ran !stop while sleeping
+                return
 
         # Remove skip_count number of songs from the front of the queue
         current_channel_content = current_channel_content[skip_count:]
@@ -448,6 +465,9 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         # including an ellipsis on the end.
         if len(new_nick) > 32:
             new_nick = new_nick[:31] + "…"
+
+        # Get a reference to the bot's Member object
+        bot_member = current_channel.guild.get_member(client.user.id)
 
         # Set the new nickname
         await bot_member.edit(nick=new_nick)
