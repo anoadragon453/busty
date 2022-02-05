@@ -88,7 +88,7 @@ async def on_ready():
 async def close():
     """Perform some cleanup tasks on bot shutdown"""
     try:
-        # Restore the original nickname if it was changed.
+        # Restore the original nickname if it was changed
         await maybe_restore_original_nick()
 
         # Delete any downloaded attachments from the last bust
@@ -111,8 +111,8 @@ async def maybe_restore_original_nick():
 
 def delete_saved_attachments():
     """Delete any attachments saved during the current bust."""
-    # This will run at any point the bot shuts down, even when outside
-    # outside of a bust when current_bust_content is None
+    # This will run at any point the bot shuts down. Note that outside of a bust,
+    # current_bust_content is None
     if not current_bust_content:
         return
 
