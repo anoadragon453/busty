@@ -85,6 +85,44 @@ async def on_ready():
 
 
 @client.event
+async def close():
+    """Perform some cleanup tasks on bot shutdown"""
+    try:
+        # Restore the original nickname if it was changed.
+        await maybe_restore_original_nick()
+
+        # Delete any downloaded attachments from the last bust
+        delete_saved_attachments()
+
+        # Disconnect from voice channels
+        for voice in client.voice_clients:
+            await voice.disconnect(force=True)
+
+    except Exception as e:
+        print("Exception during shutdown:", e)
+
+
+async def maybe_restore_original_nick():
+    """Restore the bot's original nickname in the guild if it was changed."""
+    if original_bot_nickname and current_channel:
+        bot_member = current_channel.guild.get_member(client.user.id)
+        await bot_member.edit(nick=original_bot_nickname)
+
+
+def delete_saved_attachments():
+    """Delete any attachments saved during the current bust."""
+    # This will run at any point the bot shuts down, even when outside
+    # outside of a bust when current_bust_content is None
+    if not current_bust_content:
+        return
+
+    for local_filepath in current_bust_content:
+        if os.path.exists(local_filepath):
+            print("Removing attachment file:", local_filepath)
+            os.remove(local_filepath)
+
+
+@client.event
 async def on_message(message: Message):
     if message.author == client.user:
         return
@@ -290,9 +328,7 @@ async def command_stop():
     active_voice_client.stop()
 
     # Restore the bot's original nick (if it exists)
-    if original_bot_nickname and current_channel:
-        bot_member = current_channel.guild.get_member(client.user.id)
-        await bot_member.edit(nick=original_bot_nickname)
+    await maybe_restore_original_nick()
 
 
 async def command_play(message: Message, skip_count: int = 0):
@@ -354,16 +390,12 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         global current_bust_content
         global current_channel
 
-        # Get a reference to the bot's Member object
-        bot_member = current_channel.guild.get_member(client.user.id)
-
         if not current_channel_content:
             # If there are no more songs to play, leave the active voice channel
             await active_voice_client.disconnect()
 
             # Restore the bot's original guild nickname (if it had one)
-            if original_bot_nickname:
-                await bot_member.edit(nick=original_bot_nickname)
+            await maybe_restore_original_nick()
 
             # Say our goodbyes
             embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
@@ -374,8 +406,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             await current_channel.send(embed=embed)
 
             # Always clean up after you bust
-            for local_filepath in current_bust_content:
-                os.remove(local_filepath)
+            delete_saved_attachments()
 
             # Clear the current channel and content
             current_channel_content = None
@@ -450,6 +481,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             new_nick = new_nick[:31] + "…"
 
         # Set the new nickname
+        bot_member = current_channel.guild.get_member(client.user.id)
         await bot_member.edit(nick=new_nick)
 
     asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
