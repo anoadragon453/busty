@@ -339,7 +339,7 @@ async def command_play(message: Message, skip_count: int = 0):
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
-    play_next_song(None, skip_count)
+    play_next_song(skip_count)
 
 
 def command_skip():
@@ -348,7 +348,7 @@ def command_skip():
     active_voice_client.stop()
 
 
-def play_next_song(e: BaseException = None, skip_count: int = 0):
+def play_next_song(skip_count: int = 0):
     async def inner_f():
         global current_channel_content
         global current_bust_content
@@ -429,14 +429,22 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             embed.add_field(name="More Info", value=more_info, inline=False)
 
         cover_art = get_cover_art(local_filepath)
+        now_playing = None
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
-            await current_channel.send(file=cover_art, embed=embed)
+            now_playing = await current_channel.send(file=cover_art, embed=embed)
         else:
-            await current_channel.send(embed=embed)
+            now_playing = await current_channel.send(embed=embed)
+
+        await now_playing.pin()
+
+        # Called when song finishes playing
+        def ffmpeg_post_hook(e: BaseException = None):
+            asyncio.run_coroutine_threadsafe(now_playing.unpin(), client.loop)
+            play_next_song()
 
         # Play song
-        active_voice_client.play(FFmpegPCMAudio(local_filepath), after=play_next_song)
+        active_voice_client.play(FFmpegPCMAudio(local_filepath), after=ffmpeg_post_hook)
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
