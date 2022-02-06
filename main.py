@@ -21,6 +21,7 @@ from nextcord import (
     Forbidden,
     HTTPException,
     Intents,
+    Member,
     Message,
     NotFound,
     TextChannel,
@@ -87,6 +88,9 @@ async def on_ready():
 @client.event
 async def on_message(message: Message):
     if message.author == client.user:
+        return
+
+    if not isinstance(message.author, Member):
         return
 
     for role in message.author.roles:
