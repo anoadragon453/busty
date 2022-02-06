@@ -285,6 +285,7 @@ def get_cover_art(filename: str) -> Optional[File]:
 
 async def command_stop():
     """Stop playing music."""
+    play_next_song_task.cancel()
     await finish_bust()
 
 
@@ -365,8 +366,6 @@ async def finish_bust():
     global current_bust_content
     global active_voice_client
     global original_bot_nickname
-
-    play_next_song_task.cancel()
 
     # Clean nickname/attachments
     await cleanup()
