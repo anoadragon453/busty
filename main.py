@@ -257,9 +257,8 @@ def get_cover_art(filename: str) -> Optional[File]:
         # Ignore file and move on
         return None
     except Exception as e:
-        print(f'Unknown error reading cover art for {filename}:', e)
+        print(f"Unknown error reading cover art for {filename}:", e)
         return None
-
 
     # Make sure it doesn't go over 8MB
     # This is a safe lower bound on the Discord upload limit of 8MiB
