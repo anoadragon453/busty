@@ -371,7 +371,7 @@ async def finish_bust():
     global original_bot_nickname
 
     # Clean nickname/attachments
-    cleanup()
+    await cleanup()
 
     # Say our goodbyes
     embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
