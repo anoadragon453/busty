@@ -234,7 +234,7 @@ def get_cover_art(filename: str) -> Optional[File]:
         image_data = None
         audio = MutagenFile(filename)
 
-        # In each case, ensure audio.tags is not None
+        # In each case, ensure audio tags are not None or empty
         if isinstance(audio, ID3FileType):
             if audio.tags:
                 for tag_name, tag_value in audio.tags.items():
