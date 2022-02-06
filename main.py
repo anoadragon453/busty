@@ -341,14 +341,12 @@ def command_skip():
     active_voice_client.stop()
 
 
-async def finish_bust():
-    """Clean up all variables and files related to the current bust"""
+async def cleanup():
+    "Silently cleanup outward-facing state of bot (nickname/attachments)"
     global current_channel
-    global current_channel_content
     global current_bust_content
     global active_voice_client
     global original_bot_nickname
-
     if active_voice_client.is_connected():
         await active_voice_client.disconnect()
 
@@ -363,13 +361,25 @@ async def finish_bust():
     for local_filepath in current_bust_content:
         os.remove(local_filepath)
 
+
+async def finish_bust():
+    """End the current bust"""
+    global current_channel
+    global current_channel_content
+    global current_bust_content
+    global active_voice_client
+    global original_bot_nickname
+
+    # Clean nickname/attachments
+    cleanup()
+
     # Say our goodbyes
     embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
     embed_content = "Hope ya had a good **BUST!**"
     embed = Embed(title=embed_title, description=embed_content, color=LIST_EMBED_COLOR)
     await current_channel.send(embed=embed)
 
-    # Clear the current channel and content
+    # Clear variables relating to current bust
     current_channel = None
     current_channel_content = None
     current_bust_content = None
