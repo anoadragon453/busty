@@ -234,7 +234,7 @@ def get_cover_art(filename: str) -> Optional[File]:
         image_data = None
         audio = MutagenFile(filename)
 
-        # In each case, ensure audio.tags is not None to avoid what seems to be a mutagen bug
+        # In each case, ensure audio.tags is not None
         if isinstance(audio, ID3FileType):
             if audio.tags:
                 for tag_name, tag_value in audio.tags.items():
@@ -256,6 +256,10 @@ def get_cover_art(filename: str) -> Optional[File]:
     except MutagenError:
         # Ignore file and move on
         return None
+    except Exception as e:
+        print(f'Unknown error reading cover art for {filename}:', e)
+        return None
+
 
     # Make sure it doesn't go over 8MB
     # This is a safe lower bound on the Discord upload limit of 8MiB
