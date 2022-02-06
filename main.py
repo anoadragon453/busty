@@ -113,7 +113,7 @@ async def on_message(message: Message):
 
         command_args = message.content.split()[1:]
         skip_count = 0
-        if len(command_args) > 1:
+        if command_args:
             try:
                 # Expects a positive integer
                 bust_index = int(command_args[0])
@@ -235,24 +235,31 @@ def get_cover_art(filename: str) -> Optional[File]:
     try:
         image_data = None
         audio = MutagenFile(filename)
+
+        # In each case, ensure audio tags are not None or empty
         if isinstance(audio, ID3FileType):
-            for tag_name, tag_value in audio.tags.items():
-                if (
-                    tag_name.startswith("APIC:")
-                    and tag_value.type == PictureType.COVER_FRONT
-                ):
-                    image_data = tag_value.data
+            if audio.tags:
+                for tag_name, tag_value in audio.tags.items():
+                    if (
+                        tag_name.startswith("APIC:")
+                        and tag_value.type == PictureType.COVER_FRONT
+                    ):
+                        image_data = tag_value.data
         elif isinstance(audio, OggFileType):
-            artwork_tags = audio.tags.get("metadata_block_picture", [])
-            if artwork_tags:
-                # artwork_tags[0] is the base64-encoded data
-                raw_data = base64.b64decode(artwork_tags[0])
-                image_data = Picture(raw_data).data
+            if audio.tags:
+                artwork_tags = audio.tags.get("metadata_block_picture", [])
+                if artwork_tags:
+                    # artwork_tags[0] is the base64-encoded data
+                    raw_data = base64.b64decode(artwork_tags[0])
+                    image_data = Picture(raw_data).data
         elif isinstance(audio, FLAC):
-            if len(audio.pictures) > 0:
+            if audio.pictures:
                 image_data = audio.pictures[0].data
     except MutagenError:
         # Ignore file and move on
+        return None
+    except Exception as e:
+        print(f"Unknown error reading cover art for {filename}:", e)
         return None
 
     # Make sure it doesn't go over 8MB
@@ -396,7 +403,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         # Wait some time between songs
         if seconds_between_songs:
             embed_title = "Currently Chillin'"
-            embed_content = "Waiting for {} second{}...".format(
+            embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
                 seconds_between_songs, "s" if seconds_between_songs != 1 else ""
             )
             embed = Embed(title=embed_title, description=embed_content)
