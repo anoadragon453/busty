@@ -62,8 +62,10 @@ active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
 # changed while songs are being played.
 original_bot_nickname: Optional[str] = None
-# The amount of times we have succesfully started a bust
-current_bust_invocation = 0
+# Keep track of the coroutine used to play the next track, which is active while
+# waiting in the intermission between songs. This task should be interrupted if
+# stopping playback is requested.
+play_next_song_task: Optional[asyncio.Task] = None
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -294,8 +296,6 @@ async def command_stop():
 
 
 async def command_play(message: Message, skip_count: int = 0):
-    global current_bust_invocation
-    current_bust_invocation += 1
     # Join active voice call
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
@@ -356,6 +356,9 @@ async def finish_bust():
     global active_voice_client
     global original_bot_nickname
 
+    # Cancel the task responsible for playing the next song
+    play_next_song_task.cancel()
+
     if active_voice_client.is_connected():
         await active_voice_client.disconnect()
 
@@ -389,11 +392,6 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         global current_channel_content
         global current_bust_content
         global current_channel
-        global current_bust_invocation
-
-        # We must have run !stop mid-song and cleaned up already
-        if current_channel_content is None:
-            return
 
         # We have run out of tracks to play (but were not stopped)
         if not current_channel_content:
@@ -409,15 +407,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             embed = Embed(title=embed_title, description=embed_content)
             await current_channel.send(embed=embed)
 
-            bust_num = current_bust_invocation
             await asyncio.sleep(seconds_between_songs)
-
-            # We ensure the current bust invocation is the same as
-            # when we started, since it is possible we stopped this bust
-            # and started a new one while sleeping
-            if current_channel_content is None or current_bust_invocation != bust_num:
-                # We ran !stop while sleeping
-                return
 
         # Remove skip_count number of songs from the front of the queue
         current_channel_content = current_channel_content[skip_count:]
@@ -479,7 +469,12 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         # Set the new nickname
         await bot_member.edit(nick=new_nick)
 
-    asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
+    global play_next_song_task
+
+    # Create and run an interruptable task to play the next song.
+    # If we end up stopping playback, this task should be cancelled.
+    play_next_song_task = client.loop.create_task(inner_f())
+    asyncio.run_coroutine_threadsafe(play_next_song_task.get_coro(), client.loop)
 
 
 async def command_list(message: Message):
