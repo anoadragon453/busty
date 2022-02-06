@@ -387,7 +387,7 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
         # Wait some time between songs
         if seconds_between_songs:
             embed_title = "Currently Chillin'"
-            embed_content = "Waiting for {} second{}...".format(
+            embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
                 seconds_between_songs, "s" if seconds_between_songs != 1 else ""
             )
             embed = Embed(title=embed_title, description=embed_content)
