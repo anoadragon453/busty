@@ -343,10 +343,6 @@ def command_skip():
 
 async def cleanup():
     "Silently cleanup outward-facing state of bot (nickname/attachments)"
-    global current_channel
-    global current_bust_content
-    global active_voice_client
-    global original_bot_nickname
     if active_voice_client.is_connected():
         await active_voice_client.disconnect()
 
@@ -364,12 +360,6 @@ async def cleanup():
 
 async def finish_bust():
     """End the current bust"""
-    global current_channel
-    global current_channel_content
-    global current_bust_content
-    global active_voice_client
-    global original_bot_nickname
-
     # Clean nickname/attachments
     await cleanup()
 
