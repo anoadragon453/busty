@@ -100,6 +100,19 @@ If you'd like to help Busty in her quest, consider working on one of the
 please double-check that a pull request for the issue
 [does not already exist](https://github.com/anoadragon453/busty/pulls).
 
+### Installing the development dependencies
+
+Some extra python modules are necessary when developing for Busty. These are
+contained in the `dev-requirements.txt` file. To install them, run:
+
+```shell
+# Activate the virtualenv if not already done so
+source env/bin/activate
+
+# Install development dependencies
+pip install -r dev-requirements.txt
+```
+
 ### Testing your changes
 
 Busty does not currently feature any automated testing. Testing is carried out
