@@ -90,7 +90,8 @@ async def on_message(message: Message):
     if message.author == client.user:
         return
 
-    if not isinstance(message.author, Member):
+    # Do not process messages in DM channels
+    if message.guild is None:
         return
 
     for role in message.author.roles:
