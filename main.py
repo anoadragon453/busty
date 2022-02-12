@@ -97,14 +97,18 @@ async def on_message(message: Message):
         # to control the bot
         return
 
-    if message.content.startswith("!list"):
+    # Allow commands to be case-sensitive and contain leading/following spaces
+    message_text = message.content.lower().strip()
+
+    # Determine if the message was a command
+    if message_text.startswith("!list"):
         if active_voice_client and active_voice_client.is_connected():
             await message.channel.send("We're busy busting.")
             return
 
         await command_list(message)
 
-    elif message.content.startswith("!bust"):
+    elif message_text.startswith("!bust"):
         if not current_channel_content or not current_channel:
             await message.channel.send("You need to use !list first.")
             return
@@ -131,7 +135,7 @@ async def on_message(message: Message):
 
         await command_play(message, skip_count)
 
-    elif message.content.startswith("!skip"):
+    elif message_text.startswith("!skip"):
         if not active_voice_client or not active_voice_client.is_playing():
             await message.channel.send("Nothing is playing.")
             return
@@ -139,7 +143,7 @@ async def on_message(message: Message):
         await message.channel.send("I didn't like that track anyways.")
         command_skip()
 
-    elif message.content.startswith("!stop"):
+    elif message_text.startswith("!stop"):
         if not active_voice_client or not active_voice_client.is_playing():
             await message.channel.send("Nothing is playing.")
             return
