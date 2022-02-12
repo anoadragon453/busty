@@ -89,6 +89,10 @@ async def on_message(message: Message):
     if message.author == client.user:
         return
 
+    # Do not process messages in DM channels
+    if message.guild is None:
+        return
+
     for role in message.author.roles:
         if role.name == dj_role_name:
             break
