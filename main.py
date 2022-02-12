@@ -358,10 +358,11 @@ async def try_set_pin(message, pin_state):
     except Forbidden:
         print(
             "Insufficient permission to manage pinned messages."
-            "Please give me the \"manage_messages\" permission and try again"
+            'Please give me the "manage_messages" permission and try again'
         )
     except (HTTPException, NotFound) as e:
         print("Altering message pin state failed: ", e)
+
 
 async def play_next_song(skip_count: int = 0):
     global current_channel_content
@@ -431,9 +432,7 @@ async def play_next_song(skip_count: int = 0):
         attachment.url,
         submit_message.jump_url,
     )
-    embed = Embed(
-        title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
-    )
+    embed = Embed(title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR)
 
     # Add message content as "More Info", truncating to the embed field.value character limit
     if submit_message.content:
