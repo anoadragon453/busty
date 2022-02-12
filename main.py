@@ -89,6 +89,10 @@ async def on_message(message: Message):
     if message.author == client.user:
         return
 
+    # Do not process messages in DM channels
+    if message.guild is None:
+        return
+
     for role in message.author.roles:
         if role.name == dj_role_name:
             break
@@ -97,54 +101,58 @@ async def on_message(message: Message):
         # to control the bot
         return
 
-    if message.content.startswith("!list"):
+    # Allow commands to be case-sensitive and contain leading/following spaces
+    message_text = message.content.lower().strip()
+
+    # Determine if the message was a command
+    if message_text.startswith("!list"):
         if active_voice_client and active_voice_client.is_connected():
-            await message.channel.send("We're busy bustin', sugar.")
+            await message.channel.send("We're busy busting.")
             return
 
         await command_list(message)
 
-    elif message.content.startswith("!bust"):
+    elif message_text.startswith("!bust"):
         if not current_channel_content or not current_channel:
-            await message.channel.send("You need to use !list first, sugar.")
+            await message.channel.send("You need to use !list first.")
             return
 
         command_args = message.content.split()[1:]
         skip_count = 0
-        if len(command_args) > 1:
+        if command_args:
             try:
                 # Expects a positive integer
                 bust_index = int(command_args[0])
             except ValueError:
-                await message.channel.send("That ain't a number, sugar.")
+                await message.channel.send("That isn't a number.")
                 return
             if bust_index < 0:
-                await message.channel.send("That ain't possible, sugar.")
+                await message.channel.send("That isn't possible.")
                 return
             if bust_index == 0:
-                await message.channel.send("We start from 1 'round here, sugar.")
+                await message.channel.send("We start from 1 around here.")
                 return
             if bust_index > len(current_channel_content):
-                await message.channel.send("There ain't that many tracks, sugar.")
+                await message.channel.send("There aren't that many tracks.")
                 return
             skip_count = bust_index - 1
 
         await command_play(message, skip_count)
 
-    elif message.content.startswith("!skip"):
+    elif message_text.startswith("!skip"):
         if not active_voice_client or not active_voice_client.is_playing():
-            await message.channel.send("Nothin' is playin'.")
+            await message.channel.send("Nothing is playing.")
             return
 
         await message.channel.send("I didn't like that track anyways.")
         command_skip()
 
-    elif message.content.startswith("!stop"):
+    elif message_text.startswith("!stop"):
         if not active_voice_client or not active_voice_client.is_playing():
-            await message.channel.send("Nothin' is playin'.")
+            await message.channel.send("Nothing is playing.")
             return
 
-        await message.channel.send("Aight I'll shut up.")
+        await message.channel.send("Alright I'll shut up.")
         await command_stop()
 
 
@@ -233,24 +241,31 @@ def get_cover_art(filename: str) -> Optional[File]:
     try:
         image_data = None
         audio = MutagenFile(filename)
+
+        # In each case, ensure audio tags are not None or empty
         if isinstance(audio, ID3FileType):
-            for tag_name, tag_value in audio.tags.items():
-                if (
-                    tag_name.startswith("APIC:")
-                    and tag_value.type == PictureType.COVER_FRONT
-                ):
-                    image_data = tag_value.data
+            if audio.tags:
+                for tag_name, tag_value in audio.tags.items():
+                    if (
+                        tag_name.startswith("APIC:")
+                        and tag_value.type == PictureType.COVER_FRONT
+                    ):
+                        image_data = tag_value.data
         elif isinstance(audio, OggFileType):
-            artwork_tags = audio.tags.get("metadata_block_picture", [])
-            if artwork_tags:
-                # artwork_tags[0] is the base64-encoded data
-                raw_data = base64.b64decode(artwork_tags[0])
-                image_data = Picture(raw_data).data
+            if audio.tags:
+                artwork_tags = audio.tags.get("metadata_block_picture", [])
+                if artwork_tags:
+                    # artwork_tags[0] is the base64-encoded data
+                    raw_data = base64.b64decode(artwork_tags[0])
+                    image_data = Picture(raw_data).data
         elif isinstance(audio, FLAC):
-            if len(audio.pictures) > 0:
+            if audio.pictures:
                 image_data = audio.pictures[0].data
     except MutagenError:
         # Ignore file and move on
+        return None
+    except Exception as e:
+        print(f"Unknown error reading cover art for {filename}:", e)
         return None
 
     # Make sure it doesn't go over 8MB
@@ -300,7 +315,7 @@ async def command_play(message: Message, skip_count: int = 0):
     voice_channels = message.guild.voice_channels + message.guild.stage_channels
     if not voice_channels:
         await message.channel.send(
-            "You need to be in an active voice or stage channel, sugar."
+            "You need to be in an active voice or stage channel."
         )
         return
 
@@ -329,7 +344,7 @@ async def command_play(message: Message, skip_count: int = 0):
             return
     else:
         # No voice channel was found
-        await message.channel.send("You need to be in an active voice channel, sugar.")
+        await message.channel.send("You need to be in an active voice channel.")
         return
 
     # Save the bot's current display name (nick or name)
@@ -381,7 +396,7 @@ async def play_next_song(skip_count: int = 0):
             await bot_member.edit(nick=original_bot_nickname)
 
         # Say our goodbyes
-        embed_title = "❤️‍🔥 Thas it y'all ❤️‍🔥"
+        embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
         embed_content = "Hope ya had a good **BUST!**"
         embed = Embed(
             title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
@@ -402,9 +417,10 @@ async def play_next_song(skip_count: int = 0):
     # Wait some time between songs
     if seconds_between_songs:
         embed_title = "Currently Chillin'"
-        embed_content = "Waiting for {} second{}...".format(
-            seconds_between_songs, "s" if seconds_between_songs != 1 else ""
+        embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
+          seconds_between_songs, "s" if seconds_between_songs != 1 else ""
         )
+
         embed = Embed(title=embed_title, description=embed_content)
         await current_channel.send(embed=embed)
 
@@ -485,7 +501,7 @@ async def command_list(message: Message):
         if isinstance(mentioned_channel, TextChannel):
             target_channel = mentioned_channel
         else:
-            await message.channel.send("That ain't a text channel.")
+            await message.channel.send("That isn't a text channel.")
             return
 
     # Scrape all tracks in the target channel and list them
@@ -493,7 +509,7 @@ async def command_list(message: Message):
 
     # Break on no songs to list
     if len(channel_media_attachments) == 0:
-        await message.channel.send("There aint any songs there.")
+        await message.channel.send("There aren't any songs there.")
         return
 
     # Title of !list embed
@@ -636,5 +652,5 @@ if "BUSTY_DISCORD_TOKEN" in os.environ:
     client.run(os.environ["BUSTY_DISCORD_TOKEN"])
 else:
     print(
-        "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable"
+        "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
     )

@@ -92,3 +92,43 @@ The expected flow for running a bust is:
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
+
+## Development
+
+If you'd like to help Busty in her quest, consider working on one of the
+[currently open issues](https://github.com/anoadragon453/busty). Before you do,
+please double-check that a pull request for the issue
+[does not already exist](https://github.com/anoadragon453/busty/pulls).
+
+### Installing the development dependencies
+
+Some extra Python modules are necessary when developing for Busty. These are
+contained in the `dev-requirements.txt` file. To install them, run:
+
+```shell
+# Activate the virtualenv if not already done so
+source env/bin/activate
+
+# Install development dependencies
+pip install -r dev-requirements.txt
+```
+
+### Testing your changes
+
+Busty does not currently feature any automated testing. Testing is carried out
+manually, typically in one's own test Discord guild.
+
+Once you have implemented your change, please ensure that [known commands](#command-reference),
+listing tracks and playing songs all work with your change. Pull requests are
+additionally tested by reviewers before merging them, but we're only human.
+
+### Linting
+
+Once you have implemented your feature and tested that it works, you'll need to
+ensure your code is properly formatted. Running `./scripts-dev/lint.sh` will
+check this for you and - in most cases - fix any style issues automatically.
+
+Otherwise, some issues may need to be fixed manually. These will be printed when
+`lint.sh` is run. They must be fixed before your PR will be accepted. If you
+are unable to figure out how to appease the linter, simply post and mark your
+pull request as a draft and ask for help in a comment.
