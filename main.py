@@ -339,7 +339,7 @@ async def command_play(message: Message, skip_count: int = 0):
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
-    play_next_song(skip_count)
+    await play_next_song(skip_count)
 
 
 def command_skip():
@@ -360,12 +360,10 @@ async def try_set_pin(message, pin_state):
             "Insufficient permission to manage pinned messages."
             "Please give me the \"manage_messages\" permission and try again"
         )
-        break
     except (HTTPException, NotFound) as e:
         print("Altering message pin state failed: ", e)
-        break
 
-def play_next_song(skip_count: int = 0):
+async def play_next_song(skip_count: int = 0):
     global current_channel_content
     global current_bust_content
     global current_channel
@@ -459,7 +457,7 @@ def play_next_song(skip_count: int = 0):
         if e is not None:
             print("Song playback quit with error:", e)
         asyncio.run_coroutine_threadsafe(try_set_pin(now_playing, False), client.loop)
-        asyncio.run_coroutine_threadsafe(play_next_song, client.loop)
+        asyncio.run_coroutine_threadsafe(play_next_song(), client.loop)
 
     # Play song
     active_voice_client.play(FFmpegPCMAudio(local_filepath), after=ffmpeg_post_hook)
@@ -564,7 +562,7 @@ async def command_list(message: Message):
     # If message channel == target channel, pin messages in reverse order
     if target_channel == message.channel:
         for list_message in reversed(message_list):
-            try_set_pin(list_message, True)
+            await try_set_pin(list_message, True)
 
     # Update global channel content
     global current_channel_content
