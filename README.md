@@ -102,7 +102,7 @@ please double-check that a pull request for the issue
 
 ### Installing the development dependencies
 
-Some extra python modules are necessary when developing for Busty. These are
+Some extra Python modules are necessary when developing for Busty. These are
 contained in the `dev-requirements.txt` file. To install them, run:
 
 ```shell
