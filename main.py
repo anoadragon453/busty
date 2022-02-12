@@ -21,7 +21,6 @@ from nextcord import (
     Forbidden,
     HTTPException,
     Intents,
-    Member,
     Message,
     NotFound,
     TextChannel,
