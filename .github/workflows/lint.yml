@@ -24,7 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -U isort==5.10.1 flake8==4.0.1 flake8-comprehensions==3.7.0 black==21.12b0
+        # Install linting tools
+        pip install -r dev-requirements.txt
 
     - name: Check import statement sorting
       run: |
