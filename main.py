@@ -4,7 +4,7 @@ import os
 import random
 from io import BytesIO
 from os import path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
@@ -24,7 +24,9 @@ from nextcord import (
     Intents,
     Message,
     NotFound,
+    StageChannel,
     TextChannel,
+    VoiceChannel,
     VoiceClient,
 )
 from nextcord.utils import escape_markdown
@@ -333,7 +335,11 @@ async def command_stop() -> None:
 
 async def command_play(message: Message, skip_count: int = 0):
     # Join active voice call
-    voice_channels = message.guild.voice_channels + message.guild.stage_channels
+    voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
+        message.guild.voice_channels
+    )
+    voice_channels.extend(message.guild.stage_channels)
+
     if not voice_channels:
         await message.channel.send(
             "You need to be in an active voice or stage channel."
