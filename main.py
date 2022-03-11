@@ -35,6 +35,8 @@ from PIL import Image, UnidentifiedImageError
 EMBED_DESCRIPTION_LIMIT = 4096
 # Max number of characters in an embed field.value
 EMBED_FIELD_VALUE_LIMIT = 1024
+# Max number of character is a normal Disord message
+MESSAGE_LIMIT = 2000
 # Color of !list embed
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
@@ -677,7 +679,12 @@ async def command_form(message: Message):
     appscript += create_line
 
     # There is no way to escape ``` in a code block on Discord, so we replace ``` --> '''
-    await message.channel.send("```{}```".format(appscript.replace("```", "'''")))
+    appscript = appscript.replace("```", "'''")
+
+    # Print message in chunks respecting character limit
+    chunk_size = MESSAGE_LIMIT - 6
+    for i in range(0, len(appscript), chunk_size):
+        await message.channel.send("```{}```".format(appscript[i : i + chunk_size]))
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
