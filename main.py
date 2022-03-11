@@ -55,13 +55,13 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 current_channel: Optional[TextChannel] = None
 # The media in the current channel
 current_channel_content: Optional[List[Tuple[Message, Attachment, str]]] = None
-# The local filepaths of media from the current bust
-current_bust_content: Optional[List[str]] = None
 # The actively connected voice client
 active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
 # changed while songs are being played.
 original_bot_nickname: Optional[str] = None
+# Allow only one async thread to calculate !list at a time
+list_task_control_lock = asyncio.Lock()
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -110,7 +110,12 @@ async def on_message(message: Message):
             await message.channel.send("We're busy busting.")
             return
 
-        await command_list(message)
+        thumbs_up = "\N{THUMBS UP SIGN}"
+        await message.add_reaction(thumbs_up)
+
+        # Ensure two scrapes aren't making/deleting files at the same time
+        async with list_task_control_lock:
+            await command_list(message)
 
     elif message_text.startswith("!bust"):
         if not current_channel_content or not current_channel:
@@ -366,7 +371,6 @@ def command_skip():
 def play_next_song(e: BaseException = None, skip_count: int = 0):
     async def inner_f():
         global current_channel_content
-        global current_bust_content
         global current_channel
 
         # Get a reference to the bot's Member object
@@ -388,13 +392,8 @@ def play_next_song(e: BaseException = None, skip_count: int = 0):
             )
             await current_channel.send(embed=embed)
 
-            # Always clean up after you bust
-            for local_filepath in current_bust_content:
-                os.remove(local_filepath)
-
             # Clear the current channel and content
             current_channel_content = None
-            current_bust_content = None
             current_channel = None
 
             return
@@ -481,7 +480,6 @@ async def command_list(message: Message):
         else:
             await message.channel.send("That isn't a text channel.")
             return
-
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
 
@@ -570,9 +568,6 @@ async def command_list(message: Message):
     global current_channel_content
     current_channel_content = channel_media_attachments
 
-    global current_bust_content
-    current_bust_content = [attachment[2] for attachment in channel_media_attachments]
-
     global current_channel
     current_channel = target_channel
 
@@ -601,14 +596,18 @@ async def scrape_channel_media(
                 # Ignore non-audio/video attachments
                 continue
 
-            # Save attachment content
+            # Computed local filepath
             attachment_filepath = path.join(
                 attachment_directory_filepath,
-                "{:03d}.{}".format(
-                    len(channel_media_attachments) + 1, attachment.filename
+                "{}.{}{}".format(
+                    message.id,
+                    attachment.id,
+                    os.path.splitext(attachment.filename)[1],
                 ),
             )
-            await attachment.save(attachment_filepath)
+
+            if not os.path.exists(attachment_filepath):
+                await attachment.save(attachment_filepath)
 
             channel_media_attachments.append(
                 (
@@ -617,6 +616,13 @@ async def scrape_channel_media(
                     attachment_filepath,
                 )
             )
+
+    # Clear unused files in attachment directory
+    used_files = {path for (_, _, path) in channel_media_attachments}
+    for file in os.listdir(attachment_directory_filepath):
+        filepath = path.join(attachment_directory_filepath, file)
+        if filepath not in used_files:
+            os.remove(filepath)
 
     return channel_media_attachments
 
