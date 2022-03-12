@@ -35,6 +35,8 @@ from PIL import Image, UnidentifiedImageError
 EMBED_DESCRIPTION_LIMIT = 4096
 # Max number of characters in an embed field.value
 EMBED_FIELD_VALUE_LIMIT = 1024
+# Max number of characters in a normal Disord message
+MESSAGE_LIMIT = 2000
 # Color of !list embed
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
@@ -138,6 +140,12 @@ async def on_message(message: Message):
             skip_count = bust_index - 1
 
         await command_play(message, skip_count)
+
+    elif message_text.startswith("!form"):
+        if not current_channel_content or not current_channel:
+            await message.channel.send("You need to use !list first, sugar.")
+            return
+        await command_form(message)
 
     elif message_text.startswith("!skip"):
         if not active_voice_client or not active_voice_client.is_playing():
@@ -631,6 +639,52 @@ def pick_random_emoji() -> str:
     decoded_random_emoji = encoded_random_emoji.encode("Latin1").decode()
 
     return decoded_random_emoji
+
+
+async def command_form(message: Message) -> None:
+    # Escape strings so they can be assigned as literals within appscript
+    def escape_appscript(text: str) -> str:
+        return text.replace("\\", "\\\\").replace('"', '\\"')
+
+    # Constants in generated code, Make sure these strings are properly escaped
+    default_title = "Busty's Voting"
+    low_string = "OK"
+    high_string = "Masterpiece"
+    low_score = 0
+    high_score = 7
+
+    appscript = "function r(){"
+    # Setup and grab form
+    appscript += f'var f=FormApp.getActiveForm().setTitle("{default_title}");'
+    # Clear existing data on form
+    appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
+    # Add new data to form
+    create_line = "[" + ",".join(
+        [
+            '"{}. {}: {}"'.format(
+                index,
+                escape_appscript(submit_message.author.display_name),
+                escape_appscript(song_format(local_filepath, attachment.filename)),
+            )
+            for index, (submit_message, attachment, local_filepath) in enumerate(
+                current_channel_content,
+                1,
+            )
+        ]
+    )
+    create_line += '].forEach(s=>f.addScaleItem().setTitle(s).setBounds({},{}).setLabels("{}","{}"))'.format(
+        low_score, high_score, low_string, high_string
+    )
+    create_line += "}"
+    appscript += create_line
+
+    # There is no way to escape ``` in a code block on Discord, so we replace ``` --> '''
+    appscript = appscript.replace("```", "'''")
+
+    # Print message in chunks respecting character limit
+    chunk_size = MESSAGE_LIMIT - 6
+    for i in range(0, len(appscript), chunk_size):
+        await message.channel.send("```{}```".format(appscript[i : i + chunk_size]))
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
