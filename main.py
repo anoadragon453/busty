@@ -661,8 +661,7 @@ async def command_form(message: Message) -> None:
     # Add new data to form
     create_line = "[" + ",".join(
         [
-            '"{}. {}: {}"'.format(
-                index,
+            '"{}: {}"'.format(
                 escape_appscript(submit_message.author.display_name),
                 escape_appscript(song_format(local_filepath, attachment.filename)),
             )
@@ -672,7 +671,7 @@ async def command_form(message: Message) -> None:
             )
         ]
     )
-    create_line += '].forEach(s=>f.addScaleItem().setTitle(s).setBounds({},{}).setLabels("{}","{}"))'.format(
+    create_line += '].forEach((s,i)=>f.addScaleItem().setTitle(i+1+". "+s).setBounds({},{}).setLabels("{}","{}"))'.format(
         low_score, high_score, low_string, high_string
     )
     create_line += "}"
