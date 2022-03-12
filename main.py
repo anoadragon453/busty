@@ -60,7 +60,7 @@ active_voice_client: Optional[VoiceClient] = None
 # The nickname of the bot. We need to store it as it will be
 # changed while songs are being played.
 original_bot_nickname: Optional[str] = None
-# Allow only one async thread to calculate !list at a time
+# Allow only one async routine to calculate !list at a time
 list_task_control_lock = asyncio.Lock()
 
 # STARTUP
@@ -110,12 +110,17 @@ async def on_message(message: Message):
             await message.channel.send("We're busy busting.")
             return
 
-        thumbs_up = "\N{THUMBS UP SIGN}"
-        await message.add_reaction(thumbs_up)
+        command_success = "\N{THUMBS UP SIGN}"
+        command_fail = "\N{OCTAGONAL SIGN}"
 
         # Ensure two scrapes aren't making/deleting files at the same time
-        async with list_task_control_lock:
-            await command_list(message)
+        if not list_task_control_lock.locked():
+            await message.add_reaction(command_success)
+            async with list_task_control_lock:
+                await command_list(message)
+        else:
+            await message.add_reaction(command_fail)
+
 
     elif message_text.startswith("!bust"):
         if not current_channel_content or not current_channel:
@@ -606,6 +611,7 @@ async def scrape_channel_media(
                 ),
             )
 
+            # Save file if not in cache
             if not os.path.exists(attachment_filepath):
                 await attachment.save(attachment_filepath)
 
@@ -619,10 +625,11 @@ async def scrape_channel_media(
 
     # Clear unused files in attachment directory
     used_files = {path for (_, _, path) in channel_media_attachments}
-    for file in os.listdir(attachment_directory_filepath):
-        filepath = path.join(attachment_directory_filepath, file)
+    for filename in os.listdir(attachment_directory_filepath):
+        filepath = path.join(attachment_directory_filepath, filename)
         if filepath not in used_files:
-            os.remove(filepath)
+            if os.path.isfile(filepath):
+                os.remove(filepath)
 
     return channel_media_attachments
 
