@@ -114,12 +114,13 @@ async def on_message(message: Message):
         command_fail = "\N{OCTAGONAL SIGN}"
 
         # Ensure two scrapes aren't making/deleting files at the same time
-        if not list_task_control_lock.locked():
-            await message.add_reaction(command_success)
-            async with list_task_control_lock:
-                await command_list(message)
-        else:
+        if list_task_control_lock.locked():
             await message.add_reaction(command_fail)
+            return
+
+        await message.add_reaction(command_success)
+        async with list_task_control_lock:
+            await command_list(message)
 
     elif message_text.startswith("!bust"):
         if not current_channel_content or not current_channel:
