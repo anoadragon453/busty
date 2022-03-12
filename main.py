@@ -121,7 +121,6 @@ async def on_message(message: Message):
         else:
             await message.add_reaction(command_fail)
 
-
     elif message_text.startswith("!bust"):
         if not current_channel_content or not current_channel:
             await message.channel.send("You need to use !list first.")
