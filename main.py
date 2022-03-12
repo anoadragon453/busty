@@ -35,7 +35,7 @@ from PIL import Image, UnidentifiedImageError
 EMBED_DESCRIPTION_LIMIT = 4096
 # Max number of characters in an embed field.value
 EMBED_FIELD_VALUE_LIMIT = 1024
-# Max number of character is a normal Disord message
+# Max number of characters in a normal Disord message
 MESSAGE_LIMIT = 2000
 # Color of !list embed
 LIST_EMBED_COLOR = 0xDD2E44
@@ -641,12 +641,12 @@ def pick_random_emoji() -> str:
     return decoded_random_emoji
 
 
-async def command_form(message: Message):
+async def command_form(message: Message) -> None:
     # Escape strings so they can be assigned as literals within appscript
-    def escape_appscript(text: str):
+    def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
-    # Constants in generated code, Mmke sure these strings are properly escaped
+    # Constants in generated code, Make sure these strings are properly escaped
     default_title = "Busty's Voting"
     low_string = "OK"
     high_string = "Masterpiece"
@@ -658,7 +658,7 @@ async def command_form(message: Message):
     appscript += f'var f=FormApp.getActiveForm().setTitle("{default_title}");'
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
-    # Add new data to form TODO: properly escape double quotes and backslashes, etc
+    # Add new data to form
     create_line = "[" + ",".join(
         [
             '"{}. {}: {}"'.format(
