@@ -596,7 +596,7 @@ async def scrape_channel_media(
         os.mkdir(attachment_directory_filepath)
 
     # Iterate through each message in the channel
-    async for message in channel.history(limit=500, oldest_first=True):
+    async for message in channel.history(limit=1000, oldest_first=True):
         if not message.attachments:
             # This message has no attached media
             continue
