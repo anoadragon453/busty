@@ -400,7 +400,7 @@ async def try_set_pin(message, pin_state):
         print("Altering message pin state failed: ", e)
 
 
-def play_next_song(skip_count: int = 0):
+async def play_next_song(skip_count: int = 0):
     global current_channel_content
     global current_channel
 
