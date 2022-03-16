@@ -662,8 +662,13 @@ async def command_form(message: Message) -> None:
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
+    # Concatenate all digits in channel name to form round number
+    channel_number = ''.join(c for c in current_channel.name if c.isdigit())
+    if channel_number:
+        channel_number += ' '
+
     # Constants in generated code, Make sure these strings are properly escaped
-    default_title = "Busty's Voting"
+    default_title = "Busty's {}Voting".format(channel_number)
     low_string = "OK"
     high_string = "Masterpiece"
     low_score = 0
@@ -671,7 +676,7 @@ async def command_form(message: Message) -> None:
 
     appscript = "function r(){"
     # Setup and grab form
-    appscript += f'var f=FormApp.getActiveForm().setTitle("{default_title}");'
+    appscript += 'var f=FormApp.getActiveForm().setTitle("{}");'.format(default_title)
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
     # Add new data to form
@@ -687,8 +692,15 @@ async def command_form(message: Message) -> None:
     create_line += '].forEach((s,i)=>f.addScaleItem().setTitle(i+1+". "+s).setBounds({},{}).setLabels("{}","{}"))'.format(
         low_score, high_score, low_string, high_string
     )
-    create_line += "}"
     appscript += create_line
+
+    # Add image to the end
+    for attachment in message.attachments:
+        if attachment.content_type.startswith('image/'):
+            appscript+=';f.addImageItem().setImage(UrlFetchApp.fetch("{}"))'.format(attachment.url)
+
+    # Close it off
+    appscript += "}"
 
     # There is no way to escape ``` in a code block on Discord, so we replace ``` --> '''
     appscript = appscript.replace("```", "'''")
