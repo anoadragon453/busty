@@ -460,9 +460,7 @@ def play_next_song(skip_count: int = 0):
         attachment.url,
         submit_message.jump_url,
     )
-    embed = Embed(
-        title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
-    )
+    embed = Embed(title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR)
 
     # Add message content as "More Info", truncating to the embed field.value character limit
     if submit_message.content:
@@ -475,7 +473,7 @@ def play_next_song(skip_count: int = 0):
     if cover_art is not None:
         embed.set_image(url=f"attachment://{cover_art.filename}")
         now_playing = await current_channel.send(file=cover_art, embed=embed)
-    else
+    else:
         now_playing = await current_channel.send(embed=embed)
 
     await try_set_pin(now_playing, True)
