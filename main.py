@@ -10,6 +10,7 @@ from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
+from mutagen.wave import WAVE
 from nextcord import (
     Attachment,
     ChannelType,
@@ -261,7 +262,9 @@ def get_cover_art(filename: str) -> Optional[File]:
         audio = MutagenFile(filename)
 
         # In each case, ensure audio tags are not None or empty
-        if isinstance(audio, ID3FileType):
+        # mutagen.wave.WAVE is not an ID3FileType, although its tags are
+        # of type mutagen.id3.ID3
+        if isinstance(audio, ID3FileType) or isinstance(audio, WAVE):
             if audio.tags:
                 for tag_name, tag_value in audio.tags.items():
                     if (
