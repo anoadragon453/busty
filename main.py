@@ -663,9 +663,9 @@ async def command_form(message: Message) -> None:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
     # Concatenate all digits in channel name to form round number
-    channel_number = ''.join(c for c in current_channel.name if c.isdigit())
+    channel_number = "".join(c for c in current_channel.name if c.isdigit())
     if channel_number:
-        channel_number += ' '
+        channel_number += " "
 
     # Constants in generated code, Make sure these strings are properly escaped
     default_title = "Busty's {}Voting".format(channel_number)
@@ -680,7 +680,7 @@ async def command_form(message: Message) -> None:
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
     # Add new data to form
-    create_line = "[" + ",".join(
+    appscript = "[" + ",".join(
         [
             '"{}: {}"'.format(
                 escape_appscript(submit_message.author.display_name),
@@ -689,15 +689,16 @@ async def command_form(message: Message) -> None:
             for submit_message, attachment, local_filepath in current_channel_content
         ]
     )
-    create_line += '].forEach((s,i)=>f.addScaleItem().setTitle(i+1+". "+s).setBounds({},{}).setLabels("{}","{}"))'.format(
+    appscript += '].forEach((s,i)=>f.addScaleItem().setTitle(i+1+". "+s).setBounds({},{}).setLabels("{}","{}"))'.format(
         low_score, high_score, low_string, high_string
     )
-    appscript += create_line
 
     # Add image to the end
     for attachment in message.attachments:
-        if attachment.content_type.startswith('image/'):
-            appscript+=';f.addImageItem().setImage(UrlFetchApp.fetch("{}"))'.format(attachment.url)
+        if attachment.content_type.startswith("image/"):
+            appscript += ';f.addImageItem().setImage(UrlFetchApp.fetch("{}"))'.format(
+                attachment.url
+            )
 
     # Close it off
     appscript += "}"
