@@ -126,6 +126,10 @@ async def on_message(message: Message):
             await command_list(message)
 
     elif message_text.startswith("!bust"):
+        if active_voice_client and active_voice_client.is_connected():
+            await message.channel.send("We're already busting.")
+            return
+
         if not current_channel_content or not current_channel:
             await message.channel.send("You need to use !list first.")
             return
