@@ -262,7 +262,7 @@ def get_length(filename: str) -> Optional[float]:
         audio = MutagenFile(filename)
         if audio:
             return audio.info.length
-    except MutagenError:
+    except MutagenError as e:
         # Ignore file and move on
         print(f"Error reading length of {filename}:", e)
         return None
