@@ -426,6 +426,7 @@ async def play_next_song(skip_count: int = 0) -> None:
         # Clear the current channel and content
         current_channel_content = None
         current_channel = None
+        return
 
     # Wait some time between songs
     if seconds_between_songs:
