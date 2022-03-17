@@ -451,7 +451,9 @@ async def play_next_song(skip_count: int = 0) -> None:
 
         # Say our goodbyes
         embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
-        embed_content = "*Total length of all submissions: {}*\n".format(format_time(int(total_song_len)))
+        embed_content = "*Total length of all submissions: {}*\n".format(
+            format_time(int(total_song_len))
+        )
         embed_content += "Hope ya had a good **BUST!**"
         embed = Embed(
             title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
