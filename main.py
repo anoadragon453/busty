@@ -10,6 +10,7 @@ from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
+from mutagen.wave import WAVE
 from nextcord import (
     Attachment,
     ChannelType,
@@ -278,7 +279,9 @@ def get_cover_art(filename: str) -> Optional[File]:
         audio = MutagenFile(filename)
 
         # In each case, ensure audio tags are not None or empty
-        if isinstance(audio, ID3FileType):
+        # mutagen.wave.WAVE is not an ID3FileType, although its tags are
+        # of type mutagen.id3.ID3
+        if isinstance(audio, ID3FileType) or isinstance(audio, WAVE):
             if audio.tags:
                 for tag_name, tag_value in audio.tags.items():
                     if (
@@ -329,7 +332,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-async def command_stop():
+async def command_stop() -> None:
     """Stop playing music."""
     # Clear the queue
     global current_channel_content
@@ -389,10 +392,10 @@ async def command_play(message: Message, skip_count: int = 0):
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
-    play_next_song(None, skip_count)
+    await play_next_song(skip_count)
 
 
-def command_skip():
+def command_skip() -> None:
     # Stop any currently playing song
     # The next song will play automatically.
     active_voice_client.stop()
@@ -414,112 +417,130 @@ def format_time(seconds: int) -> str:
     return result
 
 
-def play_next_song(e: BaseException = None, skip_count: int = 0):
-    async def inner_f():
-        global current_channel_content
-        global current_channel
-
-        # Get a reference to the bot's Member object
-        bot_member = current_channel.guild.get_member(client.user.id)
-
-        if not current_channel_content:
-            global total_song_len
-            # If there are no more songs to play, leave the active voice channel
-            await active_voice_client.disconnect()
-
-            # Restore the bot's original guild nickname (if it had one)
-            if original_bot_nickname:
-                await bot_member.edit(nick=original_bot_nickname)
-
-            # Say our goodbyes
-            embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
-            embed_content = "*Total length of all submissions:* {}\n".format(
-                format_time(int(total_song_len))
-            )
-            embed_content += "Hope ya had a good **BUST!**"
-            embed = Embed(
-                title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
-            )
-            await current_channel.send(embed=embed)
-
-            # Clear the current channel and content
-            current_channel_content = None
-            current_channel = None
-            total_song_len = None
-            return
-
-        # Wait some time between songs
-        if seconds_between_songs:
-            embed_title = "Currently Chilling"
-            embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
-                seconds_between_songs, "s" if seconds_between_songs != 1 else ""
-            )
-            embed = Embed(title=embed_title, description=embed_content)
-            await current_channel.send(embed=embed)
-
-            await asyncio.sleep(seconds_between_songs)
-
-        # Remove skip_count number of songs from the front of the queue
-        current_channel_content = current_channel_content[skip_count:]
-
-        # Pop a song off the front of the queue and play it
-        (
-            submit_message,
-            attachment,
-            local_filepath,
-        ) = current_channel_content.pop(0)
-
-        # Associate a random emoji with this song
-        random_emoji = pick_random_emoji()
-
-        # Build and send "Now Playing" embed
-        embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-        embed_content = list_format.format(
-            submit_message.author.mention,
-            escape_markdown(song_format(local_filepath, attachment.filename)),
-            attachment.url,
-            submit_message.jump_url,
-        )
-        embed = Embed(
-            title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR
-        )
-
-        # Add message content as "More Info", truncating to the embed field.value character limit
-        if submit_message.content:
-            more_info = submit_message.content
-            if len(more_info) > EMBED_FIELD_VALUE_LIMIT:
-                more_info = more_info[: EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-            embed.add_field(name="More Info", value=more_info, inline=False)
-
-        cover_art = get_cover_art(local_filepath)
-        if cover_art is not None:
-            embed.set_image(url=f"attachment://{cover_art.filename}")
-            await current_channel.send(file=cover_art, embed=embed)
+async def try_set_pin(message: Message, pin_state: bool) -> None:
+    """Attempt to set message's pin status to pin_state, catching and printing errors"""
+    try:
+        if pin_state:
+            await message.pin()
         else:
-            await current_channel.send(embed=embed)
-
-        # Play song
-        active_voice_client.play(FFmpegPCMAudio(local_filepath), after=play_next_song)
-
-        # Change the name of the bot to that of the currently playing song.
-        # This allows people to quickly see which song is currently playing.
-        new_nick = random_emoji + song_format(
-            local_filepath, attachment.filename, submit_message.author.display_name
+            await message.unpin()
+    except Forbidden:
+        print(
+            "Insufficient permission to manage pinned messages. "
+            'Please give me the "manage_messages" permission and try again'
         )
-
-        # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
-        # including an ellipsis on the end.
-        if len(new_nick) > 32:
-            new_nick = new_nick[:31] + "…"
-
-        # Set the new nickname
-        await bot_member.edit(nick=new_nick)
-
-    asyncio.run_coroutine_threadsafe(inner_f(), client.loop)
+    except (HTTPException, NotFound) as e:
+        print("Altering message pin state failed:", e)
 
 
-async def command_list(message: Message):
+async def play_next_song(skip_count: int = 0) -> None:
+    global current_channel_content
+    global current_channel
+
+    # Get a reference to the bot's Member object
+    bot_member = current_channel.guild.get_member(client.user.id)
+
+    if not current_channel_content:
+        global total_song_len
+        # If there are no more songs to play, leave the active voice channel
+        await active_voice_client.disconnect()
+
+        # Restore the bot's original guild nickname (if it had one)
+        if original_bot_nickname:
+            await bot_member.edit(nick=original_bot_nickname)
+
+        # Say our goodbyes
+        embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
+        embed_content = "*Total length of all submissions: {}*\n".format(format_time(int(total_song_len)))
+        embed_content += "Hope ya had a good **BUST!**"
+        embed = Embed(
+            title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
+        )
+        await current_channel.send(embed=embed)
+
+        # Clear the current channel and content
+        current_channel_content = None
+        current_channel = None
+        total_song_len = None
+        return
+
+    # Wait some time between songs
+    if seconds_between_songs:
+        embed_title = "Currently Chilling"
+        embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
+            seconds_between_songs, "s" if seconds_between_songs != 1 else ""
+        )
+        embed = Embed(title=embed_title, description=embed_content)
+        await current_channel.send(embed=embed)
+
+        await asyncio.sleep(seconds_between_songs)
+
+    # Remove skip_count number of songs from the front of the queue
+    current_channel_content = current_channel_content[skip_count:]
+
+    # Pop a song off the front of the queue and play it
+    (
+        submit_message,
+        attachment,
+        local_filepath,
+    ) = current_channel_content.pop(0)
+
+    # Associate a random emoji with this song
+    random_emoji = pick_random_emoji()
+
+    # Build and send "Now Playing" embed
+    embed_title = f"{random_emoji} Now Playing {random_emoji}"
+    list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
+    embed_content = list_format.format(
+        submit_message.author.mention,
+        escape_markdown(song_format(local_filepath, attachment.filename)),
+        attachment.url,
+        submit_message.jump_url,
+    )
+    embed = Embed(title=embed_title, description=embed_content, color=PLAY_EMBED_COLOR)
+
+    # Add message content as "More Info", truncating to the embed field.value character limit
+    if submit_message.content:
+        more_info = submit_message.content
+        if len(more_info) > EMBED_FIELD_VALUE_LIMIT:
+            more_info = more_info[: EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+        embed.add_field(name="More Info", value=more_info, inline=False)
+
+    cover_art = get_cover_art(local_filepath)
+    if cover_art is not None:
+        embed.set_image(url=f"attachment://{cover_art.filename}")
+        now_playing = await current_channel.send(file=cover_art, embed=embed)
+    else:
+        now_playing = await current_channel.send(embed=embed)
+
+    await try_set_pin(now_playing, True)
+
+    # Called when song finishes playing
+    def ffmpeg_post_hook(e: BaseException = None):
+        if e is not None:
+            print("Song playback quit with error:", e)
+        asyncio.run_coroutine_threadsafe(try_set_pin(now_playing, False), client.loop)
+        asyncio.run_coroutine_threadsafe(play_next_song(), client.loop)
+
+    # Play song
+    active_voice_client.play(FFmpegPCMAudio(local_filepath), after=ffmpeg_post_hook)
+
+    # Change the name of the bot to that of the currently playing song.
+    # This allows people to quickly see which song is currently playing.
+    new_nick = random_emoji + song_format(
+        local_filepath, attachment.filename, submit_message.author.display_name
+    )
+
+    # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
+    # including an ellipsis on the end.
+    if len(new_nick) > 32:
+        new_nick = new_nick[:31] + "…"
+
+    # Set the new nickname
+    await bot_member.edit(nick=new_nick)
+
+
+async def command_list(message: Message) -> None:
     target_channel = message.channel
 
     # If any channels were mentioned in the message, use the first from the list
@@ -603,16 +624,7 @@ async def command_list(message: Message):
     # If message channel == target channel, pin messages in reverse order
     if target_channel == message.channel:
         for list_message in reversed(message_list):
-            try:
-                await list_message.pin()
-            except Forbidden:
-                print(
-                    'Insufficient permission to pin tracklist. Please give me the "manage_messages" permission and try again.'
-                )
-                break
-            except (HTTPException, NotFound) as e:
-                print("Pinning tracklist failed: ", e)
-                break
+            await try_set_pin(list_message, True)
 
     # Update global channel content
     global current_channel_content
