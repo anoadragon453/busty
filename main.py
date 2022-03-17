@@ -315,7 +315,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-async def command_stop():
+async def command_stop() -> None:
     """Stop playing music."""
     # Clear the queue
     global current_channel_content
@@ -378,13 +378,13 @@ async def command_play(message: Message, skip_count: int = 0):
     await play_next_song(skip_count)
 
 
-def command_skip():
+def command_skip() -> None:
     # Stop any currently playing song
     # The next song will play automatically.
     active_voice_client.stop()
 
 
-async def try_set_pin(message, pin_state):
+async def try_set_pin(message: Message, pin_state: bool) -> None:
     """Attempt to set message's pin status to pin_state, catching and printing errors"""
     try:
         if pin_state:
@@ -393,14 +393,14 @@ async def try_set_pin(message, pin_state):
             await message.unpin()
     except Forbidden:
         print(
-            "Insufficient permission to manage pinned messages."
+            "Insufficient permission to manage pinned messages. "
             'Please give me the "manage_messages" permission and try again'
         )
     except (HTTPException, NotFound) as e:
-        print("Altering message pin state failed: ", e)
+        print("Altering message pin state failed:", e)
 
 
-async def play_next_song(skip_count: int = 0):
+async def play_next_song(skip_count: int = 0) -> None:
     global current_channel_content
     global current_channel
 
@@ -503,7 +503,7 @@ async def play_next_song(skip_count: int = 0):
     await bot_member.edit(nick=new_nick)
 
 
-async def command_list(message: Message):
+async def command_list(message: Message) -> None:
     target_channel = message.channel
 
     # If any channels were mentioned in the message, use the first from the list
