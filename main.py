@@ -22,6 +22,7 @@ from nextcord import (
     Forbidden,
     HTTPException,
     Intents,
+    Member,
     Message,
     NotFound,
     StageChannel,
@@ -94,8 +95,13 @@ async def on_message(message: Message) -> None:
     if message.author == client.user:
         return
 
-    # Do not process messages in DM channels
-    if message.guild is None:
+    # Do not process messages outside of guild text channels
+    if not isinstance(message.channel, TextChannel):
+        return
+
+    # The message author must be a guild member, so that we can
+    # check if they have the appropriate role below
+    if not isinstance(message.author, Member):
         return
 
     for role in message.author.roles:
@@ -644,7 +650,8 @@ async def scrape_channel_media(
 
             # Save file if not in cache
             if not os.path.exists(attachment_filepath):
-                await attachment.save(attachment_filepath)
+                # Type error fixed by https://github.com/nextcord/nextcord/pull/539
+                await attachment.save(os.path.join(attachment_filepath))  # type: ignore[arg-type]
 
             channel_media_attachments.append(
                 (
