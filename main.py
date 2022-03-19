@@ -65,7 +65,7 @@ active_voice_client: Optional[VoiceClient] = None
 original_bot_nickname: Optional[str] = None
 # Allow only one async routine to calculate !list at a time
 list_task_control_lock = asyncio.Lock()
-# Total length of all songs
+# Total length of all songs in seconds
 total_song_len: Optional[float]
 
 # STARTUP
@@ -266,10 +266,9 @@ def get_length(filename: str) -> Optional[float]:
     except MutagenError as e:
         # Ignore file and move on
         print(f"Error reading length of {filename}:", e)
-        return None
     except Exception as e:
         print(f"Unknown error reading length of {filename}:", e)
-        return None
+    return None
 
 
 def get_cover_art(filename: str) -> Optional[File]:
@@ -401,11 +400,11 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
-# format an amount of seconds
+# format an amount of seconds into HH:MM:SS
 def format_time(seconds: int) -> str:
     int_seconds = seconds % 60
     int_minutes = (seconds // 60) % 60
-    int_hours = int(seconds) // 3600
+    int_hours = seconds // 3600
 
     result = ""
     if int_hours:
@@ -451,10 +450,10 @@ async def play_next_song(skip_count: int = 0) -> None:
 
         # Say our goodbyes
         embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
-        embed_content = "*Total length of all submissions: {}*\n".format(
+        embed_content = "Hope ya had a good **BUST!**"
+        embed_content += "\n*Total length of all submissions: {}*".format(
             format_time(int(total_song_len))
         )
-        embed_content += "Hope ya had a good **BUST!**"
         embed = Embed(
             title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
         )
