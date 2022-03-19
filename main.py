@@ -1,16 +1,8 @@
 import asyncio
-import base64
 import os
-import random
-from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple, Union
 
-from mutagen import File as MutagenFile, MutagenError
-from mutagen.flac import FLAC, Picture
-from mutagen.id3 import ID3FileType, PictureType
-from mutagen.ogg import OggFileType
-from mutagen.wave import WAVE
 from nextcord import (
     Attachment,
     ChannelType,
@@ -18,20 +10,21 @@ from nextcord import (
     ClientException,
     Embed,
     FFmpegPCMAudio,
-    File,
-    Forbidden,
-    HTTPException,
+    Message,
     Intents,
     Member,
-    Message,
-    NotFound,
     StageChannel,
     TextChannel,
     VoiceChannel,
     VoiceClient,
 )
 from nextcord.utils import escape_markdown
-from PIL import Image, UnidentifiedImageError
+from util import (
+    try_set_pin,
+    song_format,
+    get_cover_art,
+    pick_random_emoji,
+)
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -45,8 +38,6 @@ MESSAGE_LIMIT = 2000
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
 PLAY_EMBED_COLOR = 0x33B86B
-# The maximum character length of any song title or artist name
-MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -70,12 +61,6 @@ original_bot_nickname: Optional[str] = None
 list_task_control_lock = asyncio.Lock()
 
 # STARTUP
-# Import list of emojis from either a custom or the default list.
-# The default list is expected to be stored at `./emoji_list.py`.
-emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "emoji_list")
-emoji_dict = __import__(emoji_filepath).DISCORD_TO_UNICODE
-emoji_list = list(emoji_dict.values())
-
 # This is necessary to query server members
 intents = Intents.default()
 intents.members = True
@@ -183,146 +168,6 @@ async def on_message(message: Message) -> None:
         await command_stop()
 
 
-def sanitize_tag(tag_value: str) -> str:
-    """Sanitizes a tag value.
-
-    Sanitizes by:
-        * removing any newline characters.
-        * capping to 1000 characters total.
-
-    Args:
-        tag_value: The tag to sanitize (i.e. an artist or song name).
-
-    Returns:
-        The sanitized string.
-    """
-    # Remove any newlines
-    tag_value = "".join(tag_value.splitlines())
-
-    if len(tag_value) > MAXIMUM_SONG_METADATA_CHARACTERS:
-        # Cap the length of the string and append an ellipsis
-        tag_value = tag_value[: MAXIMUM_SONG_METADATA_CHARACTERS - 1] + "…"
-
-    return tag_value
-
-
-def song_format(
-    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
-) -> str:
-    """
-    Format a song as text nicely using artist/title tags if available
-
-    Aims for the format "Artist - Title", however if the Artist tag is not
-    available and no fallback artist is passed, just "Title" will be used.
-    The fallback song title if no title tag is present is a beautified version of
-    its filename.
-
-    Args:
-        local_filepath: the actual path on disc
-        filename: the filename on Discord
-        artist_fallback: the fallback author value (no fallback if not passed)
-
-    Returns:
-        A string presenting the given song information in a human-readable way.
-    """
-    content = ""
-    artist = None
-    title = None
-
-    # load tags
-    try:
-        tags = MutagenFile(local_filepath, easy=True)
-        artist = tags.get("artist", [None])[0]
-        title = tags.get("title", [None])[0]
-    except MutagenError:
-        # Ignore file and move on
-        print("Error reading tags from file:", local_filepath)
-
-    # Sanitize tag contents.
-    # We explicitly check for None here, as anything else means that the data was
-    # pulled from the audio.
-    if artist is not None:
-        artist = sanitize_tag(artist)
-    if title is not None:
-        title = sanitize_tag(title)
-
-    # Display in the format <Artist-tag> - <Title-tag>
-    # If no artist tag use fallback if valid. Otherwise, skip artist
-    if artist:
-        content += artist + " - "
-    elif artist_fallback:
-        content += artist_fallback + " - "
-
-    # Always display either title or beautified filename
-    if title:
-        content += title
-    else:
-        filename = path.splitext(filename)[0]
-        content += filename.replace("_", " ")
-
-    return content
-
-
-def get_cover_art(filename: str) -> Optional[File]:
-    # Get image data as bytes
-    try:
-        image_data = None
-        audio = MutagenFile(filename)
-
-        # In each case, ensure audio tags are not None or empty
-        # mutagen.wave.WAVE is not an ID3FileType, although its tags are
-        # of type mutagen.id3.ID3
-        if isinstance(audio, ID3FileType) or isinstance(audio, WAVE):
-            if audio.tags:
-                for tag_name, tag_value in audio.tags.items():
-                    if (
-                        tag_name.startswith("APIC:")
-                        and tag_value.type == PictureType.COVER_FRONT
-                    ):
-                        image_data = tag_value.data
-        elif isinstance(audio, OggFileType):
-            if audio.tags:
-                artwork_tags = audio.tags.get("metadata_block_picture", [])
-                if artwork_tags:
-                    # artwork_tags[0] is the base64-encoded data
-                    raw_data = base64.b64decode(artwork_tags[0])
-                    image_data = Picture(raw_data).data
-        elif isinstance(audio, FLAC):
-            if audio.pictures:
-                image_data = audio.pictures[0].data
-    except MutagenError:
-        # Ignore file and move on
-        return None
-    except Exception as e:
-        print(f"Unknown error reading cover art for {filename}:", e)
-        return None
-
-    # Make sure it doesn't go over 8MB
-    # This is a safe lower bound on the Discord upload limit of 8MiB
-    if image_data is None or len(image_data) > 8_000_000:
-        return None
-
-    # Get a file pointer to the bytes
-    image_bytes_fp = BytesIO(image_data)
-
-    # Read the filetype of the bytes and discern the appropriate file extension
-    try:
-        image = Image.open(image_bytes_fp)
-    except UnidentifiedImageError:
-        print(f"Warning: Skipping unidentifiable cover art field in {filename}")
-        return None
-    image_file_extension = image.format
-
-    # Wind back the file pointer in order to read it a second time
-    image_bytes_fp.seek(0)
-
-    # Make up a filename
-    cover_filename = f"cover.{image_file_extension}".lower()
-
-    # Create a new discord file from the file pointer and name
-    return File(image_bytes_fp, filename=cover_filename)
-
-
 async def command_stop() -> None:
     """Stop playing music."""
     # Clear the queue
@@ -394,22 +239,6 @@ def command_skip() -> None:
     # Stop any currently playing song
     # The next song will play automatically.
     active_voice_client.stop()
-
-
-async def try_set_pin(message: Message, pin_state: bool) -> None:
-    """Attempt to set message's pin status to pin_state, catching and printing errors"""
-    try:
-        if pin_state:
-            await message.pin()
-        else:
-            await message.unpin()
-    except Forbidden:
-        print(
-            "Insufficient permission to manage pinned messages. "
-            'Please give me the "manage_messages" permission and try again'
-        )
-    except (HTTPException, NotFound) as e:
-        print("Altering message pin state failed:", e)
 
 
 async def play_next_song(skip_count: int = 0) -> None:
@@ -670,18 +499,6 @@ async def scrape_channel_media(
                 os.remove(filepath)
 
     return channel_media_attachments
-
-
-def pick_random_emoji() -> str:
-    """Picks a random emoji from the loaded emoji list"""
-
-    # Choose a random emoji
-    encoded_random_emoji = random.choice(emoji_list)
-
-    # Decode the emoji from the unicode characters
-    decoded_random_emoji = encoded_random_emoji.encode("Latin1").decode()
-
-    return decoded_random_emoji
 
 
 async def command_form(message: Message) -> None:
