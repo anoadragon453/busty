@@ -538,7 +538,7 @@ async def command_list(message: Message) -> None:
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
-    embed_description_list = []
+    embed_description_list: List[str] = []
     embed_description_current = ""
 
     for index, (
