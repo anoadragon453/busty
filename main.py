@@ -513,6 +513,10 @@ async def play_next_song(skip_count: int = 0) -> None:
 async def command_list(message: Message) -> None:
     target_channel = message.channel
 
+    if not isinstance(target_channel, TextChannel):
+        print(f"Unsupported channel type to !list: {type(target_channel)}")
+        return
+
     # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
