@@ -333,7 +333,7 @@ async def command_stop() -> None:
         await bot_member.edit(nick=original_bot_nickname)
 
 
-async def command_play(message: Message, skip_count: int = 0):
+async def command_play(message: Message, skip_count: int = 0) -> None:
     # Join active voice call
     voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
         message.guild.voice_channels
