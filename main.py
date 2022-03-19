@@ -43,6 +43,8 @@ LIST_EMBED_COLOR = 0xDD2E44
 PLAY_EMBED_COLOR = 0x33B86B
 # The maximum character length of any song title or artist name
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
+# The maximum number of messages to scan for song submissions
+MAXIMUM_MESSAGES_TO_SCAN = 1000
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -596,7 +598,9 @@ async def scrape_channel_media(
         os.mkdir(attachment_directory_filepath)
 
     # Iterate through each message in the channel
-    async for message in channel.history(limit=1000, oldest_first=True):
+    async for message in channel.history(
+        limit=MAXIMUM_MESSAGES_TO_SCAN, oldest_first=True
+    ):
         if not message.attachments:
             # This message has no attached media
             continue
