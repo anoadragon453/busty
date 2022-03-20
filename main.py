@@ -649,7 +649,9 @@ async def scrape_channel_media(
         if not os.path.exists(attachment_filepath):
             await attachment.save(attachment_filepath)
 
-    tasks = [asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments]
+    tasks = [
+        asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments
+    ]
     await asyncio.wait(tasks)
 
     # Clear unused files in attachment directory
