@@ -645,7 +645,7 @@ async def scrape_channel_media(
             )
 
     # Save all files if not in cache
-    async def dl_file(attachment, attachment_filepath: str) -> None:
+    async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
         if not os.path.exists(attachment_filepath):
             await attachment.save(attachment_filepath)
 
