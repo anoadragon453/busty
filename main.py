@@ -65,6 +65,8 @@ active_voice_client: Optional[VoiceClient] = None
 original_bot_nickname: Optional[str] = None
 # Allow only one async routine to calculate !list at a time
 list_task_control_lock = asyncio.Lock()
+# Total length of all songs in seconds
+total_song_len: Optional[float]
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -259,6 +261,20 @@ def song_format(
     return content
 
 
+# Get length of a song
+def get_length(filename: str) -> Optional[float]:
+    try:
+        audio = MutagenFile(filename)
+        if audio:
+            return audio.info.length
+    except MutagenError as e:
+        # Ignore file and move on
+        print(f"Error reading length of {filename}:", e)
+    except Exception as e:
+        print(f"Unknown error reading length of {filename}:", e)
+    return None
+
+
 def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
     try:
@@ -388,6 +404,22 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
+# format an amount of seconds into HH:MM:SS
+def format_time(seconds: int) -> str:
+    int_seconds = seconds % 60
+    int_minutes = (seconds // 60) % 60
+    int_hours = seconds // 3600
+
+    result = ""
+    if int_hours:
+        result += f"{int_hours}h "
+    if int_minutes or int_hours:
+        result += f"{int_minutes}m "
+    result += f"{int_seconds}s"
+
+    return result
+
+
 async def try_set_pin(message: Message, pin_state: bool) -> None:
     """Attempt to set message's pin status to pin_state, catching and printing errors"""
     try:
@@ -412,6 +444,7 @@ async def play_next_song(skip_count: int = 0) -> None:
     bot_member = current_channel.guild.get_member(client.user.id)
 
     if not current_channel_content:
+        global total_song_len
         # If there are no more songs to play, leave the active voice channel
         await active_voice_client.disconnect()
 
@@ -422,6 +455,9 @@ async def play_next_song(skip_count: int = 0) -> None:
         # Say our goodbyes
         embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
         embed_content = "Hope ya had a good **BUST!**"
+        embed_content += "\n*Total length of all submissions: {}*".format(
+            format_time(int(total_song_len))
+        )
         embed = Embed(
             title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
         )
@@ -430,6 +466,7 @@ async def play_next_song(skip_count: int = 0) -> None:
         # Clear the current channel and content
         current_channel_content = None
         current_channel = None
+        total_song_len = None
         return
 
     # Wait some time between songs
@@ -600,6 +637,14 @@ async def command_list(message: Message) -> None:
 
     global current_channel
     current_channel = target_channel
+
+    # Calculate total length of all songs
+    global total_song_len
+    total_song_len = 0
+    for _, _, local_filepath in channel_media_attachments:
+        song_len = get_length(local_filepath)
+        if song_len:
+            total_song_len += song_len
 
 
 async def scrape_channel_media(
