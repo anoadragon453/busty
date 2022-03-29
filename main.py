@@ -4,7 +4,7 @@ import os
 import random
 from io import BytesIO
 from os import path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
@@ -22,9 +22,12 @@ from nextcord import (
     Forbidden,
     HTTPException,
     Intents,
+    Member,
     Message,
     NotFound,
+    StageChannel,
     TextChannel,
+    VoiceChannel,
     VoiceClient,
 )
 from nextcord.utils import escape_markdown
@@ -87,17 +90,22 @@ client = Client(intents=intents)
 
 
 @client.event
-async def on_ready():
+async def on_ready() -> None:
     print("We have logged in as {0.user}.".format(client))
 
 
 @client.event
-async def on_message(message: Message):
+async def on_message(message: Message) -> None:
     if message.author == client.user:
         return
 
-    # Do not process messages in DM channels
-    if message.guild is None:
+    # Do not process messages outside of guild text channels
+    if not isinstance(message.channel, TextChannel):
+        return
+
+    # The message author must be a guild member, so that we can
+    # check if they have the appropriate role below
+    if not isinstance(message.author, Member):
         return
 
     for role in message.author.roles:
@@ -353,9 +361,13 @@ async def command_stop() -> None:
         await bot_member.edit(nick=original_bot_nickname)
 
 
-async def command_play(message: Message, skip_count: int = 0):
+async def command_play(message: Message, skip_count: int = 0) -> None:
     # Join active voice call
-    voice_channels = message.guild.voice_channels + message.guild.stage_channels
+    voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
+        message.guild.voice_channels
+    )
+    voice_channels.extend(message.guild.stage_channels)
+
     if not voice_channels:
         await message.channel.send(
             "You need to be in an active voice or stage channel."
@@ -550,6 +562,10 @@ async def play_next_song(skip_count: int = 0) -> None:
 async def command_list(message: Message) -> None:
     target_channel = message.channel
 
+    if not isinstance(target_channel, TextChannel):
+        print(f"Unsupported channel type to !list: {type(target_channel)}")
+        return
+
     # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
@@ -571,7 +587,7 @@ async def command_list(message: Message) -> None:
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
-    embed_description_list = []
+    embed_description_list: List[str] = []
     embed_description_current = ""
 
     for index, (
@@ -687,7 +703,8 @@ async def scrape_channel_media(
 
             # Save file if not in cache
             if not os.path.exists(attachment_filepath):
-                await attachment.save(attachment_filepath)
+                # Type error fixed by https://github.com/nextcord/nextcord/pull/539
+                await attachment.save(os.path.join(attachment_filepath))  # type: ignore[arg-type]
 
             channel_media_attachments.append(
                 (
