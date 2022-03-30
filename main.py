@@ -44,6 +44,8 @@ LIST_EMBED_COLOR = 0xDD2E44
 PLAY_EMBED_COLOR = 0x33B86B
 # The maximum character length of any song title or artist name
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
+# The maximum number of songs to download concurrently
+MAXIMUM_CONCURRENT_DOWNLOADS = 8
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -644,10 +646,14 @@ async def scrape_channel_media(
                 )
             )
 
+    download_semaphore = asyncio.Semaphore(value=MAXIMUM_CONCURRENT_DOWNLOADS)
+
     # Save all files if not in cache
     async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
+        await download_semaphore.acquire()
         if not os.path.exists(attachment_filepath):
             await attachment.save(attachment_filepath)
+        download_semaphore.release()
 
     tasks = [
         asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments
@@ -716,7 +722,7 @@ async def command_form(message: Message) -> None:
     # Print message in chunks respecting character limit
     chunk_size = MESSAGE_LIMIT - 6
     for i in range(0, len(appscript), chunk_size):
-        await message.channel.send("```{}```".format(appscript[i : i + chunk_size]))
+        await message.channel.send("```{}```".format(appscript[i: i + chunk_size]))
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
