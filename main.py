@@ -137,6 +137,9 @@ async def on_message(message: Message) -> None:
         async with list_task_control_lock:
             await command_list(message)
 
+    elif message_text.startswith("!count"):
+        await command_count(message)
+
     elif message_text.startswith("!bust"):
         if active_voice_client and active_voice_client.is_connected():
             await message.channel.send("We're already busting.")
@@ -559,21 +562,44 @@ async def play_next_song(skip_count: int = 0) -> None:
     await bot_member.edit(nick=new_nick)
 
 
-async def command_list(message: Message) -> None:
+async def extract_target_channel(message) -> Optional[TextChannel]:
+    """Return the first mentioned channel in a message,
+    or the channel itself. If the first mentioned channel is not
+    a TextChannel, return None
+    """
     target_channel = message.channel
-
-    if not isinstance(target_channel, TextChannel):
-        print(f"Unsupported channel type to !list: {type(target_channel)}")
-        return
 
     # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
-        mentioned_channel = message.channel_mentions[0]
-        if isinstance(mentioned_channel, TextChannel):
-            target_channel = mentioned_channel
-        else:
-            await message.channel.send("That isn't a text channel.")
-            return
+        target_channel = message.channel_mentions[0]
+    # Ensure validity
+    if not isinstance(target_channel, TextChannel):
+        return None
+    return target_channel
+
+
+async def command_count(message: Message) -> None:
+    target_channel = await extract_target_channel(message)
+    if not target_channel:
+        print("You can only run !count on text channels.")
+        return
+
+    message_count = 0
+    async for _ in target_channel.history(
+        limit=MAXIMUM_MESSAGES_TO_SCAN, oldest_first=True
+    ):
+        message_count += 1
+    message_text = f"Total messages in {target_channel.mention}: {message_count}"
+    if message_count == MAXIMUM_MESSAGES_TO_SCAN:
+        message_text += "+"
+    await message.channel.send(message_text)
+
+
+async def command_list(message: Message) -> None:
+    target_channel = await extract_target_channel(message)
+    if not target_channel:
+        print("You can only run !list on text channels.")
+        return
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await scrape_channel_media(target_channel)
 
