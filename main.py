@@ -4,7 +4,7 @@ import os
 import random
 from io import BytesIO
 from os import path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
@@ -22,9 +22,12 @@ from nextcord import (
     Forbidden,
     HTTPException,
     Intents,
+    Member,
     Message,
     NotFound,
+    StageChannel,
     TextChannel,
+    VoiceChannel,
     VoiceClient,
 )
 from nextcord.utils import escape_markdown
@@ -44,6 +47,8 @@ LIST_EMBED_COLOR = 0xDD2E44
 PLAY_EMBED_COLOR = 0x33B86B
 # The maximum character length of any song title or artist name
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
+# The maximum number of messages to scan for song submissions
+MAXIMUM_MESSAGES_TO_SCAN = 1000
 # The maximum number of songs to download concurrently
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 
@@ -67,6 +72,8 @@ active_voice_client: Optional[VoiceClient] = None
 original_bot_nickname: Optional[str] = None
 # Allow only one async routine to calculate !list at a time
 list_task_control_lock = asyncio.Lock()
+# Total length of all songs in seconds
+total_song_len: Optional[float]
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -85,17 +92,22 @@ client = Client(intents=intents)
 
 
 @client.event
-async def on_ready():
+async def on_ready() -> None:
     print("We have logged in as {0.user}.".format(client))
 
 
 @client.event
-async def on_message(message: Message):
+async def on_message(message: Message) -> None:
     if message.author == client.user:
         return
 
-    # Do not process messages in DM channels
-    if message.guild is None:
+    # Do not process messages outside of guild text channels
+    if not isinstance(message.channel, TextChannel):
+        return
+
+    # The message author must be a guild member, so that we can
+    # check if they have the appropriate role below
+    if not isinstance(message.author, Member):
         return
 
     for role in message.author.roles:
@@ -261,6 +273,20 @@ def song_format(
     return content
 
 
+# Get length of a song
+def get_length(filename: str) -> Optional[float]:
+    try:
+        audio = MutagenFile(filename)
+        if audio:
+            return audio.info.length
+    except MutagenError as e:
+        # Ignore file and move on
+        print(f"Error reading length of {filename}:", e)
+    except Exception as e:
+        print(f"Unknown error reading length of {filename}:", e)
+    return None
+
+
 def get_cover_art(filename: str) -> Optional[File]:
     # Get image data as bytes
     try:
@@ -337,9 +363,13 @@ async def command_stop() -> None:
         await bot_member.edit(nick=original_bot_nickname)
 
 
-async def command_play(message: Message, skip_count: int = 0):
+async def command_play(message: Message, skip_count: int = 0) -> None:
     # Join active voice call
-    voice_channels = message.guild.voice_channels + message.guild.stage_channels
+    voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
+        message.guild.voice_channels
+    )
+    voice_channels.extend(message.guild.stage_channels)
+
     if not voice_channels:
         await message.channel.send(
             "You need to be in an active voice or stage channel."
@@ -390,6 +420,22 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
+# format an amount of seconds into HH:MM:SS
+def format_time(seconds: int) -> str:
+    int_seconds = seconds % 60
+    int_minutes = (seconds // 60) % 60
+    int_hours = seconds // 3600
+
+    result = ""
+    if int_hours:
+        result += f"{int_hours}h "
+    if int_minutes or int_hours:
+        result += f"{int_minutes}m "
+    result += f"{int_seconds}s"
+
+    return result
+
+
 async def try_set_pin(message: Message, pin_state: bool) -> None:
     """Attempt to set message's pin status to pin_state, catching and printing errors"""
     try:
@@ -414,6 +460,7 @@ async def play_next_song(skip_count: int = 0) -> None:
     bot_member = current_channel.guild.get_member(client.user.id)
 
     if not current_channel_content:
+        global total_song_len
         # If there are no more songs to play, leave the active voice channel
         await active_voice_client.disconnect()
 
@@ -424,6 +471,9 @@ async def play_next_song(skip_count: int = 0) -> None:
         # Say our goodbyes
         embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
         embed_content = "Hope ya had a good **BUST!**"
+        embed_content += "\n*Total length of all submissions: {}*".format(
+            format_time(int(total_song_len))
+        )
         embed = Embed(
             title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
         )
@@ -432,6 +482,7 @@ async def play_next_song(skip_count: int = 0) -> None:
         # Clear the current channel and content
         current_channel_content = None
         current_channel = None
+        total_song_len = None
         return
 
     # Wait some time between songs
@@ -513,6 +564,10 @@ async def play_next_song(skip_count: int = 0) -> None:
 async def command_list(message: Message) -> None:
     target_channel = message.channel
 
+    if not isinstance(target_channel, TextChannel):
+        print(f"Unsupported channel type to !list: {type(target_channel)}")
+        return
+
     # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
         mentioned_channel = message.channel_mentions[0]
@@ -534,7 +589,7 @@ async def command_list(message: Message) -> None:
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
-    embed_description_list = []
+    embed_description_list: List[str] = []
     embed_description_current = ""
 
     for index, (
@@ -603,6 +658,14 @@ async def command_list(message: Message) -> None:
     global current_channel
     current_channel = target_channel
 
+    # Calculate total length of all songs
+    global total_song_len
+    total_song_len = 0
+    for _, _, local_filepath in channel_media_attachments:
+        song_len = get_length(local_filepath)
+        if song_len:
+            total_song_len += song_len
+
 
 async def scrape_channel_media(
     channel: TextChannel,
@@ -615,7 +678,9 @@ async def scrape_channel_media(
         os.mkdir(attachment_directory_filepath)
 
     # Iterate through each message in the channel
-    async for message in channel.history(limit=500, oldest_first=True):
+    async for message in channel.history(
+        limit=MAXIMUM_MESSAGES_TO_SCAN, oldest_first=True
+    ):
         if not message.attachments:
             # This message has no attached media
             continue
@@ -637,7 +702,6 @@ async def scrape_channel_media(
                     os.path.splitext(attachment.filename)[1],
                 ),
             )
-
             channel_media_attachments.append(
                 (
                     message,
