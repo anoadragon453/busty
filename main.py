@@ -786,7 +786,7 @@ async def command_form(message: Message) -> None:
     # Print message in chunks respecting character limit
     chunk_size = MESSAGE_LIMIT - 6
     for i in range(0, len(appscript), chunk_size):
-        await message.channel.send("```{}```".format(appscript[i: i + chunk_size]))
+        await message.channel.send("```{}```".format(appscript[i : i + chunk_size]))
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
