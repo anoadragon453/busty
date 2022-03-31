@@ -743,7 +743,7 @@ async def command_form(message: Message) -> None:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
     # Extract bust number from channel name
-    bust_number = "".join([c for c in message.channel.name if c.isdigit()])
+    bust_number = "".join([c for c in current_channel.name if c.isdigit()])
     if bust_number:
         bust_number = bust_number + " "
 
