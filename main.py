@@ -714,10 +714,12 @@ async def scrape_channel_media(
 
     # Save all files if not in cache
     async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
-        await download_semaphore.acquire()
-        if not os.path.exists(attachment_filepath):
+        if os.path.exists(attachment_filepath):
+            return
+        
+        # Limit concurrent downloads
+        await with download_semaphore:
             await attachment.save(attachment_filepath)
-        download_semaphore.release()
 
     tasks = [
         asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments
