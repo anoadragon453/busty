@@ -716,9 +716,9 @@ async def scrape_channel_media(
     async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
         if os.path.exists(attachment_filepath):
             return
-        
+
         # Limit concurrent downloads
-        await with download_semaphore:
+        async with download_semaphore:
             await attachment.save(attachment_filepath)
 
     tasks = [
