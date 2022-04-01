@@ -742,8 +742,13 @@ async def command_form(message: Message) -> None:
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
+    # Extract bust number from channel name
+    bust_number = "".join([c for c in current_channel.name if c.isdigit()])
+    if bust_number:
+        bust_number = bust_number + " "
+
     # Constants in generated code, Make sure these strings are properly escaped
-    default_title = "Busty's Voting"
+    form_title = f"Busty's {bust_number}Voting"
     low_string = "OK"
     high_string = "Masterpiece"
     low_score = 0
@@ -751,7 +756,7 @@ async def command_form(message: Message) -> None:
 
     appscript = "function r(){"
     # Setup and grab form
-    appscript += f'var f=FormApp.getActiveForm().setTitle("{default_title}");'
+    appscript += f'var f=FormApp.getActiveForm().setTitle("{form_title}");'
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
     # Add new data to form
