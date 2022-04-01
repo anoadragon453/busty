@@ -764,8 +764,13 @@ async def command_form(message: Message) -> None:
             for submit_message, attachment, local_filepath in current_channel_content
         ]
     )
-    create_line += '].forEach((s,i)=>f.addScaleItem().setTitle(i+1+". "+s).setBounds({},{}).setLabels("{}","{}"))'.format(
-        low_score, high_score, low_string, high_string
+    create_line += (
+        "].forEach((s,i)=>f.addScaleItem()"
+        '.setTitle(i+1+". "+s)'
+        f".setBounds({low_score},{high_score})"
+        f'.setLabels("{low_string}","{high_string}")'
+        ".setRequired(true)"
+        ")"
     )
     create_line += "}"
     appscript += create_line
