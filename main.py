@@ -49,6 +49,8 @@ PLAY_EMBED_COLOR = 0x33B86B
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 # The maximum number of messages to scan for song submissions
 MAXIMUM_MESSAGES_TO_SCAN = 1000
+# The maximum number of songs to download concurrently
+MAXIMUM_CONCURRENT_DOWNLOADS = 8
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -700,12 +702,6 @@ async def scrape_channel_media(
                     os.path.splitext(attachment.filename)[1],
                 ),
             )
-
-            # Save file if not in cache
-            if not os.path.exists(attachment_filepath):
-                # Type error fixed by https://github.com/nextcord/nextcord/pull/539
-                await attachment.save(os.path.join(attachment_filepath))  # type: ignore[arg-type]
-
             channel_media_attachments.append(
                 (
                     message,
@@ -713,6 +709,22 @@ async def scrape_channel_media(
                     attachment_filepath,
                 )
             )
+
+    download_semaphore = asyncio.Semaphore(value=MAXIMUM_CONCURRENT_DOWNLOADS)
+
+    # Save all files if not in cache
+    async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
+        if os.path.exists(attachment_filepath):
+            return
+
+        # Limit concurrent downloads
+        async with download_semaphore:
+            await attachment.save(attachment_filepath)
+
+    tasks = [
+        asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments
+    ]
+    await asyncio.wait(tasks)
 
     # Clear unused files in attachment directory
     used_files = {path for (_, _, path) in channel_media_attachments}
