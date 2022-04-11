@@ -50,7 +50,7 @@ MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 # The maximum number of messages to scan for song submissions
 MAXIMUM_MESSAGES_TO_SCAN = 1000
 # Volume multiplier to avoid clipping on Discord
-VOLUME_MULTIPLIER = 0.75
+VOLUME_MULTIPLIER = 0.5
 
 # SETTINGS
 # How many seconds to wait in-between songs
