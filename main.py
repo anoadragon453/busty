@@ -51,6 +51,8 @@ MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 MAXIMUM_MESSAGES_TO_SCAN = 1000
 # Volume multiplier to avoid clipping on Discord
 VOLUME_MULTIPLIER = 0.5
+# The maximum number of songs to download concurrently
+MAXIMUM_CONCURRENT_DOWNLOADS = 8
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -705,12 +707,6 @@ async def scrape_channel_media(
                     os.path.splitext(attachment.filename)[1],
                 ),
             )
-
-            # Save file if not in cache
-            if not os.path.exists(attachment_filepath):
-                # Type error fixed by https://github.com/nextcord/nextcord/pull/539
-                await attachment.save(os.path.join(attachment_filepath))  # type: ignore[arg-type]
-
             channel_media_attachments.append(
                 (
                     message,
@@ -718,6 +714,22 @@ async def scrape_channel_media(
                     attachment_filepath,
                 )
             )
+
+    download_semaphore = asyncio.Semaphore(value=MAXIMUM_CONCURRENT_DOWNLOADS)
+
+    # Save all files if not in cache
+    async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
+        if os.path.exists(attachment_filepath):
+            return
+
+        # Limit concurrent downloads
+        async with download_semaphore:
+            await attachment.save(attachment_filepath)
+
+    tasks = [
+        asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments
+    ]
+    await asyncio.wait(tasks)
 
     # Clear unused files in attachment directory
     used_files = {path for (_, _, path) in channel_media_attachments}
@@ -747,8 +759,13 @@ async def command_form(message: Message) -> None:
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
+    # Extract bust number from channel name
+    bust_number = "".join([c for c in current_channel.name if c.isdigit()])
+    if bust_number:
+        bust_number = bust_number + " "
+
     # Constants in generated code, Make sure these strings are properly escaped
-    default_title = "Busty's Voting"
+    form_title = f"Busty's {bust_number}Voting"
     low_string = "OK"
     high_string = "Masterpiece"
     low_score = 0
@@ -756,7 +773,7 @@ async def command_form(message: Message) -> None:
 
     appscript = "function r(){"
     # Setup and grab form
-    appscript += f'var f=FormApp.getActiveForm().setTitle("{default_title}");'
+    appscript += f'var f=FormApp.getActiveForm().setTitle("{form_title}");'
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
     # Add new data to form
@@ -769,8 +786,13 @@ async def command_form(message: Message) -> None:
             for submit_message, attachment, local_filepath in current_channel_content
         ]
     )
-    create_line += '].forEach((s,i)=>f.addScaleItem().setTitle(i+1+". "+s).setBounds({},{}).setLabels("{}","{}"))'.format(
-        low_score, high_score, low_string, high_string
+    create_line += (
+        "].forEach((s,i)=>f.addScaleItem()"
+        '.setTitle(i+1+". "+s)'
+        f".setBounds({low_score},{high_score})"
+        f'.setLabels("{low_string}","{high_string}")'
+        ".setRequired(true)"
+        ")"
     )
     create_line += "}"
     appscript += create_line
