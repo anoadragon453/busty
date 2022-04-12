@@ -49,6 +49,8 @@ PLAY_EMBED_COLOR = 0x33B86B
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 # The maximum number of messages to scan for song submissions
 MAXIMUM_MESSAGES_TO_SCAN = 1000
+# Volume multiplier to avoid clipping on Discord
+VOLUME_MULTIPLIER = 0.5
 # The maximum number of songs to download concurrently
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 
@@ -544,7 +546,10 @@ async def play_next_song(skip_count: int = 0) -> None:
         asyncio.run_coroutine_threadsafe(play_next_song(), client.loop)
 
     # Play song
-    active_voice_client.play(FFmpegPCMAudio(local_filepath), after=ffmpeg_post_hook)
+    active_voice_client.play(
+        FFmpegPCMAudio(local_filepath, options=f"-filter:a volume={VOLUME_MULTIPLIER}"),
+        after=ffmpeg_post_hook,
+    )
 
     # Change the name of the bot to that of the currently playing song.
     # This allows people to quickly see which song is currently playing.
