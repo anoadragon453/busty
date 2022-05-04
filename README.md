@@ -21,8 +21,8 @@ features, or to suggest your own.
 
 ## Screenshots
 
-![an example of listing tracks](screenshots/track_listing.png)
-![an example of a bust in action](screenshots/bust.png)
+![an example of listing tracks](screenshots/listing.png)
+![an example of a song playing](screenshots/playing.png)
 
 ## Install
 
