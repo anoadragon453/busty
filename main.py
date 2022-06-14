@@ -413,7 +413,7 @@ async def command_play(message: Message, skip_count: int = 0) -> None:
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
-    await play_next_song(skip_count)
+    await play_next_song(skip_count, is_first_song=True)
 
 
 def command_skip() -> None:
@@ -454,7 +454,7 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
         print("Altering message pin state failed:", e)
 
 
-async def play_next_song(skip_count: int = 0) -> None:
+async def play_next_song(skip_count: int = 0, is_first_song: bool = False) -> None:
     global current_channel_content
     global current_channel
 
@@ -488,7 +488,7 @@ async def play_next_song(skip_count: int = 0) -> None:
         return
 
     # Wait some time between songs
-    if seconds_between_songs:
+    if seconds_between_songs and not is_first_song:
         embed_title = "Currently Chilling"
         embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
             seconds_between_songs, "s" if seconds_between_songs != 1 else ""
