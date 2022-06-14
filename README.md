@@ -41,15 +41,22 @@ And install the dependencies:
 pip install -r requirements.txt
 ```
 
-To install an additional set of python dependencies for speeding up the bot, install the `nextcord[speed]` package as well. You may need to install additional system packages.
+To install an additional set of python dependencies for speeding up the bot, install the
+`nextcord[speed]` package as well.You may need to install additional system packages.
 
 ## Configure
 
-You'll need to create a Discord app, add a bot component, and copy the bot token.
-Ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains the bot token when running the bot.
-Then, add the bot to your desired Discord server.
+You'll need to create a Discord app, and add a bot component. **Ensure the bot has the
+"Server Members Intent" and "Message Content Intent"** options enabled, otherwise the bot
+will not function correctly. Note that this will limit your bot to participating in 100
+servers maximum, unless you verify your bot with Discord.
 
-The complete list of environment variable configuration options is
+Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains
+the bot token when running the bot.
+
+Finally, add the bot to your desired Discord server.
+
+The complete list of environment variable configuration options is:
 1. `BUSTY_DISCORD_TOKEN` - Discord bot API token (required)
 2. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
 3. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
