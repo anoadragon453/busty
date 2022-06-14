@@ -86,7 +86,11 @@ emoji_list = list(emoji_dict.values())
 
 # This is necessary to query server members
 intents = Intents.default()
+# To fetch guild member information.
+# Privileged intent. Requires enabling in Discord Developer Portal.
 intents.members = True
+# To be able to read message content.
+intents.message_content = True
 
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
