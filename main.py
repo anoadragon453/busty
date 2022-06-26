@@ -426,6 +426,40 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
+async def finish_bust() -> None:
+    """End the current bust."""
+    global active_voice_client
+    global original_bot_nickname
+    global current_channel_content
+    global current_channel
+    global total_song_len
+
+    # Disconnect from voice if necessary
+    if active_voice_client and active_voice_client.is_connected():
+        await active_voice_client.disconnect()
+
+    # Restore the bot's original guild nickname (if it had one)
+    bot_member = current_channel.guild.get_member(client.user.id)
+    if original_bot_nickname:
+        await bot_member.edit(nick=original_bot_nickname)
+
+    # Say our goodbyes
+    embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
+    embed_content = "Hope ya had a good **BUST!**"
+    embed_content += "\n*Total length of all submissions: {}*".format(
+        format_time(int(total_song_len))
+    )
+    embed = Embed(title=embed_title, description=embed_content, color=LIST_EMBED_COLOR)
+    await current_channel.send(embed=embed)
+
+    # Clear variables relating to current bust
+    active_voice_client = None
+    original_bot_nickname = None
+    current_channel_content = None
+    current_channel = None
+    total_song_len = None
+
+
 # format an amount of seconds into HH:MM:SS
 def format_time(seconds: int) -> str:
     int_seconds = seconds % 60
@@ -462,33 +496,9 @@ async def play_next_song(skip_count: int = 0) -> None:
     global current_channel_content
     global current_channel
 
-    # Get a reference to the bot's Member object
-    bot_member = current_channel.guild.get_member(client.user.id)
-
     if not current_channel_content:
-        global total_song_len
-        # If there are no more songs to play, leave the active voice channel
-        await active_voice_client.disconnect()
-
-        # Restore the bot's original guild nickname (if it had one)
-        if original_bot_nickname:
-            await bot_member.edit(nick=original_bot_nickname)
-
-        # Say our goodbyes
-        embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
-        embed_content = "Hope ya had a good **BUST!**"
-        embed_content += "\n*Total length of all submissions: {}*".format(
-            format_time(int(total_song_len))
-        )
-        embed = Embed(
-            title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
-        )
-        await current_channel.send(embed=embed)
-
-        # Clear the current channel and content
-        current_channel_content = None
-        current_channel = None
-        total_song_len = None
+        # If there are no more songs to play, conclude the bust
+        await finish_bust()
         return
 
     # Wait some time between songs
@@ -567,6 +577,7 @@ async def play_next_song(skip_count: int = 0) -> None:
         new_nick = new_nick[:31] + "…"
 
     # Set the new nickname
+    bot_member = current_channel.guild.get_member(client.user.id)
     await bot_member.edit(nick=new_nick)
 
 
