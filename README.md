@@ -21,8 +21,8 @@ features, or to suggest your own.
 
 ## Screenshots
 
-![an example of listing tracks](screenshots/track_listing.png)
-![an example of a bust in action](screenshots/bust.png)
+![an example of listing tracks](screenshots/listing.png)
+![an example of a song playing](screenshots/playing.png)
 
 ## Install
 
@@ -41,15 +41,22 @@ And install the dependencies:
 pip install -r requirements.txt
 ```
 
-To install an additional set of python dependencies for speeding up the bot, install the `nextcord[speed]` package as well. You may need to install additional system packages.
+To install an additional set of python dependencies for speeding up the bot, install the
+`nextcord[speed]` package as well.You may need to install additional system packages.
 
 ## Configure
 
-You'll need to create a Discord app, add a bot component, and copy the bot token.
-Ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains the bot token when running the bot.
-Then, add the bot to your desired Discord server.
+You'll need to create a Discord app, and add a bot component. **Ensure the bot has the
+"Server Members Intent" and "Message Content Intent"** options enabled, otherwise the bot
+will not function correctly. Note that this will limit your bot to participating in 100
+servers maximum, unless you verify your bot with Discord.
 
-The complete list of environment variable configuration options is
+Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains
+the bot token when running the bot.
+
+Finally, add the bot to your desired Discord server.
+
+The complete list of environment variable configuration options is:
 1. `BUSTY_DISCORD_TOKEN` - Discord bot API token (required)
 2. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
 3. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
@@ -89,6 +96,47 @@ The expected flow for running a bust is:
 1. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
 1. `!skip` - Skips the current track :scream: 
 1. `!stop` - Stop busting early :scream: :scream: :scream: 
+1. `!form` - Show [Google Apps Script](https://developers.google.com/apps-script) code which will generate a Google Form that can be used for voting.
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
+
+## Development
+
+If you'd like to help Busty in her quest, consider working on one of the
+[currently open issues](https://github.com/anoadragon453/busty). Before you do,
+please double-check that a pull request for the issue
+[does not already exist](https://github.com/anoadragon453/busty/pulls).
+
+### Installing the development dependencies
+
+Some extra Python modules are necessary when developing for Busty. These are
+contained in the `dev-requirements.txt` file. To install them, run:
+
+```shell
+# Activate the virtualenv if not already done so
+source env/bin/activate
+
+# Install development dependencies
+pip install -r dev-requirements.txt
+```
+
+### Testing your changes
+
+Busty does not currently feature any automated testing. Testing is carried out
+manually, typically in one's own test Discord guild.
+
+Once you have implemented your change, please ensure that [known commands](#command-reference),
+listing tracks and playing songs all work with your change. Pull requests are
+additionally tested by reviewers before merging them, but we're only human.
+
+### Linting
+
+Once you have implemented your feature and tested that it works, you'll need to
+ensure your code is properly formatted. Running `./scripts-dev/lint.sh` will
+check this for you and - in most cases - fix any style issues automatically.
+
+Otherwise, some issues may need to be fixed manually. These will be printed when
+`lint.sh` is run. They must be fixed before your PR will be accepted. If you
+are unable to figure out how to appease the linter, simply post and mark your
+pull request as a draft and ask for help in a comment.
