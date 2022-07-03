@@ -76,6 +76,9 @@ original_bot_nickname: Optional[str] = None
 list_task_control_lock = asyncio.Lock()
 # Total length of all songs in seconds
 total_song_len: Optional[float]
+# Currently pinned "now playing" message ID
+now_playing_msg: Optional[Message] = None
+
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -100,6 +103,15 @@ client = Client(intents=intents)
 @client.event
 async def on_ready() -> None:
     print("We have logged in as {0.user}.".format(client))
+
+
+@client.event
+async def on_close() -> None:
+    # Unpin current "now playing" message if it exists
+    if now_playing_msg:
+        await try_set_pin(now_playing_msg, False)
+    # Finish current bust (if exists) as if it were stopped
+    await finish_bust(say_goodbye=False)
 
 
 @client.event
@@ -426,7 +438,7 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
-async def finish_bust() -> None:
+async def finish_bust(say_goodbye=True) -> None:
     """End the current bust."""
     global active_voice_client
     global original_bot_nickname
@@ -439,18 +451,20 @@ async def finish_bust() -> None:
         await active_voice_client.disconnect()
 
     # Restore the bot's original guild nickname (if it had one)
-    bot_member = current_channel.guild.get_member(client.user.id)
-    if original_bot_nickname:
+    if original_bot_nickname and current_channel:
+        bot_member = current_channel.guild.get_member(client.user.id)
         await bot_member.edit(nick=original_bot_nickname)
 
-    # Say our goodbyes
-    embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
-    embed_content = "Hope ya had a good **BUST!**"
-    embed_content += "\n*Total length of all submissions: {}*".format(
-        format_time(int(total_song_len))
-    )
-    embed = Embed(title=embed_title, description=embed_content, color=LIST_EMBED_COLOR)
-    await current_channel.send(embed=embed)
+    if say_goodbye:
+        embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
+        embed_content = "Hope ya had a good **BUST!**"
+        embed_content += "\n*Total length of all submissions: {}*".format(
+            format_time(int(total_song_len))
+        )
+        embed = Embed(
+            title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
+        )
+        await current_channel.send(embed=embed)
 
     # Clear variables relating to current bust
     active_voice_client = None
@@ -495,6 +509,7 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
 async def play_next_song(skip_count: int = 0) -> None:
     global current_channel_content
     global current_channel
+    global now_playing_msg
 
     if not current_channel_content:
         # If there are no more songs to play, conclude the bust
@@ -546,17 +561,21 @@ async def play_next_song(skip_count: int = 0) -> None:
     cover_art = get_cover_art(local_filepath)
     if cover_art is not None:
         embed.set_image(url=f"attachment://{cover_art.filename}")
-        now_playing = await current_channel.send(file=cover_art, embed=embed)
+        now_playing_msg = await current_channel.send(file=cover_art, embed=embed)
     else:
-        now_playing = await current_channel.send(embed=embed)
+        now_playing_msg = await current_channel.send(embed=embed)
 
-    await try_set_pin(now_playing, True)
+    await try_set_pin(now_playing_msg, True)
 
     # Called when song finishes playing
     def ffmpeg_post_hook(e: BaseException = None):
+        global now_playing_msg
         if e is not None:
             print("Song playback quit with error:", e)
-        asyncio.run_coroutine_threadsafe(try_set_pin(now_playing, False), client.loop)
+        asyncio.run_coroutine_threadsafe(
+            try_set_pin(now_playing_msg, False), client.loop
+        )
+        now_playing_msg = None
         asyncio.run_coroutine_threadsafe(play_next_song(), client.loop)
 
     # Play song
