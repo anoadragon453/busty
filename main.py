@@ -420,7 +420,8 @@ async def command_play(message: Message, skip_count: int = 0) -> None:
     play_next_coro()
 
 
-def play_next_coro(skip_count: int = 0):
+def play_next_coro(skip_count: int = 0) -> None:
+    """Run play_next_song() wrapped in a coroutine so it is cancellable by stop command"""
     global play_next_task
     global play_next_cancelled
     play_next_cancelled = False
@@ -434,8 +435,13 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
-async def finish_bust(say_goodbye=True) -> None:
-    """End the current bust."""
+async def finish_bust(say_goodbye: bool = True) -> None:
+    """End the current bust.
+
+    Args:
+        say_goodbye: If True, a goodbye message will be posted to `current_channel`. If False, the bust
+            will be ended silently.
+    """
     global active_voice_client
     global original_bot_nickname
     global current_channel_content
