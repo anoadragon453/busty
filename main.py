@@ -76,6 +76,14 @@ original_bot_nickname: Optional[str] = None
 list_task_control_lock = asyncio.Lock()
 # Total length of all songs in seconds
 total_song_len: Optional[float]
+# Keep track of the coroutine used to play the next track, which is active while
+# waiting in the intermission between songs. This task should be interrupted if
+# stopping playback is requested.
+play_next_task: Optional[asyncio.Task] = None
+# When play_next_task.cancel() is called, it is only actually cancelled on unsuspend
+# so play_next_task.cancelled() may return False.
+# We use this variable to keep track of /actual/ cancelled state
+play_next_cancelled: bool = False
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
@@ -191,8 +199,8 @@ async def on_message(message: Message) -> None:
         command_skip()
 
     elif message_text.startswith("!stop"):
-        if not active_voice_client or not active_voice_client.is_playing():
-            await message.channel.send("Nothing is playing.")
+        if not active_voice_client or not active_voice_client.is_connected():
+            await message.channel.send("I'm not busting.")
             return
 
         await message.channel.send("Alright I'll shut up.")
@@ -355,18 +363,10 @@ def get_cover_art(filename: str) -> Optional[File]:
 
 async def command_stop() -> None:
     """Stop playing music."""
-    # Clear the queue
-    global current_channel_content
-    current_channel_content = None
-
-    # Stop playing music. Note that this will run play_next_song, when runs
-    # after each song stops playing.
-    active_voice_client.stop()
-
-    # Restore the bot's original nick (if it exists)
-    if original_bot_nickname and current_channel:
-        bot_member = current_channel.guild.get_member(client.user.id)
-        await bot_member.edit(nick=original_bot_nickname)
+    global play_next_cancelled
+    play_next_cancelled = True
+    play_next_task.cancel()
+    await finish_bust(say_goodbye=False)
 
 
 async def command_play(message: Message, skip_count: int = 0) -> None:
@@ -417,7 +417,16 @@ async def command_play(message: Message, skip_count: int = 0) -> None:
 
     # Play content
     await message.channel.send("Let's get **BUSTY**.")
-    await play_next_song(skip_count)
+    play_next_coro()
+
+
+def play_next_coro(skip_count: int = 0) -> None:
+    """Run play_next_song() wrapped in a coroutine so it is cancellable by stop command"""
+    global play_next_task
+    global play_next_cancelled
+    play_next_cancelled = False
+    play_next_task = client.loop.create_task(play_next_song(skip_count))
+    asyncio.run_coroutine_threadsafe(play_next_task.get_coro(), client.loop)
 
 
 def command_skip() -> None:
@@ -426,8 +435,13 @@ def command_skip() -> None:
     active_voice_client.stop()
 
 
-async def finish_bust() -> None:
-    """End the current bust."""
+async def finish_bust(say_goodbye: bool = True) -> None:
+    """End the current bust.
+
+    Args:
+        say_goodbye: If True, a goodbye message will be posted to `current_channel`. If False, the bust
+            will be ended silently.
+    """
     global active_voice_client
     global original_bot_nickname
     global current_channel_content
@@ -443,14 +457,16 @@ async def finish_bust() -> None:
     if original_bot_nickname:
         await bot_member.edit(nick=original_bot_nickname)
 
-    # Say our goodbyes
-    embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
-    embed_content = "Hope ya had a good **BUST!**"
-    embed_content += "\n*Total length of all submissions: {}*".format(
-        format_time(int(total_song_len))
-    )
-    embed = Embed(title=embed_title, description=embed_content, color=LIST_EMBED_COLOR)
-    await current_channel.send(embed=embed)
+    if say_goodbye:
+        embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
+        embed_content = "Hope ya had a good **BUST!**"
+        embed_content += "\n*Total length of all submissions: {}*".format(
+            format_time(int(total_song_len))
+        )
+        embed = Embed(
+            title=embed_title, description=embed_content, color=LIST_EMBED_COLOR
+        )
+        await current_channel.send(embed=embed)
 
     # Clear variables relating to current bust
     active_voice_client = None
@@ -509,7 +525,6 @@ async def play_next_song(skip_count: int = 0) -> None:
         )
         embed = Embed(title=embed_title, description=embed_content)
         await current_channel.send(embed=embed)
-
         await asyncio.sleep(seconds_between_songs)
 
     # Remove skip_count number of songs from the front of the queue
@@ -556,8 +571,11 @@ async def play_next_song(skip_count: int = 0) -> None:
     def ffmpeg_post_hook(e: BaseException = None):
         if e is not None:
             print("Song playback quit with error:", e)
+        # Unpin song
         asyncio.run_coroutine_threadsafe(try_set_pin(now_playing, False), client.loop)
-        asyncio.run_coroutine_threadsafe(play_next_song(), client.loop)
+        # Play next song if we were not stopped
+        if not play_next_cancelled:
+            play_next_coro()
 
     # Play song
     active_voice_client.play(
