@@ -83,7 +83,7 @@ play_next_task: Optional[asyncio.Task] = None
 # When play_next_task.cancel() is called, it is only actually cancelled on unsuspend
 # so play_next_task.cancelled() may return False.
 # We use this variable to keep track of /actual/ cancelled state
-play_next_cancelled = False
+play_next_cancelled: bool = False
 
 # STARTUP
 # Import list of emojis from either a custom or the default list.
