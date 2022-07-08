@@ -642,8 +642,6 @@ async def log_track_playback_exception(e: BaseException, track_info: str) -> Non
         e: The exception to log.
         track_info: The title of the song.
     """
-    global now_playing_msg
-
     # Log the exception
     print("Track playback quit with error:", e)
 
