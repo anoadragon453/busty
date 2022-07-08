@@ -45,6 +45,8 @@ MESSAGE_LIMIT = 2000
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
 PLAY_EMBED_COLOR = 0x33B86B
+# Color of any error message embeds
+ERROR_EMBED_COLOR = 0xE22618
 # The maximum character length of any song title or artist name
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 # The maximum number of messages to scan for song submissions
@@ -555,9 +557,10 @@ async def play_next_song(skip_count: int = 0) -> None:
     # Build and send "Now Playing" embed
     embed_title = f"{random_emoji} Now Playing {random_emoji}"
     list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
+    artist_and_song_title = song_format(local_filepath, attachment.filename)
     embed_content = list_format.format(
         submit_message.author.mention,
-        escape_markdown(song_format(local_filepath, attachment.filename)),
+        escape_markdown(artist_and_song_title),
         attachment.url,
         submit_message.jump_url,
     )
@@ -584,7 +587,10 @@ async def play_next_song(skip_count: int = 0) -> None:
         global now_playing_msg
 
         if e is not None:
-            print("Song playback quit with error:", e)
+            asyncio.run_coroutine_threadsafe(
+                log_track_playback_exception(e, artist_and_song_title), client.loop
+            )
+            return
 
         # Unpin song
         asyncio.run_coroutine_threadsafe(
@@ -616,6 +622,38 @@ async def play_next_song(skip_count: int = 0) -> None:
     # Set the new nickname
     bot_member = current_channel.guild.get_member(client.user.id)
     await bot_member.edit(nick=new_nick)
+
+
+async def log_track_playback_exception(e: BaseException, track_info: str) -> None:
+    """
+    If an exception occurred while busting, log it to stdout and
+    send a message to the room. Then end the bust without saying
+    goodbye.
+
+    Some info about the track (e.g. title) is included in the message sent
+    to the room to immediately inform admins about which song had issues, and
+    to give them the ability to assess whether the bust should be restarted from
+    that song, or the next one, after concluding that the song cannot be played.
+
+    Args:
+        e: The exception to log.
+        track_info: The title of the song.
+    """
+    global now_playing_msg
+
+    # Log the exception
+    print("Track playback quit with error:", e)
+
+    # Inform the channel that an error occurred
+    error_embed = Embed(
+        title="Uh oh",
+        description=f"An error occurred while playing that track ('{track_info}').",
+        color=ERROR_EMBED_COLOR,
+    )
+    await current_channel.send(embed=error_embed)
+
+    # Stop the bust quietly
+    await finish_bust(say_goodbye=False)
 
 
 async def command_list(message: Message) -> None:
