@@ -116,9 +116,6 @@ async def on_ready() -> None:
 
 @client.event
 async def on_close() -> None:
-    # Unpin current "now playing" message if it exists
-    if now_playing_msg:
-        await try_set_pin(now_playing_msg, False)
     # Finish current bust (if exists) as if it were stopped
     await finish_bust(say_goodbye=False)
 
@@ -460,6 +457,7 @@ async def finish_bust(say_goodbye: bool = True) -> None:
     global current_channel_content
     global current_channel
     global total_song_len
+    global now_playing_msg
 
     # Disconnect from voice if necessary
     if active_voice_client and active_voice_client.is_connected():
@@ -469,6 +467,11 @@ async def finish_bust(say_goodbye: bool = True) -> None:
     if original_bot_nickname and current_channel:
         bot_member = current_channel.guild.get_member(client.user.id)
         await bot_member.edit(nick=original_bot_nickname)
+
+    # Unpin the currently playing song message if one is pinned
+    if now_playing_msg:
+        await try_set_pin(now_playing_msg, False)
+        now_playing_msg = None
 
     if say_goodbye:
         embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
