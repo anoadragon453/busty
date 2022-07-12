@@ -828,8 +828,8 @@ async def command_form(message: Message) -> None:
     appscript += f'var f=FormApp.getActiveForm().setTitle("{form_title}");'
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
-    # Add new data to form
-    create_line = "[" + ",".join(
+    # Add questions to form
+    appscript += "[" + ",".join(
         [
             '"{}: {}"'.format(
                 escape_appscript(submit_message.author.display_name),
@@ -838,7 +838,7 @@ async def command_form(message: Message) -> None:
             for submit_message, attachment, local_filepath in current_channel_content
         ]
     )
-    create_line += (
+    appscript += (
         "].forEach((s,i)=>f.addScaleItem()"
         '.setTitle(i+1+". "+s)'
         f".setBounds({low_score},{high_score})"
@@ -846,9 +846,12 @@ async def command_form(message: Message) -> None:
         ".setRequired(true)"
         ")"
     )
-    create_line += "}"
-    appscript += create_line
 
+    # Add comments/suggestions to form
+    appscript += ";f.addParagraphTextItem().setTitle('Comments/suggestions')"
+
+    # Close appscript main function
+    appscript += "}"
     # There is no way to escape ``` in a code block on Discord, so we replace ``` --> '''
     appscript = appscript.replace("```", "'''")
 
