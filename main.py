@@ -825,7 +825,7 @@ async def command_form(message: Message) -> None:
 
     appscript = "function r(){"
     # Setup and grab form
-    appscript += f'var f=FormApp.getActiveForm().setTitle("{form_title}");'
+    appscript += f'var f=FormApp.create("{form_title}");'
     # Clear existing data on form
     appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
     # Add questions to form
@@ -849,6 +849,9 @@ async def command_form(message: Message) -> None:
 
     # Add comments/suggestions to form
     appscript += ";f.addParagraphTextItem().setTitle('Comments/suggestions')"
+
+    # Print links to the form
+    appscript += ';console.log("Edit: "+f.getEditUrl()+"\\n\\nPublished: "+f.getPublishedUrl());'
 
     # Close appscript main function
     appscript += "}"
