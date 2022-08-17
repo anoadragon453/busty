@@ -813,7 +813,9 @@ def pick_random_emoji() -> str:
     return decoded_random_emoji
 
 
-async def command_form(message: Message, google_drive_image_link: Optional[str] = None) -> None:
+async def command_form(
+    message: Message, google_drive_image_link: Optional[str] = None
+) -> None:
     # Escape strings so they can be assigned as literals within appscript
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
@@ -856,18 +858,24 @@ async def command_form(message: Message, google_drive_image_link: Optional[str] 
 
     if google_drive_image_link:
         # Extract image file ID from the passed link
-        file_id_matches = re.match(r"https://drive.google.com/file/d/(.+)/view", google_drive_image_link)
+        file_id_matches = re.match(
+            r"https://drive.google.com/file/d/(.+)/view", google_drive_image_link
+        )
         if file_id_matches:
             file_id = file_id_matches.group(1)
 
             # Add an image to the form
-            appscript += f';f.addImageItem().setImage(DriveApp.getFileById("{file_id}"))'
+            appscript += (
+                f';f.addImageItem().setImage(DriveApp.getFileById("{file_id}"))'
+            )
 
     # Add comments/suggestions to form
     appscript += ";f.addParagraphTextItem().setTitle('Comments/suggestions')"
 
     # Print links to the form
-    appscript += ';console.log("Edit: "+f.getEditUrl()+"\\n\\nPublished: "+f.getPublishedUrl());'
+    appscript += (
+        ';console.log("Edit: "+f.getEditUrl()+"\\n\\nPublished: "+f.getPublishedUrl());'
+    )
 
     # Close appscript main function
     appscript += "}"
