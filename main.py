@@ -881,7 +881,7 @@ async def command_form(
     appscript = appscript.replace("```", "'''")
 
     # Print message in chunks respecting character limit
-    chunk_size = MESSAGE_LIMIT - 6
+    chunk_size = MESSAGE_LIMIT - 9
     for i in range(0, len(appscript), chunk_size):
         await message.channel.send("```js\n{}```".format(appscript[i : i + chunk_size]))
 
