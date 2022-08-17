@@ -2,6 +2,7 @@ import asyncio
 import base64
 import os
 import random
+import re
 from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple, Union
@@ -199,7 +200,13 @@ async def on_message(message: Message) -> None:
         if not current_channel_content or not current_channel:
             await message.channel.send("You need to use !list first, sugar.")
             return
-        await command_form(message)
+
+        # Pull the google drive link to the form image from the message (if it exists)
+        command_args = message.content.split()[1:]
+        if command_args:
+            await command_form(message, google_drive_image_link=command_args[0])
+        else:
+            await command_form(message)
 
     elif message_text.startswith("!skip"):
         if not active_voice_client or not active_voice_client.is_playing():
@@ -806,7 +813,7 @@ def pick_random_emoji() -> str:
     return decoded_random_emoji
 
 
-async def command_form(message: Message) -> None:
+async def command_form(message: Message, google_drive_image_link: Optional[str] = None) -> None:
     # Escape strings so they can be assigned as literals within appscript
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
@@ -846,6 +853,15 @@ async def command_form(message: Message) -> None:
         ".setRequired(true)"
         ")"
     )
+
+    if google_drive_image_link:
+        # Extract image file ID from the passed link
+        file_id_matches = re.match(r"https://drive.google.com/file/d/(.+)/view", google_drive_image_link)
+        if file_id_matches:
+            file_id = file_id_matches.group(1)
+
+            # Add an image to the form
+            appscript += f';f.addImageItem().setImage(DriveApp.getFileById("{file_id}"))'
 
     # Add comments/suggestions to form
     appscript += ";f.addParagraphTextItem().setTitle('Comments/suggestions')"
