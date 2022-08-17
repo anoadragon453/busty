@@ -885,6 +885,13 @@ async def command_form(
     for i in range(0, len(appscript), chunk_size):
         await message.channel.send("```js\n{}```".format(appscript[i : i + chunk_size]))
 
+    # Tell the user how to generate the form
+    await message.channel.send(
+        "Copy/paste the above code into a new appscript project (replace anything already there). "
+        "Then click Save, and Run: https://script.google.com/home/projects/create\n\n"
+        "Authorize the project to use your Google Account when prompted. Click Advanced -> Go to ..."
+    )
+
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
 # a valid Discord bot access token.
