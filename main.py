@@ -2,6 +2,7 @@ import asyncio
 import base64
 import os
 import random
+import re
 from io import BytesIO
 from os import path
 from typing import List, Optional, Tuple, Union
@@ -199,7 +200,13 @@ async def on_message(message: Message) -> None:
         if not current_channel_content or not current_channel:
             await message.channel.send("You need to use !list first, sugar.")
             return
-        await command_form(message)
+
+        # Pull the google drive link to the form image from the message (if it exists)
+        command_args = message.content.split()[1:]
+        if command_args:
+            await command_form(message, google_drive_image_link=command_args[0])
+        else:
+            await command_form(message)
 
     elif message_text.startswith("!skip"):
         if not active_voice_client or not active_voice_client.is_playing():
@@ -806,7 +813,9 @@ def pick_random_emoji() -> str:
     return decoded_random_emoji
 
 
-async def command_form(message: Message) -> None:
+async def command_form(
+    message: Message, google_drive_image_link: Optional[str] = None
+) -> None:
     # Escape strings so they can be assigned as literals within appscript
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
@@ -825,9 +834,7 @@ async def command_form(message: Message) -> None:
 
     appscript = "function r(){"
     # Setup and grab form
-    appscript += f'var f=FormApp.getActiveForm().setTitle("{form_title}");'
-    # Clear existing data on form
-    appscript += "f.getItems().forEach(i=>f.deleteItem(i));"
+    appscript += f'var f=FormApp.create("{form_title}");'
     # Add questions to form
     appscript += "[" + ",".join(
         [
@@ -847,8 +854,26 @@ async def command_form(message: Message) -> None:
         ")"
     )
 
+    if google_drive_image_link:
+        # Extract image file ID from the passed link
+        file_id_matches = re.match(
+            r"https://drive.google.com/file/d/(.+)/view", google_drive_image_link
+        )
+        if file_id_matches:
+            file_id = file_id_matches.group(1)
+
+            # Add an image to the form
+            appscript += (
+                f';f.addImageItem().setImage(DriveApp.getFileById("{file_id}"))'
+            )
+
     # Add comments/suggestions to form
     appscript += ";f.addParagraphTextItem().setTitle('Comments/suggestions')"
+
+    # Print links to the form
+    appscript += (
+        ';console.log("Edit: "+f.getEditUrl()+"\\n\\nPublished: "+f.getPublishedUrl());'
+    )
 
     # Close appscript main function
     appscript += "}"
@@ -856,9 +881,16 @@ async def command_form(message: Message) -> None:
     appscript = appscript.replace("```", "'''")
 
     # Print message in chunks respecting character limit
-    chunk_size = MESSAGE_LIMIT - 6
+    chunk_size = MESSAGE_LIMIT - 9
     for i in range(0, len(appscript), chunk_size):
-        await message.channel.send("```{}```".format(appscript[i : i + chunk_size]))
+        await message.channel.send("```js\n{}```".format(appscript[i : i + chunk_size]))
+
+    # Tell the user how to generate the form
+    await message.channel.send(
+        "Copy/paste the above code into a new appscript project (replace anything already there). "
+        "Then click Save, and Run: https://script.google.com/home/projects/create\n\n"
+        "Authorize the project to use your Google Account when prompted. Click Advanced -> Go to ..."
+    )
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
