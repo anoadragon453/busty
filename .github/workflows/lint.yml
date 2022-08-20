@@ -29,12 +29,12 @@ jobs:
 
     - name: Check import statement sorting
       run: |
-        isort -c --df main.py
+        isort -c --df src/*.py
 
     - name: Python syntax errors, undefined names, etc.
       run: |
-        flake8 main.py --count --show-source --statistics
+        flake8 src/*.py --count --show-source --statistics
 
     - name: PEP8 formatting
       run: |
-        black --check --diff main.py
+        black --check --diff src/*.py

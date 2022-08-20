@@ -17,7 +17,7 @@ if [ $# -ge 1 ]
 then
     files=$*
   else
-    files="main.py"
+    files=src/*.py
 fi
 
 echo "Linting these locations: $files"

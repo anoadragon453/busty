@@ -17,7 +17,6 @@ from nextcord import (
 )
 from nextcord.utils import escape_markdown
 
-
 import config
 import discord_utils
 import song_utils
