@@ -64,7 +64,7 @@ The complete list of environment variable configuration options is:
 5. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
 
 A random emoji is displayed for each song played during a bust. The list of possible
-emoji is defined in [emoji_list.py](emoji_list.py). If you would like to customize
+emoji is defined in [emoji_list.py](src/emoji_list.py). If you would like to customize
 this list, simply copy the file, edit it, and set `BUSTY_CUSTOM_EMOJI_FILEPATH` to
 the import path (often simply the filename without an extension) of the new module.
 
@@ -73,7 +73,7 @@ the import path (often simply the filename without an extension) of the new modu
 With the proper environment variables set, start the bot with:
 
 ```
-python main.py
+python src/main.py
 ```
 
 It should connect to Discord and display the currently logged-in application name.
