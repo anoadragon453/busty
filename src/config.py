@@ -32,5 +32,5 @@ dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 # Import list of emojis from either a custom or the default list.
 # The default list is expected to be stored at `./emoji_list.py`.
 emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "emoji_list")
-# List of emoji for pulling random emojii
+# List of emoji for pulling random emoji
 emoji_list = list(__import__(emoji_filepath).DISCORD_TO_UNICODE)
