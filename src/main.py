@@ -118,9 +118,9 @@ async def on_message(message: Message) -> None:
         # Pull the google drive link to the form image from the message (if it exists)
         command_args = message.content.split()[1:]
         if command_args:
-            await voting.command_form(message, google_drive_image_link=command_args[0])
+            await voting.form(message, google_drive_image_link=command_args[0])
         else:
-            await voting.command_form(message)
+            await voting.form(message)
 
     elif message_text.startswith("!skip"):
         if not bust.active_voice_client or not bust.active_voice_client.is_playing():
