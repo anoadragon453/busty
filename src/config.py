@@ -29,7 +29,7 @@ attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachme
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 # The Discord bot token to use
-discord_token = os.environ.get("BUSTY_DISCORD_TOKEN", None)
+discord_token = os.environ.get("BUSTY_DISCORD_TOKEN")
 
 # Import list of emojis from either a custom or the default list.
 # The default list is expected to be stored at `./emoji_list.py`.
