@@ -72,7 +72,7 @@ class BustController:
         return self.voice_client and self.voice_client.is_connected()
 
     def finished(self) -> bool:
-        # TODO: This message should become unnecessary once for-refactor is done
+        # TODO: This function should become unnecessary once for-refactor is done
         # See comment in main.py
         return self._finished
 
