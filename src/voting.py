@@ -3,9 +3,9 @@ from typing import Optional
 
 from nextcord import Message
 
-import bust
 import config
 import song_utils
+from bust import BustController
 
 # TODO: Eventually the function in this file should be rewritten not interact with
 # Discord at all, and instead called by a wrapper in bust.py with most
@@ -13,14 +13,14 @@ import song_utils
 
 
 async def generate_form(
-    message: Message, google_drive_image_link: Optional[str] = None
+    bc: BustController, message: Message, google_drive_image_link: Optional[str] = None
 ) -> None:
     # Escape strings so they can be assigned as literals within appscript
     def escape_appscript(text: str) -> str:
         return text.replace("\\", "\\\\").replace('"', '\\"')
 
     # Extract bust number from channel name
-    bust_number = "".join([c for c in bust.current_channel.name if c.isdigit()])
+    bust_number = "".join([c for c in bc.current_channel.name if c.isdigit()])
     if bust_number:
         bust_number = bust_number + " "
 
@@ -43,7 +43,7 @@ async def generate_form(
                     song_utils.song_format(local_filepath, attachment.filename)
                 ),
             )
-            for submit_message, attachment, local_filepath in bust.current_channel_content
+            for submit_message, attachment, local_filepath in bc.current_channel_content
         ]
     )
     appscript += (
