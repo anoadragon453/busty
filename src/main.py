@@ -139,10 +139,9 @@ async def on_message(message: Message) -> None:
         await bust.command_stop()
 
 
-# Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
-# a valid Discord bot access token.
-if "BUSTY_DISCORD_TOKEN" in os.environ:
-    client.run(os.environ["BUSTY_DISCORD_TOKEN"])
+# Connect to discord
+if config.discord_token:
+    client.run(config.discord_token)
 else:
     print(
         "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
