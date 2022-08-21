@@ -1,5 +1,3 @@
-import os
-
 from nextcord import Client, Intents, Member, Message, TextChannel
 
 import bust
