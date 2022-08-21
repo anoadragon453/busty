@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from nextcord import Client, Intents, Member, Message, TextChannel
 

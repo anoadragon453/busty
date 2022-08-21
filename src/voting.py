@@ -3,9 +3,9 @@ from typing import Optional
 
 from nextcord import Message
 
-from bust import BustController
 import config
 import song_utils
+from bust import BustController
 
 # TODO: Eventually the function in this file should be rewritten not interact with
 # Discord at all, and instead called by a wrapper in bust.py with most

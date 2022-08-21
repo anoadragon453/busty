@@ -21,7 +21,6 @@ import config
 import discord_utils
 import song_utils
 
-
 # Allow only one async routine to calculate !list at a time
 list_task_control_lock = asyncio.Lock()
 
