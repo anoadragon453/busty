@@ -12,7 +12,7 @@ import song_utils
 # internal logic remaining here
 
 
-async def command_form(
+async def generate_form(
     message: Message, google_drive_image_link: Optional[str] = None
 ) -> None:
     # Escape strings so they can be assigned as literals within appscript
