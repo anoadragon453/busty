@@ -1,4 +1,3 @@
-import os
 from typing import Dict, Optional
 
 from nextcord import Client, Intents, Member, Message, TextChannel
@@ -121,9 +120,11 @@ async def on_message(message: Message) -> None:
         # Pull the Google Drive link to the form image from the message (if it exists)
         command_args = message.content.split()[1:]
         if command_args:
-            await voting.form(bc, message, google_drive_image_link=command_args[0])
+            await voting.generate_form(
+                bc, message, google_drive_image_link=command_args[0]
+            )
         else:
-            await voting.form(bc, message)
+            await voting.generate_form(bc, message)
 
     elif message_text.startswith("!skip"):
         if not bc or not bc.active():
@@ -131,7 +132,7 @@ async def on_message(message: Message) -> None:
             return
 
         await message.channel.send("I didn't like that track anyways.")
-        bc.skip()
+        bc.skip_song()
 
     elif message_text.startswith("!stop"):
         if not bc or not bc.active():
@@ -142,10 +143,9 @@ async def on_message(message: Message) -> None:
         await bc.stop()
 
 
-# Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
-# a valid Discord bot access token.
-if "BUSTY_DISCORD_TOKEN" in os.environ:
-    client.run(os.environ["BUSTY_DISCORD_TOKEN"])
+# Connect to discord
+if config.discord_token:
+    client.run(config.discord_token)
 else:
     print(
         "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."

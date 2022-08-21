@@ -129,7 +129,7 @@ class BustController:
 
         # Play content
         await message.channel.send("Let's get **BUSTY**.")
-        self.play_next_coro()
+        self.play_next_coro(skip_count)
 
     def play_next_coro(self, skip_count: int = 0) -> None:
         """Run play_next_song() wrapped in a coroutine so it is cancellable by stop command"""
@@ -141,7 +141,7 @@ class BustController:
             self.play_next_task.get_coro(), self.client.loop
         )
 
-    def skip(self) -> None:
+    def skip_song(self) -> None:
         # Stop any currently playing song
         # The next song will play automatically.
         if self.voice_client:

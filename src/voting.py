@@ -12,7 +12,7 @@ from bust import BustController
 # internal logic remaining here
 
 
-async def form(
+async def generate_form(
     bc: BustController, message: Message, google_drive_image_link: Optional[str] = None
 ) -> None:
     # Escape strings so they can be assigned as literals within appscript
