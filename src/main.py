@@ -1,13 +1,10 @@
 import os
 
-from typing import Optional
 from nextcord import Client, Intents, Member, Message, TextChannel
 
 import bust
-from bust import BustController
 import config
 import voting
-import discord_utils
 
 # STARTUP
 
@@ -22,8 +19,7 @@ intents.message_content = True
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
 client = Client(intents=intents)
-
-bc: Optional[BustController] = BustController(client)
+bust.client = client
 
 
 @client.event
@@ -34,10 +30,10 @@ async def on_ready() -> None:
 @client.event
 async def on_close() -> None:
     # Unpin current "now playing" message if it exists
-    if bc.now_playing_msg:
-        await discord_utils.try_set_pin(bc.now_playing_msg, False)
+    if bust.now_playing_msg:
+        await bust.try_set_pin(bust.now_playing_msg, False)
     # Finish current bust (if exists) as if it were stopped
-    await bc.finish(say_goodbye=False)
+    await bust.finish_bust(say_goodbye=False)
 
 
 @client.event
@@ -67,7 +63,7 @@ async def on_message(message: Message) -> None:
 
     # Determine if the message was a command
     if message_text.startswith("!list"):
-        if bc.active_voice_client and bc.active_voice_client.is_connected():
+        if bust.active_voice_client and bust.active_voice_client.is_connected():
             await message.channel.send("We're busy busting.")
             return
 
@@ -81,14 +77,14 @@ async def on_message(message: Message) -> None:
 
         await message.add_reaction(command_success)
         async with bust.list_task_control_lock:
-            await bc.list(message)
+            await bust.command_list(message)
 
     elif message_text.startswith("!bust"):
-        if bc.active_voice_client and bc.active_voice_client.is_connected():
+        if bust.active_voice_client and bust.active_voice_client.is_connected():
             await message.channel.send("We're already busting.")
             return
 
-        if not bc.current_channel_content or not bc.current_channel:
+        if not bust.current_channel_content or not bust.current_channel:
             await message.channel.send("You need to use !list first.")
             return
 
@@ -107,16 +103,16 @@ async def on_message(message: Message) -> None:
             if bust_index == 0:
                 await message.channel.send("We start from 1 around here.")
                 return
-            if bust_index > len(bc.current_channel_content):
+            if bust_index > len(bust.current_channel_content):
                 await message.channel.send("There aren't that many tracks.")
                 return
             skip_count = bust_index - 1
 
-        await bc.play(message, skip_count)
+        await bust.command_play(message, skip_count)
 
     elif message_text.startswith("!form"):
-        if not bc.current_channel_content or not bc.current_channel:
-            await message.channel.send("You need to use !list first.")
+        if not bust.current_channel_content or not bust.current_channel:
+            await message.channel.send("You need to use !list first, sugar.")
             return
 
         # Pull the google drive link to the form image from the message (if it exists)
@@ -127,20 +123,20 @@ async def on_message(message: Message) -> None:
             await voting.command_form(message)
 
     elif message_text.startswith("!skip"):
-        if not bc.active_voice_client or not bc.active_voice_client.is_playing():
+        if not bust.active_voice_client or not bust.active_voice_client.is_playing():
             await message.channel.send("Nothing is playing.")
             return
 
         await message.channel.send("I didn't like that track anyways.")
-        bc.skip()
+        bust.command_skip()
 
     elif message_text.startswith("!stop"):
-        if not bc.active_voice_client or not bc.active_voice_client.is_connected():
+        if not bust.active_voice_client or not bust.active_voice_client.is_connected():
             await message.channel.send("I'm not busting.")
             return
 
         await message.channel.send("Alright I'll shut up.")
-        await bc.stop()
+        await bust.command_stop()
 
 
 # Connect to Discord. YOUR_BOT_TOKEN_HERE must be replaced with
