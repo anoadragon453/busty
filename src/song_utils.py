@@ -40,11 +40,13 @@ def song_format(
     # load tags
     try:
         tags = MutagenFile(local_filepath, easy=True)
+        if tags is None:
+            raise MutagenError()
         artist = tags.get("artist", [None])[0]
         title = tags.get("title", [None])[0]
     except MutagenError:
         # Ignore file and move on
-        print("Error reading tags from file:", local_filepath)
+        print(f"Error reading tags from file: {local_filepath}")
 
     # Sanitize tag contents.
     # We explicitly check for None here, as anything else means that the data was
