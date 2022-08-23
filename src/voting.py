@@ -1,9 +1,10 @@
-import re
-from typing import Optional
+from typing import Optional, List
+import apiclient
+from httplib2 import Http
+from oauth2client import client, file, tools
 
 from nextcord import Message
 
-import config
 import song_utils
 from bust import BustController
 
@@ -12,83 +13,123 @@ from bust import BustController
 # internal logic remaining here
 
 
+def get_credentials():
+    """Return a forms service"""
+    SCOPES = "https://www.googleapis.com/auth/forms.body"
+    DISCOVERY_DOC = "https://forms.googleapis.com/$discovery/rest?version=v1"
+
+    store = file.Storage("auth/token.json")
+    creds = store.get()
+    if not creds or creds.invalid:
+        flow = client.flow_from_clientsecrets("auth/client_secrets.json", SCOPES)
+        creds = tools.run_flow(flow, store)
+
+    form_service = apiclient.discovery.build(
+        "forms",
+        "v1",
+        http=creds.authorize(Http()),
+        discoveryServiceUrl=DISCOVERY_DOC,
+        static_discovery=False,
+    )
+    return form_service
+
+
+def create_remote_form(
+    title: str,
+    items: List[str],
+    low_val: int,
+    high_val: int,
+    low_label: str,
+    high_label: str,
+    image: Optional[str] = None,
+) -> str:
+
+    form_info = {
+        "info": {
+            "title": title,
+        }
+    }
+
+    # create question update request
+    form_update = {
+        "requests": [
+            {
+                "createItem": {
+                    "item": {
+                        "title": title,
+                        "questionItem": {
+                            "question": {
+                                "scaleQuestion": {
+                                    "low": low_val,
+                                    "high": high_val,
+                                    "lowLabel": low_label,
+                                    "highLabel": high_label,
+                                }
+                            }
+                        },
+                    },
+                    "location": {"index": idx},
+                }
+            }
+            for idx, title in enumerate(items)
+        ]
+    }
+
+    # add image if exists
+    if image:
+        form_update["requests"].append(
+            {
+                "imageItem": {
+                    "image": {
+                        "altText": "It's bust time, baby.",
+                        "sourceUri": image,
+                    }
+                }
+            }
+        )
+
+    # get form service
+    form_service = get_credentials()
+
+    # Creates the initial form
+    form = form_service.forms().create(body=form_info).execute()
+
+    # Add the video to the form
+    form_service.forms().batchUpdate(formId=form["formId"], body=form_update).execute()
+
+    # Print the result to see it now has a video
+    result = form_service.forms().get(formId=form["formId"]).execute()
+
+    return result["responderUri"]
+
+
+# TODO: move this to bust.py
 async def generate_form(
-    bc: BustController, message: Message, google_drive_image_link: Optional[str] = None
+    bc: BustController, message: Message, image_link: Optional[str] = None
 ) -> None:
-    # Escape strings so they can be assigned as literals within appscript
-    def escape_appscript(text: str) -> str:
-        return text.replace("\\", "\\\\").replace('"', '\\"')
+    command_success = "\N{THUMBS UP SIGN}"
+    await message.add_reaction(command_success)
 
     # Extract bust number from channel name
     bust_number = "".join([c for c in bc.current_channel.name if c.isdigit()])
     if bust_number:
         bust_number = bust_number + " "
 
-    # Constants in generated code, Make sure these strings are properly escaped
-    form_title = f"Busty's {bust_number}Voting"
-    low_string = "OK"
-    high_string = "Masterpiece"
-    low_score = 0
-    high_score = 7
-
-    appscript = "function r(){"
-    # Setup and grab form
-    appscript += f'var f=FormApp.create("{form_title}");'
-    # Add questions to form
-    appscript += "[" + ",".join(
-        [
-            '"{}: {}"'.format(
-                escape_appscript(submit_message.author.display_name),
-                escape_appscript(
-                    song_utils.song_format(local_filepath, attachment.filename)
-                ),
-            )
-            for submit_message, attachment, local_filepath in bc.current_channel_content
-        ]
-    )
-    appscript += (
-        "].forEach((s,i)=>f.addScaleItem()"
-        '.setTitle(i+1+". "+s)'
-        f".setBounds({low_score},{high_score})"
-        f'.setLabels("{low_string}","{high_string}")'
-        ".setRequired(true)"
-        ")"
-    )
-
-    if google_drive_image_link:
-        # Extract image file ID from the passed link
-        file_id_matches = re.match(
-            r"https://drive.google.com/file/d/(.+)/view", google_drive_image_link
+    song_list = [
+        '"{}: {}"'.format(
+            submit_message.author.display_name,
+            song_utils.song_format(local_filepath, attachment.filename),
         )
-        if file_id_matches:
-            file_id = file_id_matches.group(1)
+        for submit_message, attachment, local_filepath in bc.current_channel_content
+    ]
 
-            # Add an image to the form
-            appscript += (
-                f';f.addImageItem().setImage(DriveApp.getFileById("{file_id}"))'
-            )
-
-    # Add comments/suggestions to form
-    appscript += ";f.addParagraphTextItem().setTitle('Comments/suggestions')"
-
-    # Print links to the form
-    appscript += (
-        ';console.log("Edit: "+f.getEditUrl()+"\\n\\nPublished: "+f.getPublishedUrl());'
+    form_url = create_remote_form(
+        f"Busty's {bust_number}Voting",
+        song_list,
+        0,
+        7,
+        "OK",
+        "Masterpiece",
+        image_link,
     )
-
-    # Close appscript main function
-    appscript += "}"
-    # There is no way to escape ``` in a code block on Discord, so we replace ``` --> '''
-    appscript = appscript.replace("```", "'''")
-
-    # Print message in chunks respecting character limit
-    chunk_size = config.MESSAGE_LIMIT - 9
-    for i in range(0, len(appscript), chunk_size):
-        await message.channel.send("```js\n{}```".format(appscript[i : i + chunk_size]))
-
-    # Tell the user how to generate the form
-    await message.channel.send(
-        "Copy/paste the above code into a new appscript project (replace anything already there). "
-        "Then click Save, and Run: https://script.google.com/home/projects/create\n\n"
-        "Authorize the project to use your Google Account when prompted. Click Advanced -> Go to ..."
-    )
+    await message.channel.send(form_url)

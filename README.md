@@ -96,7 +96,7 @@ The expected flow for running a bust is:
 2. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
 3. `!skip` - Skips the current track :scream: 
 4. `!stop` - Stop busting early :scream: :scream: :scream: 
-5. `!form [<google drive image url>]` - Show [Google Apps Script](https://developers.google.com/apps-script) code which will generate a Google Form that can be used for voting. If an image URL is provided, the image will be included at the end of the form. To retrieve an image URL, in Google Drive, right-click the image file -> get link -> copy link.
+5. `!form [<image url>]` - Generate a Google Form that can be used for voting. If an image URL is provided, the image will be included at the end of the form.
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
