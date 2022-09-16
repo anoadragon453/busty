@@ -74,7 +74,7 @@ async def on_message(message: Message) -> None:
 
     # Determine if the message was a command
     if message_text.startswith("!list"):
-        if bc and bc.active():
+        if bc and bc.is_active():
             await message.channel.send("We're busy busting.")
             return
 
@@ -86,7 +86,7 @@ async def on_message(message: Message) -> None:
         if not bc:
             await message.channel.send("You need to use !list first.")
             return
-        elif bc.active():
+        elif bc.is_active():
             await message.channel.send("We're already busting.")
             return
 
@@ -127,7 +127,7 @@ async def on_message(message: Message) -> None:
             await voting.generate_form(bc, message)
 
     elif message_text.startswith("!skip"):
-        if not bc or not bc.active():
+        if not bc or not bc.is_active():
             await message.channel.send("Nothing is playing.")
             return
 
@@ -135,7 +135,7 @@ async def on_message(message: Message) -> None:
         bc.skip_song()
 
     elif message_text.startswith("!stop"):
-        if not bc or not bc.active():
+        if not bc or not bc.is_active():
             await message.channel.send("I'm not busting.")
             return
 

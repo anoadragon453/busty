@@ -68,7 +68,7 @@ class BustController:
 
         self._finished: bool = False
 
-    def active(self) -> bool:
+    def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
 
     def finished(self) -> bool:
