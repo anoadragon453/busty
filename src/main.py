@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict
 
 from nextcord import Client, Intents, Member, Message, TextChannel
 
@@ -32,7 +32,7 @@ async def on_ready() -> None:
 @client.event
 async def on_close() -> None:
     # Finish all running busts on close
-    for _, bc in controllers.items():
+    for bc in controllers.values():
         await bc.finish(say_goodbye=False)
 
 
@@ -63,7 +63,7 @@ async def on_message(message: Message) -> None:
     # Allow commands to be case-sensitive and contain leading/following spaces
     message_text = message.content.lower().strip()
 
-    bc: Optional[BustController] = controllers.get(message.guild.id, None)
+    bc = controllers.get(message.guild.id, None)
     # TODO: Put these lines inside of `!bust` handler.
     # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
     # keep the controllers map up to date by just deleting from

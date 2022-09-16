@@ -288,7 +288,9 @@ class BustController:
         await bot_member.edit(nick=new_nick)
 
 
-async def create_controller(client: Client, message: Message) -> Optional[BustController]:
+async def create_controller(
+    client: Client, message: Message
+) -> Optional[BustController]:
     """Attempt to create a BustController given a channel list command"""
     command_success = "\N{THUMBS UP SIGN}"
     command_fail = "\N{OCTAGONAL SIGN}"
