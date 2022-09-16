@@ -298,7 +298,7 @@ async def create_controller(client: Client, message: Message) -> Optional[BustCo
         await message.add_reaction(command_fail)
         return None
 
-    # Ensure target channel is text
+    # Pick a text channel to run the bust in. Default to the channel the command of the command.
     target_channel = message.channel
     # If any channels were mentioned in the message, use the first from the list
     if message.channel_mentions:
