@@ -44,7 +44,7 @@ class BustController:
 
         # The nickname of the bot. We need to store it as it will be
         # changed while songs are being played.
-        self.original_bot_nickname: str = ""
+        self.original_bot_nickname: Optional[str] = None
 
         # The channel to send messages in
         self.current_channel: TextChannel = current_channel
@@ -182,7 +182,7 @@ class BustController:
 
         # Clear variables relating to current bust
         self.voice_client = None
-        self.original_bot_nickname = ""
+        self.original_bot_nickname = None
         self._finished = True
 
     async def play_next_song(self, skip_count: int = 0) -> None:
