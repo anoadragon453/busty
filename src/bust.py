@@ -304,6 +304,7 @@ async def create_controller(client: Client, message: Message) -> Optional[BustCo
     if message.channel_mentions:
         target_channel = message.channel_mentions[0]
 
+    # Ensure target channel is text
     if not isinstance(target_channel, TextChannel):
         print(f"Cannot create controller for {type(target_channel)}")
         await message.add_reaction(command_fail)
