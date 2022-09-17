@@ -1,10 +1,9 @@
-from typing import Optional
+from typing import Dict
 
 from nextcord import Client, Intents, Member, Message, TextChannel
 
 import bust
 import config
-import discord_utils
 import voting
 from bust import BustController
 
@@ -22,7 +21,7 @@ intents.message_content = True
 # the bottom of this file.
 client = Client(intents=intents)
 
-bc: Optional[BustController] = BustController(client)
+controllers: Dict[int, BustController] = {}
 
 
 @client.event
@@ -32,15 +31,15 @@ async def on_ready() -> None:
 
 @client.event
 async def on_close() -> None:
-    # Unpin current "now playing" message if it exists
-    if bc.now_playing_msg:
-        await discord_utils.try_set_pin(bc.now_playing_msg, False)
-    # Finish current bust (if exists) as if it were stopped
-    await bc.finish(say_goodbye=False)
+    # Finish all running busts on close
+    for bc in controllers.values():
+        await bc.finish(say_goodbye=False)
 
 
 @client.event
 async def on_message(message: Message) -> None:
+    global controllers
+
     if message.author == client.user:
         return
 
@@ -64,31 +63,31 @@ async def on_message(message: Message) -> None:
     # Allow commands to be case-sensitive and contain leading/following spaces
     message_text = message.content.lower().strip()
 
+    bc = controllers.get(message.guild.id, None)
+    # TODO: Put these lines inside of `!bust` handler.
+    # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
+    # keep the controllers map up to date by just deleting from
+    # the controllers map directly when bc.play() returns
+    if bc and bc.finished():
+        del controllers[message.guild.id]
+        bc = None
+
     # Determine if the message was a command
     if message_text.startswith("!list"):
-        if bc.active_voice_client and bc.active_voice_client.is_connected():
+        if bc and bc.is_active():
             await message.channel.send("We're busy busting.")
             return
 
-        command_success = "\N{THUMBS UP SIGN}"
-        command_fail = "\N{OCTAGONAL SIGN}"
-
-        # Ensure two scrapes aren't making/deleting files at the same time
-        if bust.list_task_control_lock.locked():
-            await message.add_reaction(command_fail)
-            return
-
-        await message.add_reaction(command_success)
-        async with bust.list_task_control_lock:
-            await bc.list(message)
+        bc = await bust.create_controller(client, message)
+        if bc:
+            controllers[message.guild.id] = bc
 
     elif message_text.startswith("!bust"):
-        if bc.active_voice_client and bc.active_voice_client.is_connected():
-            await message.channel.send("We're already busting.")
-            return
-
-        if not bc.current_channel_content or not bc.current_channel:
+        if not bc:
             await message.channel.send("You need to use !list first.")
+            return
+        elif bc.is_active():
+            await message.channel.send("We're already busting.")
             return
 
         command_args = message.content.split()[1:]
@@ -114,11 +113,11 @@ async def on_message(message: Message) -> None:
         await bc.play(message, skip_count)
 
     elif message_text.startswith("!form"):
-        if not bc.current_channel_content or not bc.current_channel:
+        if not bc:
             await message.channel.send("You need to use !list first.")
             return
 
-        # Pull the google drive link to the form image from the message (if it exists)
+        # Pull the Google Drive link to the form image from the message (if it exists)
         command_args = message.content.split()[1:]
         if command_args:
             await voting.generate_form(
@@ -128,7 +127,7 @@ async def on_message(message: Message) -> None:
             await voting.generate_form(bc, message)
 
     elif message_text.startswith("!skip"):
-        if not bc.active_voice_client or not bc.active_voice_client.is_playing():
+        if not bc or not bc.is_active():
             await message.channel.send("Nothing is playing.")
             return
 
@@ -136,7 +135,7 @@ async def on_message(message: Message) -> None:
         bc.skip_song()
 
     elif message_text.startswith("!stop"):
-        if not bc.active_voice_client or not bc.active_voice_client.is_connected():
+        if not bc or not bc.is_active():
             await message.channel.send("I'm not busting.")
             return
 
