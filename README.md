@@ -54,10 +54,17 @@ servers maximum, unless you verify your bot with Discord.
 Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains
 the bot token when running the bot.
 
+If you'd like automatic Google Form generation, also ensure a Google service account key file
+is pointed to by `BUSTY_GOOGLE_AUTH_FILE`, and that `BUSTY_GOOGLE_FORM_FOLDER` contains a valid
+Google Drive folder ID accessable by your service account. To find the ID of a Google Drive folder,
+navigate inside it in your web browser. The folder ID is the token at the end of the URL.
+
 Finally, add the bot to your desired Discord server.
 
 The complete list of environment variable configuration options is:
 1. `BUSTY_DISCORD_TOKEN` - Discord bot API token (required)
+1. `BUSTY_GOOGLE_FORM_FOLDER` - Google Drive folder ID for voting form (required for form generation)
+1. `BUSTY_GOOGLE_AUTH_FILE` - Google service account auth file (default = auth/service_key.json)
 2. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
 3. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 4. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
@@ -92,11 +99,11 @@ The expected flow for running a bust is:
 
 ### Command Reference
 
-1. `!list [<channel>]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`.
+1. `!list [<channel>] [all]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`. If the `all` flag is set or if the channel listed is the channel the command was sent in, list messages are pinned and a Google Form for voting is generated
 2. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
+4. `!image [<url>]` - Queue an image to be used in the Google Form geneated when running `!list`. Run `!image` with no arguments for full usage information.
 3. `!skip` - Skips the current track :scream: 
 4. `!stop` - Stop busting early :scream: :scream: :scream: 
-5. `!form [<image url>]` - Generate a Google Form that can be used for voting. If an image URL is provided, the image will be included at the end of the form.
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.

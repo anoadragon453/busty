@@ -19,6 +19,7 @@ from nextcord.utils import escape_markdown
 
 import config
 import discord_utils
+import forms
 import song_utils
 
 # Allow only one async routine to calculate !list at a time
@@ -26,13 +27,15 @@ list_task_control_lock = asyncio.Lock()
 
 
 class BustController:
-    def __init__(self, client: Client):
+    def __init__(
+        self,
+        client: Client,
+        current_channel_content: List[Tuple[Message, Attachment, str]],
+        current_channel: TextChannel,
+    ):
 
         # The actively connected voice client
-        self.active_voice_client: Optional[VoiceClient] = None
-        # The nickname of the bot. We need to store it as it will be
-        # changed while songs are being played.
-        self.original_bot_nickname: str = None
+        self.voice_client: Optional[VoiceClient] = None
         # Currently pinned "now playing" message ID
         self.now_playing_msg: Optional[Message] = None
         # Keep track of the coroutine used to play the next track, which is active while
@@ -40,25 +43,45 @@ class BustController:
         # stopping playback is requested.
         self.play_next_task: Optional[asyncio.Task] = None
 
+        # The nickname of the bot. We need to store it as it will be
+        # changed while songs are being played.
+        self.original_bot_nickname: Optional[str] = None
+
         # The channel to send messages in
-        self.current_channel: Optional[TextChannel] = None
+        self.current_channel: TextChannel = current_channel
         # The media in the current channel
-        self.current_channel_content: Optional[
-            List[Tuple[Message, Attachment, str]]
-        ] = None
-        # Total length of all songs in seconds
-        self.total_song_len: Optional[float] = None
+        self.current_channel_content: List[
+            Tuple[Message, Attachment, str]
+        ] = current_channel_content
         # When play_next_task.cancel() is called, it is only actually cancelled on unsuspend
         # so play_next_task.cancelled() may return False.
         # We use this variable to keep track of /actual/ cancelled state
-        self.play_next_cancelled: Optional[bool] = False
+        self.play_next_cancelled: bool = False
         # Client object
         self.client: Client = client
+
+        # Calculate total length of all songs in seconds
+        self.total_song_len: float = 0.0
+        for _, _, local_filepath in self.current_channel_content:
+            song_len = song_utils.get_song_length(local_filepath)
+            if song_len:
+                self.total_song_len += song_len
+
+        self._finished: bool = False
+
+    def is_active(self) -> bool:
+        return self.voice_client and self.voice_client.is_connected()
+
+    def finished(self) -> bool:
+        # TODO: This function should become unnecessary once for-refactor is done
+        # See comment in main.py
+        return self._finished
 
     async def stop(self) -> None:
         """Stop playing music."""
         self.play_next_cancelled = True
-        self.play_next_task.cancel()
+        if self.play_next_task:
+            self.play_next_task.cancel()
         await self.finish(say_goodbye=False)
 
     async def play(self, message: Message, skip_count: int = 0) -> None:
@@ -85,7 +108,7 @@ class BustController:
             # We found a voice channel that the author is in.
             # Join the voice channel.
             try:
-                self.active_voice_client = await voice_channel.connect()
+                self.voice_client = await voice_channel.connect()
 
                 # If this is a stage voice channel, ensure that we are currently speaking.
                 if voice_channel.type == ChannelType.stage_voice:
@@ -122,7 +145,8 @@ class BustController:
     def skip_song(self) -> None:
         # Stop any currently playing song
         # The next song will play automatically.
-        self.active_voice_client.stop()
+        if self.voice_client:
+            self.voice_client.stop()
 
     async def finish(self, say_goodbye: bool = True) -> None:
         """End the current bust.
@@ -132,13 +156,17 @@ class BustController:
                 will be ended silently.
         """
         # Disconnect from voice if necessary
-        if self.active_voice_client and self.active_voice_client.is_connected():
-            await self.active_voice_client.disconnect()
+        if self.voice_client and self.voice_client.is_connected():
+            await self.voice_client.disconnect()
 
         # Restore the bot's original guild nickname (if it had one)
         if self.original_bot_nickname and self.current_channel:
             bot_member = self.current_channel.guild.get_member(self.client.user.id)
             await bot_member.edit(nick=self.original_bot_nickname)
+
+        # Unpin current "now playing" message if it exists
+        if self.now_playing_msg:
+            await discord_utils.try_set_pin(self.now_playing_msg, False)
 
         if say_goodbye:
             embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
@@ -154,11 +182,9 @@ class BustController:
             await self.current_channel.send(embed=embed)
 
         # Clear variables relating to current bust
-        self.active_voice_client = None
+        self.voice_client = None
         self.original_bot_nickname = None
-        self.current_channel_content = None
-        self.current_channel = None
-        self.total_song_len = None
+        self._finished = True
 
     async def play_next_song(self, skip_count: int = 0) -> None:
         if not self.current_channel_content:
@@ -212,6 +238,7 @@ class BustController:
                 more_info = more_info[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
             embed.add_field(name="More Info", value=more_info, inline=False)
 
+        # Add cover art and send
         cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
@@ -239,7 +266,7 @@ class BustController:
                 self.play_next_coro()
 
         # Play song
-        self.active_voice_client.play(
+        self.voice_client.play(
             FFmpegPCMAudio(
                 local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
             ),
@@ -261,21 +288,61 @@ class BustController:
         bot_member = self.current_channel.guild.get_member(self.client.user.id)
         await bot_member.edit(nick=new_nick)
 
-    async def list(self, message: Message) -> None:
-        target_channel = message.channel
+    async def get_google_form_url(self, image_url: Optional[str] = None) -> None:
+        if config.google_form_folder is None:
+            print("Skipping form generation as target form folder is unset...")
+            return None
 
-        if not isinstance(target_channel, TextChannel):
-            print(f"Unsupported channel type to !list: {type(target_channel)}")
-            return
+        song_list = [
+            '"{}: {}"'.format(
+                submit_message.author.display_name,
+                song_utils.song_format(local_filepath, attachment.filename),
+            )
+            for submit_message, attachment, local_filepath in self.current_channel_content
+        ]
 
-        # If any channels were mentioned in the message, use the first from the list
-        if message.channel_mentions:
-            mentioned_channel = message.channel_mentions[0]
-            if isinstance(mentioned_channel, TextChannel):
-                target_channel = mentioned_channel
-            else:
-                await message.channel.send("That isn't a text channel.")
-                return
+        # Extract bust number from channel name
+        bust_number = "".join([c for c in self.current_channel.name if c.isdigit()])
+        if bust_number:
+            bust_number = bust_number + " "
+
+        form_url = forms.create_remote_form(
+            f"Busty's {bust_number}Voting",
+            song_list,
+            low_val=0,
+            high_val=7,
+            low_label="OK",
+            high_label="Masterpiece",
+            image_url=image_url,
+        )
+        return form_url
+
+
+async def create_controller(
+    client: Client, message: Message, image_url: Optional[str] = None
+) -> Optional[BustController]:
+    """Attempt to create a BustController given a channel list command"""
+
+    # Ensure two scrapes aren't making/deleting files at the same time
+    if list_task_control_lock.locked():
+        await message.add_reaction(config.COMMAND_SUCCESS)
+        return None
+
+    # Pick a text channel to run the bust in. Default to the channel the command of the command.
+    target_channel = message.channel
+    # If any channels were mentioned in the message, use the first from the list
+    if message.channel_mentions:
+        target_channel = message.channel_mentions[0]
+
+    # Ensure target channel is text
+    if not isinstance(target_channel, TextChannel):
+        print(f"Cannot create controller for {type(target_channel)}")
+        await message.add_reaction(config.COMMAND_FAIL)
+        return None
+
+    await message.add_reaction(config.COMMAND_SUCCESS)
+
+    async with list_task_control_lock:
         # Scrape all tracks in the target channel and list them
         channel_media_attachments = await discord_utils.scrape_channel_media(
             target_channel
@@ -284,7 +351,9 @@ class BustController:
         # Break on no songs to list
         if len(channel_media_attachments) == 0:
             await message.channel.send("There aren't any songs there.")
-            return
+            return None
+
+        bc = BustController(client, channel_media_attachments, target_channel)
 
         # Title of !list embed
         embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
@@ -348,19 +417,20 @@ class BustController:
             list_message = await message.channel.send(embed=embed)
             message_list.append(list_message)
 
-        # If message channel == target channel, pin messages in reverse order
-        if target_channel == message.channel:
+        # If message channel == target channel, or we ask for a mock,
+        # pin messages in reverse order and generate Google Form
+        pin_and_form = (
+            target_channel == message.channel or "full" in message.content.split()
+        )
+        if pin_and_form:
             for list_message in reversed(message_list):
                 await discord_utils.try_set_pin(list_message, True)
-
-        # Update global channel content
-        self.current_channel_content = channel_media_attachments
-
-        self.current_channel = target_channel
-
-        # Calculate total length of all songs
-        self.total_song_len = 0
-        for _, _, local_filepath in channel_media_attachments:
-            song_len = song_utils.get_song_length(local_filepath)
-            if song_len:
-                self.total_song_len += song_len
+            form_url = await bc.get_google_form_url(image_url)
+            if form_url is not None:
+                vote_emoji = ":ballot_box:"
+                form_message = await message.channel.send(
+                    f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
+                )
+                await discord_utils.try_set_pin(form_message, True)
+        # Construct and return controller
+        return bc
