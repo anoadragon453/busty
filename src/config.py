@@ -26,6 +26,8 @@ MAXIMUM_CONCURRENT_DOWNLOADS = 8
 seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 # Where to save media files locally
 attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
+# Where to save Google auth tokens
+auth_directory_filepath = os.environ.get("BUSTY_AUTH_DIR", "auth")
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
 # The Discord bot token to use

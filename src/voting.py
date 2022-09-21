@@ -1,7 +1,12 @@
 from typing import Optional, List
-import apiclient
+
+# import apiclient
 from httplib2 import Http
 from oauth2client import client, file, tools
+from google.oauth2 import service_account
+from oauth2client.service_account import ServiceAccountCredentials
+import googleapiclient.discovery
+import config
 
 from nextcord import Message
 
@@ -12,26 +17,56 @@ from bust import BustController
 # Discord at all, and instead called by a wrapper in bust.py with most
 # internal logic remaining here
 
-
-def get_credentials():
-    """Return a forms service"""
-    SCOPES = "https://www.googleapis.com/auth/forms.body"
-    DISCOVERY_DOC = "https://forms.googleapis.com/$discovery/rest?version=v1"
-
-    store = file.Storage("auth/token.json")
+def get_google_services():
+    SCOPES = "https://www.googleapis.com/auth/drive"
+    store = file.Storage(f"{config.auth_directory_filepath}/token.json")
     creds = store.get()
     if not creds or creds.invalid:
-        flow = client.flow_from_clientsecrets("auth/client_secrets.json", SCOPES)
+        flow = client.flow_from_clientsecrets(
+           f"{config.auth_directory_filepath}/client_secrets.json", SCOPES
+        )
         creds = tools.run_flow(flow, store)
 
-    form_service = apiclient.discovery.build(
+    forms_service = googleapiclient.discovery.build(
         "forms",
         "v1",
-        http=creds.authorize(Http()),
-        discoveryServiceUrl=DISCOVERY_DOC,
-        static_discovery=False,
+        credentials=creds
     )
-    return form_service
+
+    drive_service = googleapiclient.discovery.build(
+        "drive",
+        "v3",
+        credentials=creds
+    )
+    return forms_service, drive_service
+
+def get_forms_service():
+    """Return a forms service"""
+    SCOPES = "https://www.googleapis.com/auth/forms.body"
+    #DISCOVERY_DOC = "https://forms.googleapis.com/$discovery/rest?version=v1"
+    #SERVICE_ACCOUNT_FILE = f"{config.auth_directory_filepath}/service_key.json"
+
+    store = file.Storage(f"{config.auth_directory_filepath}/token.json")
+    creds = store.get()
+    if not creds or creds.invalid:
+        flow = client.flow_from_clientsecrets(
+           f"{config.auth_directory_filepath}/client_secrets.json", SCOPES
+        )
+        creds = tools.run_flow(flow, store)
+
+        #creds = ServiceAccountCredentials.from_json_keyfile_name(
+        #    SERVICE_ACCOUNT_FILE, SCOPES
+        #)
+
+    forms_service = googleapiclient.discovery.build(
+        "forms",
+        "v1",
+        credentials=creds
+        # http=creds.authorize(Http()),
+        # discoveryServiceUrl=DISCOVERY_DOC,
+        # static_discovery=False,
+    )
+    return forms_service
 
 
 def create_remote_form(
@@ -89,10 +124,11 @@ def create_remote_form(
         )
 
     # get form service
-    form_service = get_credentials()
+    form_service, drive_service = get_google_services()
 
     # Creates the initial form
     form = form_service.forms().create(body=form_info).execute()
+    print(form['formId'])
 
     # Add the video to the form
     form_service.forms().batchUpdate(formId=form["formId"], body=form_update).execute()
