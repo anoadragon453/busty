@@ -294,7 +294,7 @@ class BustController:
             return None
 
         song_list = [
-            '"{}: {}"'.format(
+            "{}: {}".format(
                 submit_message.author.display_name,
                 song_utils.song_format(local_filepath, attachment.filename),
             )
@@ -425,12 +425,19 @@ async def create_controller(
         if pin_and_form:
             for list_message in reversed(message_list):
                 await discord_utils.try_set_pin(list_message, True)
-            form_url = await bc.get_google_form_url(image_url)
+            # Wrap form generation in try/catch so we don't block !list if it fails
+            form_url = None
+            try:
+                form_url = await bc.get_google_form_url(image_url)
+            except Exception as e:
+                print("Unknown error generating form", e)
+
             if form_url is not None:
                 vote_emoji = ":ballot_box:"
                 form_message = await message.channel.send(
                     f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
                 )
                 await discord_utils.try_set_pin(form_message, True)
-        # Construct and return controller
+
+        # Return controller
         return bc

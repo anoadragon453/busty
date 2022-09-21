@@ -5,10 +5,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 import config
 
-# TODO: Eventually the function in this file should be rewritten not interact with
-# Discord at all, and instead called by a wrapper in bust.py with most
-# internal logic remaining here
-
 
 def get_google_services():
     SCOPES = "https://www.googleapis.com/auth/drive"
@@ -69,6 +65,23 @@ def create_remote_form(
                 }
             }
             for idx, title in enumerate(items)
+        ]
+        + [
+            {
+                "createItem": {
+                    "item": {
+                        "title": "Comments/Suggestions/Jokes",
+                        "questionItem": {
+                            "question": {
+                                "textQuestion": {
+                                    "paragraph": True,
+                                }
+                            }
+                        },
+                    },
+                    "location": {"index": len(items)},
+                }
+            }
         ]
     }
 
