@@ -290,7 +290,7 @@ class BustController:
 
     async def get_google_form_url(self, image_url: Optional[str] = None) -> None:
         if config.google_form_folder is None:
-            print("Skipping form generation as target form folder is unset...")
+            print("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset...")
             return None
 
         song_list = [
