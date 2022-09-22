@@ -433,7 +433,7 @@ async def create_controller(
                 print("Unknown error generating form", e)
 
             if form_url is not None:
-                vote_emoji = ":ballot_box:"
+                vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
                 form_message = await message.channel.send(
                     f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
                 )
