@@ -54,10 +54,10 @@ servers maximum, unless you verify your bot with Discord.
 Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains
 the bot token when running the bot.
 
-If you'd like automatic Google Form generation, also ensure a Google service account key file
-is pointed to by `BUSTY_GOOGLE_AUTH_FILE`, and that `BUSTY_GOOGLE_FORM_FOLDER` contains a valid
-Google Drive folder ID accessible by your service account. To find the ID of a Google Drive folder,
-navigate inside it in your web browser. The folder ID is the token at the end of the URL.
+If you'd like automatic Google Form generation, you need a [Google service account](https://cloud.google.com/iam/docs/service-accounts).
+You must also ensure a Google service account key file is pointed to by `BUSTY_GOOGLE_AUTH_FILE`,
+and that `BUSTY_GOOGLE_FORM_FOLDER` contains a valid Google Drive folder ID accessible by your service account.
+To find the ID of a Google Drive folder, navigate inside it in your web browser. The folder ID is the token at the end of the URL.
 
 Finally, add the bot to your desired Discord server.
 
