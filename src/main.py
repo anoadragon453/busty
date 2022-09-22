@@ -22,7 +22,7 @@ client = Client(intents=intents)
 
 controllers: Dict[int, BustController] = {}
 
-# Cached image to use for next bust
+# Cached image url to use for next bust
 loaded_image: Optional[str] = None
 
 
