@@ -288,7 +288,15 @@ class BustController:
         bot_member = self.current_channel.guild.get_member(self.client.user.id)
         await bot_member.edit(nick=new_nick)
 
-    async def get_google_form_url(self, image_url: Optional[str] = None) -> None:
+    def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
+        """Create a Google form for voting on this bust
+
+        Args:
+            image_url: If passed, the image at this url will be placed at the start of the form.
+
+        Returns:
+            the URL of the Google Form, or None if form creation fails.
+        """
         if config.google_form_folder is None:
             print("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset...")
             return None
@@ -428,7 +436,7 @@ async def create_controller(
             # Wrap form generation in try/catch so we don't block !list if it fails
             form_url = None
             try:
-                form_url = await bc.get_google_form_url(image_url)
+                form_url = bc.get_google_form_url(image_url)
             except Exception as e:
                 print("Unknown error generating form", e)
 
