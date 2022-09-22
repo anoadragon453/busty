@@ -99,7 +99,7 @@ The expected flow for running a bust is:
 
 ### Command Reference
 
-1. `!list [<channel>] [all]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`. If the `all` flag is set or if the channel listed is the channel the command was sent in, list messages are pinned and a Google Form for voting is generated
+1. `!list [<channel>] [all]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`. If the `all` flag is set or if the channel listed is the channel the command was sent in, list messages are pinned and a Google Form for voting is generated.
 2. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
 4. `!image [<url>]` - Queue an image to be used in the Google Form geneated when running `!list`. Run `!image` with no arguments for full usage information.
 3. `!skip` - Skips the current track :scream: 
