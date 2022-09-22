@@ -438,7 +438,7 @@ async def create_controller(
             try:
                 form_url = bc.get_google_form_url(image_url)
             except Exception as e:
-                print("Unknown error generating form", e)
+                print("Unknown error generating form:", e)
 
             if form_url is not None:
                 vote_emoji = "\N{BALLOT BOX WITH BALLOT}"

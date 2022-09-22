@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 import googleapiclient.discovery
 from googleapiclient.discovery import Resource
 from oauth2client.service_account import ServiceAccountCredentials
+from http.client import HTTPException
 
 import config
 
@@ -92,12 +93,13 @@ def create_remote_form(
         return None
 
     # Creates the initial form
-    form_info = form_service.forms().create(body=form_info).execute()
+    forms = form_service.forms()
+    form_info = forms.create(body=form_info).execute()
     form_id = form_info["formId"]
     form_url = form_info["responderUri"]
 
     # Add content to the form
-    form_service.forms().batchUpdate(formId=form_id, body=form_update).execute()
+    forms.batchUpdate(formId=form_id, body=form_update).execute()
 
     # Prepend image in separate update in case it fails
     if image_url:
@@ -119,26 +121,25 @@ def create_remote_form(
                     }
                 ]
             }
-            form_service.forms().batchUpdate(
-                formId=form_id, body=image_update
-            ).execute()
+            forms.batchUpdate(formId=form_id, body=image_update).execute()
         except Exception as e:
             print("Error adding image to form: ", e)
 
     # Move form to correct folder + rename
-    file = (
-        drive_service.files()
-        .get(fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents")
-        .execute()
-    )
+    files = drive_service.files()
+    file = files.get(
+        fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents"
+    ).execute()
     if file["capabilities"]["canMoveItemWithinDrive"]:
         file_parent_id = file["parents"][0]
-        # TODO: Command fails silently if config.google_form_folder is invalid
-        drive_service.files().update(
-            fileId=form_id,
-            removeParents=file_parent_id,
-            addParents=config.google_form_folder,
-            body={"name": title},
-        ).execute()
+        try:
+            files.update(
+                fileId=form_id,
+                removeParents=file_parent_id,
+                addParents=config.google_form_folder,
+                body={"name": title},
+            ).execute()
+        except Exception as e:
+            print("Error moving form:", e)
 
     return form_url
