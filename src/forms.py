@@ -3,7 +3,6 @@ from typing import List, Optional, Tuple
 import googleapiclient.discovery
 from googleapiclient.discovery import Resource
 from oauth2client.service_account import ServiceAccountCredentials
-from http.client import HTTPException
 
 import config
 
