@@ -325,7 +325,7 @@ async def create_controller(
 
     # Ensure two scrapes aren't making/deleting files at the same time
     if list_task_control_lock.locked():
-        await message.add_reaction(config.COMMAND_SUCCESS)
+        await message.add_reaction(config.COMMAND_FAIL_EMOJI)
         return None
 
     # Pick a text channel to run the bust in. Default to the channel the command of the command.
@@ -337,10 +337,10 @@ async def create_controller(
     # Ensure target channel is text
     if not isinstance(target_channel, TextChannel):
         print(f"Cannot create controller for {type(target_channel)}")
-        await message.add_reaction(config.COMMAND_FAIL)
+        await message.add_reaction(config.COMMAND_FAIL_EMOJI)
         return None
 
-    await message.add_reaction(config.COMMAND_SUCCESS)
+    await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
 
     async with list_task_control_lock:
         # Scrape all tracks in the target channel and list them

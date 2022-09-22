@@ -124,11 +124,11 @@ async def on_message(message: Message) -> None:
                 loaded_image = None
             else:
                 loaded_image = arg1
-            await message.add_reaction(config.COMMAND_SUCCESS)
+            await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
         elif len(message.attachments) > 0:
             # TODO: Some basic validity filtering
             loaded_image = message.attachments[0].url
-            await message.add_reaction(config.COMMAND_SUCCESS)
+            await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
         else:
             if loaded_image is not None:
                 message_reply_content = (

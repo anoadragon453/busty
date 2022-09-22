@@ -21,9 +21,9 @@ VOLUME_MULTIPLIER = 0.5
 # The maximum number of songs to download concurrently
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 # Emoji to signify command success
-COMMAND_SUCCESS = "\N{THUMBS UP SIGN}"
+COMMAND_SUCCESS_EMOJI = "\N{THUMBS UP SIGN}"
 # Emoji to signify command failure
-COMMAND_FAIL = "\N{OCTAGONAL SIGN}"
+COMMAND_FAIL_EMOJI = "\N{OCTAGONAL SIGN}"
 
 # SETTINGS
 # How many seconds to wait in-between songs
