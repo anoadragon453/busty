@@ -133,15 +133,15 @@ async def on_message(message: Message) -> None:
             if loaded_image is not None:
                 message_reply_content = (
                     f"Loaded image: {loaded_image}\n\nTo change this image, "
-                    "either run `!image <image_url>` or"
-                    " just `!image` with a valid media attachment. "
-                    "To clear this image, run `!image clear`"
+                    "either run `!image <image_url>` or "
+                    "just `!image` with a valid media attachment. "
+                    "To clear this image, run `!image clear`."
                 )
             else:
                 message_reply_content = (
                     "No image is currently loaded.\n\nTo add an image, "
-                    "either run `!image <image_url>` or"
-                    " just `!image` with a valid media attachment.\n"
+                    "either run `!image <image_url>` or "
+                    "just `!image` with a valid media attachment.\n"
                 )
             await message.channel.send(message_reply_content)
 
