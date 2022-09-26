@@ -1,10 +1,9 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from nextcord import Client, Intents, Member, Message, TextChannel
 
 import bust
 import config
-import voting
 from bust import BustController
 
 # STARTUP
@@ -23,6 +22,9 @@ client = Client(intents=intents)
 
 controllers: Dict[int, BustController] = {}
 
+# Cached image url to use for next bust
+loaded_image: Optional[str] = None
+
 
 @client.event
 async def on_ready() -> None:
@@ -39,6 +41,7 @@ async def on_close() -> None:
 @client.event
 async def on_message(message: Message) -> None:
     global controllers
+    global loaded_image
 
     if message.author == client.user:
         return
@@ -78,7 +81,7 @@ async def on_message(message: Message) -> None:
             await message.channel.send("We're busy busting.")
             return
 
-        bc = await bust.create_controller(client, message)
+        bc = await bust.create_controller(client, message, loaded_image)
         if bc:
             controllers[message.guild.id] = bc
 
@@ -112,19 +115,35 @@ async def on_message(message: Message) -> None:
 
         await bc.play(message, skip_count)
 
-    elif message_text.startswith("!form"):
-        if not bc:
-            await message.channel.send("You need to use !list first.")
-            return
-
-        # Pull the Google Drive link to the form image from the message (if it exists)
-        command_args = message.content.split()[1:]
-        if command_args:
-            await voting.generate_form(
-                bc, message, google_drive_image_link=command_args[0]
-            )
+    elif message_text.startswith("!image"):
+        message_split = message.content.split()
+        if len(message_split) > 1:
+            arg1 = message_split[1]
+            # See if it's a clear command or giving a URL
+            if arg1 == "clear":
+                loaded_image = None
+            else:
+                loaded_image = arg1
+            await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
+        elif len(message.attachments) > 0:
+            # TODO: Some basic validity filtering
+            loaded_image = message.attachments[0].url
+            await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
         else:
-            await voting.generate_form(bc, message)
+            if loaded_image is not None:
+                message_reply_content = (
+                    f"Loaded image: {loaded_image}\n\nTo change this image, "
+                    "either run `!image <image_url>` or "
+                    "just `!image` with a valid media attachment. "
+                    "To clear this image, run `!image clear`."
+                )
+            else:
+                message_reply_content = (
+                    "No image is currently loaded.\n\nTo add an image, "
+                    "either run `!image <image_url>` or "
+                    "just `!image` with a valid media attachment.\n"
+                )
+            await message.channel.send(message_reply_content)
 
     elif message_text.startswith("!skip"):
         if not bc or not bc.is_active():

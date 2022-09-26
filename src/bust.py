@@ -19,6 +19,7 @@ from nextcord.utils import escape_markdown
 
 import config
 import discord_utils
+import forms
 import song_utils
 
 # Allow only one async routine to calculate !list at a time
@@ -287,17 +288,52 @@ class BustController:
         bot_member = self.current_channel.guild.get_member(self.client.user.id)
         await bot_member.edit(nick=new_nick)
 
+    def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
+        """Create a Google form for voting on this bust
+
+        Args:
+            image_url: If passed, the image at this url will be placed at the start of the form.
+
+        Returns:
+            the URL of the Google Form, or None if form creation fails.
+        """
+        if config.google_form_folder is None:
+            print("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset...")
+            return None
+
+        song_list = [
+            "{}: {}".format(
+                submit_message.author.display_name,
+                song_utils.song_format(local_filepath, attachment.filename),
+            )
+            for submit_message, attachment, local_filepath in self.current_channel_content
+        ]
+
+        # Extract bust number from channel name
+        bust_number = "".join([c for c in self.current_channel.name if c.isdigit()])
+        if bust_number:
+            bust_number = bust_number + " "
+
+        form_url = forms.create_remote_form(
+            f"Busty's {bust_number}Voting",
+            song_list,
+            low_val=0,
+            high_val=7,
+            low_label="OK",
+            high_label="Masterpiece",
+            image_url=image_url,
+        )
+        return form_url
+
 
 async def create_controller(
-    client: Client, message: Message
+    client: Client, message: Message, image_url: Optional[str] = None
 ) -> Optional[BustController]:
     """Attempt to create a BustController given a channel list command"""
-    command_success = "\N{THUMBS UP SIGN}"
-    command_fail = "\N{OCTAGONAL SIGN}"
 
     # Ensure two scrapes aren't making/deleting files at the same time
     if list_task_control_lock.locked():
-        await message.add_reaction(command_fail)
+        await message.add_reaction(config.COMMAND_FAIL_EMOJI)
         return None
 
     # Pick a text channel to run the bust in. Default to the channel the command of the command.
@@ -309,10 +345,10 @@ async def create_controller(
     # Ensure target channel is text
     if not isinstance(target_channel, TextChannel):
         print(f"Cannot create controller for {type(target_channel)}")
-        await message.add_reaction(command_fail)
+        await message.add_reaction(config.COMMAND_FAIL_EMOJI)
         return None
 
-    await message.add_reaction(command_success)
+    await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
 
     async with list_task_control_lock:
         # Scrape all tracks in the target channel and list them
@@ -324,6 +360,8 @@ async def create_controller(
         if len(channel_media_attachments) == 0:
             await message.channel.send("There aren't any songs there.")
             return None
+
+        bc = BustController(client, channel_media_attachments, target_channel)
 
         # Title of !list embed
         embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
@@ -387,10 +425,27 @@ async def create_controller(
             list_message = await message.channel.send(embed=embed)
             message_list.append(list_message)
 
-        # If message channel == target channel, pin messages in reverse order
-        if target_channel == message.channel:
+        # If message channel == target channel, or we ask for a mock,
+        # pin messages in reverse order and generate Google Form
+        pin_and_form = (
+            target_channel == message.channel or "full" in message.content.split()
+        )
+        if pin_and_form:
             for list_message in reversed(message_list):
                 await discord_utils.try_set_pin(list_message, True)
+            # Wrap form generation in try/catch so we don't block !list if it fails
+            form_url = None
+            try:
+                form_url = bc.get_google_form_url(image_url)
+            except Exception as e:
+                print("Unknown error generating form:", e)
 
-        # Construct and return controller
-        return BustController(client, channel_media_attachments, target_channel)
+            if form_url is not None:
+                vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
+                form_message = await message.channel.send(
+                    f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
+                )
+                await discord_utils.try_set_pin(form_message, True)
+
+        # Return controller
+        return bc
