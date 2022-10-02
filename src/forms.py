@@ -59,7 +59,7 @@ def create_remote_form(
                                     "lowLabel": low_label,
                                     "highLabel": high_label,
                                 },
-                                "required": True
+                                "required": True,
                             }
                         },
                     },
