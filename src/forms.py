@@ -42,6 +42,7 @@ def create_remote_form(
     form_info = {
         "info": {
             "title": title,
+            "document_title": title,
         }
     }
 
@@ -137,7 +138,6 @@ def create_remote_form(
                 fileId=form_id,
                 removeParents=file_parent_id,
                 addParents=config.google_form_folder,
-                body={"name": title},
             ).execute()
         except Exception as e:
             print("Error moving form:", e)
