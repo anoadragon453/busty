@@ -116,7 +116,7 @@ def format_time(seconds: int) -> str:
 def get_song_length(filename: str) -> Optional[float]:
     try:
         audio = MutagenFile(filename)
-        if audio:
+        if audio is not None:
             return audio.info.length
     except MutagenError as e:
         # Ignore file and move on
