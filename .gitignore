@@ -2,5 +2,6 @@ auth/
 env/
 attachments/
 .idea/
+.image_state
 venv/
 src/__pycache__/
