@@ -13,7 +13,7 @@ class PersistentString:
             Sets the value of the string and writes to disk
     """
 
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str) -> None:
         self.filepath = filepath
         self._value: Optional[str] = None
         # Load string if it exists
