@@ -1,4 +1,3 @@
-import contextlib
 import os
 from typing import Optional
 
@@ -17,17 +16,21 @@ class PersistentString:
         self.filepath = filepath
         self._value: Optional[str] = None
         # Load string if it exists
-        with contextlib.suppress(FileNotFoundError):
+        try:
             with open(self.filepath, "r") as f:
                 self._value = f.read()
+        except FileNotFoundError:
+            pass
 
     def set(self, value: Optional[str]):
         self._value = value
 
         # Either save string, or delete state file if None
         if self._value is None:
-            with contextlib.suppress(FileNotFoundError):
+            try:
                 os.remove(self.filepath)
+            except FileNotFoundError:
+                pass
         else:
             with open(self.filepath, "w") as f:
                 f.write(self._value)
