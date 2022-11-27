@@ -23,7 +23,12 @@ client = commands.Bot(intents=intents)
 controllers: Dict[int, BustController] = {}
 
 
-def get_controller(guild_id):
+def get_controller(guild_id) -> None:
+    """Get current bust controller for current server, if it exists"""
+    # TODO: Put these lines inside of `/bust` handler.
+    # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
+    # keep the controllers map up to date by just deleting from
+    # the controllers map directly when bc.play() returns
     bc = controllers.get(guild_id, None)
     if bc and bc.finished():
         bc = None
@@ -58,7 +63,7 @@ TESTING_SERVER = 962130983585480785
 async def list(
     interaction: Interaction,
     list_channel: Optional[TextChannel] = SlashOption(required=False),
-):
+) -> None:
     """Download and list all media sent in a chosen text channel."""
     bc = get_controller(interaction.guild_id)
 
@@ -92,7 +97,7 @@ async def list(
 async def bust(
     interaction: Interaction,
     index: int = SlashOption(required=False, min_value=1, default=1),
-):
+) -> None:
     """Begin a bust."""
     bc = get_controller(interaction.guild_id)
 
@@ -119,7 +124,7 @@ async def bust(
 # Skip command
 @client.slash_command(guild_ids=[TESTING_SERVER])
 @application_checks.has_role(config.dj_role_name)
-async def skip(interaction: Interaction):
+async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
     bc = get_controller(interaction.guild_id)
 
@@ -134,7 +139,7 @@ async def skip(interaction: Interaction):
 # Stop command
 @client.slash_command(guild_ids=[TESTING_SERVER])
 @application_checks.has_role(config.dj_role_name)
-async def stop(interaction: Interaction):
+async def stop(interaction: Interaction) -> None:
     """Stop playback."""
     bc = controllers.get(interaction.guild_id, None)
 
@@ -149,58 +154,66 @@ async def stop(interaction: Interaction):
 # Image command
 @client.slash_command(guild_ids=[TESTING_SERVER])
 @application_checks.has_role(config.dj_role_name)
-async def image(interaction: Interaction):
+async def image(interaction: Interaction) -> None:
+    """Manage saved Google Forms image."""
     pass
 
 
-@image.subcommand()
+@image.subcommand(name="upload")
 @application_checks.has_role(config.dj_role_name)
-async def upload(interaction: Interaction, image_attachment: Attachment):
+async def image_upload(interaction: Interaction, image_attachment: Attachment) -> None:
     """Upload a Google Forms image as attachment."""
     global loaded_image
     # TODO: Some basic validity filtering
     loaded_image.set(image_attachment.url)
-    await interaction.response.send_message("\N{WHITE HEAVY CHECK MARK} Image updated.")
+    await interaction.response.send_message(
+        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+    )
 
 
-@image.subcommand()
+@image.subcommand(name="url")
 @application_checks.has_role(config.dj_role_name)
-async def url(interaction: Interaction, image_url: str):
+async def image_url(interaction: Interaction, image_url: str) -> None:
     """Set a Google Forms image by pasting a URL."""
     global loaded_image
     # TODO: Some basic validity filtering
     loaded_image.set(image_url)
-    await interaction.response.send_message("\N{WHITE HEAVY CHECK MARK} Image updated.")
+    await interaction.response.send_message(
+        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+    )
 
 
-@image.subcommand()
+@image.subcommand(name="clear")
 @application_checks.has_role(config.dj_role_name)
-async def clear(interaction: Interaction):
+async def image_clear(interaction: Interaction) -> None:
     """Clear the loaded Google Forms image."""
     global loaded_image
     loaded_image.set(None)
     await interaction.response.send_message("\N{WASTEBASKET} Image cleared.")
 
 
-@image.subcommand()
+@image.subcommand("view")
 @application_checks.has_role(config.dj_role_name)
-async def view(interaction: Interaction):
+async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
     if loaded_image.get() is not None:
-        content = f"Loaded image: {loaded_image.get()}."
+        content = f"Loaded image: {loaded_image.get()}"
     else:
         content = "No image is currently loaded."
     await interaction.response.send_message(content)
 
 
-# @client.event
-@skip.error
-async def on_command_error(interaction, error):
-    exit(0)
-    print("KILLER")
-    print(type(interaction))
-    # if isinstance(error, commands.MissingPermissions):
-    # interaction.response.send_message('You have insufficient permissions to run this command')
+@client.event
+async def on_application_command_error(
+    interaction: Interaction, error: Exception
+) -> None:
+    # Catch insufficient permissions exception, ignore all others
+    if isinstance(error, application_checks.errors.ApplicationMissingRole):
+        await interaction.response.send_message(
+            "You don't have permission to use this command.", ephemeral=True
+        )
+    else:
+        print(error)
 
 
 # Connect to discord
