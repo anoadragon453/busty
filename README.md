@@ -100,12 +100,14 @@ The expected flow for running a bust is:
 
 ### Command Reference
 
-1. `!list [<channel>] [full]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`. 
-If the `full` flag is set or if the channel listed is the channel the command was sent in, list messages are pinned and a Google Form for voting is generated.
-1. `!bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
-1. `!image [<url>]` - Queue an image to be used in the Google Form generated when running `!list`. Run `!image` with no arguments for full usage information.
-1. `!skip` - Skips the current track :scream: 
-1. `!stop` - Stop busting early :scream: :scream: :scream: 
+1. `/list [<channel>]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `!bust`. 
+1. `/bust [<song #>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
+1. `/image upload [<attachment>]` - Upload an image to be used in the Google Form generated when running `/list`.
+1. `/image url [<url>]` - Queue an image to be used in the Google Form generated when running `/list`.
+1. `/image view [<url>]` - View currently loaded image to be used in the Google Form generated when running `/list`.
+1. `/image clear [<url>]` - Clear currently loaded image to be used in the Google Form generated when running `/list`.
+1. `/skip` - Skips the current track :scream: 
+1. `/stop` - Stop busting early :scream: :scream: :scream: 
 
 Users must have the `bangermeister` role to use commands by default, though this role can
 be modified by passing the `BUSTY_DJ_ROLE` environment variable.
