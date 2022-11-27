@@ -110,7 +110,9 @@ The expected flow for running a bust is:
 1. `/stop` - Stop busting early :scream: :scream: :scream: 
 
 Users must have the `bangermeister` role to use commands by default, though this role can
-be modified by passing the `BUSTY_DJ_ROLE` environment variable.
+be modified by passing the `BUSTY_DJ_ROLE` environment variable. It is highly recommended that
+you disable command visibility for those without permissions to run them in the Integrations
+section of your server's settings.
 
 ## Development
 

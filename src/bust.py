@@ -337,6 +337,9 @@ async def create_controller(
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
     if not channel_media_attachments:
+        await interaction.edit_original_message(
+            content="\N{WARNING SIGN} No valid media files found."
+        )
         return None
 
     bc = BustController(client, channel_media_attachments, list_channel)

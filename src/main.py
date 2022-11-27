@@ -82,13 +82,16 @@ async def list(
         list_channel = interaction.channel
 
     async with list_task_control_lock:
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         bc = await create_controller(
             client, interaction, list_channel, interaction.channel, loaded_image.get()
         )
         global controllers
         controllers[interaction.guild_id] = bc
-        await interaction.delete_original_message()
+        # If bc is None, something went wrong and we already edited the
+        # interaction response to inform the user.
+        if bc is not None:
+            await interaction.delete_original_message()
 
 
 # Bust command
@@ -214,6 +217,7 @@ async def on_application_command_error(
         )
     else:
         print(error)
+
 
 # Connect to discord
 if config.discord_token:
