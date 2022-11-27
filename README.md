@@ -69,6 +69,7 @@ The complete list of environment variable configuration options is:
 1. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 1. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
 1. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
+1. `BUSTY_IMAGE_STATE_FILE` - The location of the file which saves the state of the currently loaded image (default = .image_state)
 
 A random emoji is displayed for each song played during a bust. The list of possible
 emoji is defined in [emoji_list.py](src/emoji_list.py). If you would like to customize

@@ -1,10 +1,11 @@
-from typing import Dict, Optional
+from typing import Dict
 
 from nextcord import Client, Intents, Member, Message, TextChannel
 
 import bust
 import config
 from bust import BustController
+from persistent import PersistentString
 
 # STARTUP
 
@@ -23,7 +24,7 @@ client = Client(intents=intents)
 controllers: Dict[int, BustController] = {}
 
 # Cached image url to use for next bust
-loaded_image: Optional[str] = None
+loaded_image: PersistentString = PersistentString(filepath=config.image_state_file)
 
 
 @client.event
@@ -81,7 +82,7 @@ async def on_message(message: Message) -> None:
             await message.channel.send("We're busy busting.")
             return
 
-        bc = await bust.create_controller(client, message, loaded_image)
+        bc = await bust.create_controller(client, message, loaded_image.get())
         if bc:
             controllers[message.guild.id] = bc
 
@@ -121,18 +122,18 @@ async def on_message(message: Message) -> None:
             arg1 = message_split[1]
             # See if it's a clear command or giving a URL
             if arg1 == "clear":
-                loaded_image = None
+                loaded_image.set(None)
             else:
-                loaded_image = arg1
+                loaded_image.set(arg1)
             await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
         elif len(message.attachments) > 0:
             # TODO: Some basic validity filtering
-            loaded_image = message.attachments[0].url
+            loaded_image.set(message.attachments[0].url)
             await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
         else:
-            if loaded_image is not None:
+            if loaded_image.get():
                 message_reply_content = (
-                    f"Loaded image: {loaded_image}\n\nTo change this image, "
+                    f"Loaded image: {loaded_image.get()}\n\nTo change this image, "
                     "either run `!image <image_url>` or "
                     "just `!image` with a valid media attachment. "
                     "To clear this image, run `!image clear`."

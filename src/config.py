@@ -38,6 +38,8 @@ discord_token = os.environ.get("BUSTY_DISCORD_TOKEN")
 google_form_folder = os.environ.get("BUSTY_GOOGLE_FORM_FOLDER")
 # The service account auth file to use
 google_auth_file = os.environ.get("BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.json")
+# The location of the file which saves the state of the currently loaded image
+image_state_file = os.environ.get("BUSTY_IMAGE_STATE_FILE", ".image_state")
 
 # Warn about disabled Google Forms generation
 if google_form_folder is None:
