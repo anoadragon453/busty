@@ -18,7 +18,7 @@ class PersistentString:
         self._value: Optional[str] = None
         # Load string if it exists
         with contextlib.suppress(FileNotFoundError):
-            with open(self.filepath) as f:
+            with open(self.filepath, "r") as f:
                 self._value = f.read()
 
     def set(self, value: Optional[str]):
@@ -26,11 +26,11 @@ class PersistentString:
 
         # Either save string, or delete state file if None
         if self._value is None:
-            with open(self.filepath, "w") as f:
-                f.write(self._value)
-        else:
             with contextlib.suppress(FileNotFoundError):
                 os.remove(self.filepath)
+        else:
+            with open(self.filepath, "w") as f:
+                f.write(self._value)
 
     def get(self) -> Optional[str]:
         return self._value
