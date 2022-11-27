@@ -215,7 +215,6 @@ async def on_application_command_error(
     else:
         print(error)
 
-
 # Connect to discord
 if config.discord_token:
     client.run(config.discord_token)
