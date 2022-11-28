@@ -8,6 +8,10 @@ EMBED_DESCRIPTION_LIMIT = 4096
 EMBED_FIELD_VALUE_LIMIT = 1024
 # Max number of characters in a normal Disord message
 MESSAGE_LIMIT = 2000
+# Max number of characters in a Discord nickname
+NICKNAME_CHAR_LIMIT = 32
+# (A safe lower bound for) max allowed bytes in a Discord attachment
+ATTACHMENT_BYTE_LIMIT = 8000000
 # Color of !list embed
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed

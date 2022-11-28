@@ -279,10 +279,10 @@ class BustController:
             local_filepath, attachment.filename, submit_message.author.display_name
         )
 
-        # If necessary, truncate name to 32 characters (the maximum allowed by Discord),
-        # including an ellipsis on the end.
-        if len(new_nick) > 32:
-            new_nick = new_nick[:31] + "…"
+        # If necessary, truncate name to max length allowed by Discord,
+        # appending an ellipsis on the end.
+        if len(new_nick) > config.NICKNAME_CHAR_LIMIT:
+            new_nick = new_nick[: config.NICKNAME_CHAR_LIMIT - 1] + "…"
 
         # Set the new nickname
         bot_member = self.current_channel.guild.get_member(self.client.user.id)
