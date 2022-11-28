@@ -167,11 +167,11 @@ async def image(interaction: Interaction) -> None:
 
 @image.subcommand(name="upload")
 @application_checks.has_role(config.dj_role_name)
-async def image_upload(interaction: Interaction, image_attachment: Attachment) -> None:
+async def image_upload(interaction: Interaction, image_file: Attachment) -> None:
     """Upload a Google Forms image as attachment."""
     global loaded_image
     # TODO: Some basic validity filtering
-    loaded_image.set(image_attachment.url)
+    loaded_image.set(image_file.url)
     await interaction.response.send_message(
         f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
     )
