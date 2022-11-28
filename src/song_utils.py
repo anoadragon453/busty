@@ -160,9 +160,9 @@ def get_cover_art(filename: str) -> Optional[File]:
         print(f"Unknown error reading cover art for {filename}:", e)
         return None
 
-    # Make sure it doesn't go over 8MB
-    # This is a safe lower bound on the Discord upload limit of 8MiB
-    if image_data is None or len(image_data) > 8_000_000:
+    # Make sure it doesn't go over the maximum size allowed for a Discord attachment.
+    # Important for when the bot later posts the image during a bust.
+    if image_data is None or len(image_data) > config.ATTACHMENT_BYTE_LIMIT:
         return None
 
     # Get a file pointer to the bytes
