@@ -18,7 +18,12 @@ intents.message_content = True
 
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
-client = commands.Bot(intents=intents)
+if config.testing_server:
+    print(f'Using testing server {config.testing_server}')
+    ids = [int(config.testing_server)]
+    client = commands.Bot(intents=intents, default_guild_ids=ids)
+else:
+    client = commands.Bot(intents=intents)
 
 controllers: Dict[int, BustController] = {}
 
@@ -54,11 +59,9 @@ async def on_close() -> None:
 # Allow only one async routine to calculate list at a time
 list_task_control_lock = asyncio.Lock()
 
-TESTING_SERVER = 962130983585480785
-
 
 # List command
-@client.slash_command(guild_ids=[TESTING_SERVER])
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def list(
     interaction: Interaction,
@@ -95,7 +98,7 @@ async def list(
 
 
 # Bust command
-@client.slash_command(guild_ids=[TESTING_SERVER])
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
@@ -125,7 +128,7 @@ async def bust(
 
 
 # Skip command
-@client.slash_command(guild_ids=[TESTING_SERVER])
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -140,7 +143,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command(guild_ids=[TESTING_SERVER])
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -155,7 +158,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 # Image command
-@client.slash_command(guild_ids=[TESTING_SERVER])
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
