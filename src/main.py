@@ -19,7 +19,7 @@ intents.message_content = True
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
 if config.testing_server:
-    print(f'Using testing server {config.testing_server}')
+    print(f"Using testing server {config.testing_server}")
     ids = [int(config.testing_server)]
     client = commands.Bot(intents=intents, default_guild_ids=ids)
 else:
