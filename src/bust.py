@@ -82,6 +82,7 @@ class BustController:
             self.play_song_task.cancel()
 
     def skip_song(self) -> None:
+        """Skip current track."""
         if self.play_song_task:
             self.play_song_task.cancel()
 
