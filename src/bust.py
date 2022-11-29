@@ -162,10 +162,6 @@ class BustController:
             bot_member = self.current_channel.guild.get_member(self.client.user.id)
             await bot_member.edit(nick=self.original_bot_nickname)
 
-        # Unpin current "now playing" message if it exists
-        if self.now_playing_msg:
-            await discord_utils.try_set_pin(self.now_playing_msg, False)
-
         if say_goodbye:
             embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
             embed_content = "Hope ya had a good **BUST!**"
