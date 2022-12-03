@@ -87,7 +87,7 @@ async def list(
     async with list_task_control_lock:
         await interaction.response.defer(ephemeral=True)
         bc = await create_controller(
-            client, interaction, list_channel, interaction.channel, loaded_image.get()
+            client, interaction, list_channel, loaded_image.get()
         )
         global controllers
         controllers[interaction.guild_id] = bc

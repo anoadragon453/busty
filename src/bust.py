@@ -330,7 +330,6 @@ async def create_controller(
     client: Client,
     interaction: Interaction,
     list_channel: TextChannel,
-    message_channel: TextChannel,
     image_url: Optional[str] = None,
 ) -> Optional[BustController]:
     """Attempt to create a BustController given a channel list command"""
@@ -403,12 +402,12 @@ async def create_controller(
                 description=embed_description,
                 color=config.LIST_EMBED_COLOR,
             )
-        list_message = await message_channel.send(embed=embed)
+        list_message = await interaction.channel.send(embed=embed)
         message_list.append(list_message)
 
     # If message channel == target channel, or we ask for a mock,
     # pin messages in reverse order and generate Google Form
-    pin_and_form = list_channel == message_channel
+    pin_and_form = list_channel == interaction.channel
     if pin_and_form:
         for list_message in reversed(message_list):
             await discord_utils.try_set_pin(list_message, True)
@@ -421,7 +420,7 @@ async def create_controller(
 
         if form_url is not None:
             vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
-            form_message = await message_channel.send(
+            form_message = await interaction.channel.send(
                 f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
             )
             await discord_utils.try_set_pin(form_message, True)
