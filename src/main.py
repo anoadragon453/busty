@@ -28,13 +28,13 @@ else:
 controllers: Dict[int, BustController] = {}
 
 
-def get_controller(guild_id) -> None:
+def get_controller(guild_id: int) -> Optional[BustController]:
     """Get current bust controller for current server, if it exists"""
     # TODO: Put these lines inside of `/bust` handler.
     # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
     # keep the controllers map up to date by just deleting from
     # the controllers map directly when bc.play() returns
-    bc = controllers.get(guild_id, None)
+    bc = controllers.get(guild_id)
     if bc and bc.finished():
         bc = None
     return bc
