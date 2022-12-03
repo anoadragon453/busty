@@ -147,7 +147,7 @@ async def skip(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
-    bc = controllers.get(interaction.guild_id, None)
+    bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
