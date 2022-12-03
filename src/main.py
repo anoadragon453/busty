@@ -102,7 +102,7 @@ async def list(
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
-    index: int = SlashOption(required=False, min_value=1, default=1),
+    index: Optional[int] = SlashOption(required=False, min_value=1, default=1),
 ) -> None:
     """Begin a bust."""
     bc = get_controller(interaction.guild_id)

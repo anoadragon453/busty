@@ -411,7 +411,7 @@ async def create_controller(
     if pin_and_form:
         for list_message in reversed(message_list):
             await discord_utils.try_set_pin(list_message, True)
-        # Wrap form generation in try/catch so we don't block !list if it fails
+        # Wrap form generation in try/catch so we don't block a list command if it fails
         form_url = None
         try:
             form_url = bc.get_google_form_url(image_url)
