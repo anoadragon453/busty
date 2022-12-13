@@ -85,10 +85,12 @@ async def scrape_channel_media(
         async with download_semaphore:
             await attachment.save(attachment_filepath)
 
-    tasks = [
-        asyncio.create_task(dl_file(at, fp)) for _, at, fp in channel_media_attachments
-    ]
-    await asyncio.wait(tasks)
+    if channel_media_attachments:
+        tasks = [
+            asyncio.create_task(dl_file(at, fp))
+            for _, at, fp in channel_media_attachments
+        ]
+        await asyncio.wait(tasks)
 
     # Clear unused files in attachment directory
     used_files = {path for (_, _, path) in channel_media_attachments}

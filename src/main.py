@@ -1,15 +1,14 @@
-from typing import Dict
+import asyncio
+from typing import Dict, Optional
 
-from nextcord import Client, Intents, Member, Message, TextChannel
+from nextcord import Attachment, Intents, Interaction, SlashOption, TextChannel
+from nextcord.ext import application_checks, commands
 
-import bust
 import config
-from bust import BustController
+from bust import BustController, create_controller
 from persistent import PersistentString
 
-# STARTUP
-
-# This is necessary to query server members
+# This is necessary to query guild members
 intents = Intents.default()
 # To fetch guild member information.
 # Privileged intent. Requires enabling in Discord Developer Portal.
@@ -19,9 +18,27 @@ intents.message_content = True
 
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
-client = Client(intents=intents)
+if config.testing_guild:
+    print(f"Using testing guild {config.testing_guild}")
+    ids = [int(config.testing_guild)]
+    client = commands.Bot(intents=intents, default_guild_ids=ids)
+else:
+    client = commands.Bot(intents=intents)
 
 controllers: Dict[int, BustController] = {}
+
+
+def get_controller(guild_id: int) -> Optional[BustController]:
+    """Get current bust controller for current guild, if it exists"""
+    # TODO: Put these lines inside of `/bust` handler.
+    # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
+    # keep the controllers map up to date by just deleting from
+    # the controllers map directly when bc.play() returns
+    bc = controllers.get(guild_id)
+    if bc and bc.finished():
+        bc = None
+    return bc
+
 
 # Cached image url to use for next bust
 loaded_image: PersistentString = PersistentString(filepath=config.image_state_file)
@@ -29,7 +46,7 @@ loaded_image: PersistentString = PersistentString(filepath=config.image_state_fi
 
 @client.event
 async def on_ready() -> None:
-    print("We have logged in as {0.user}.".format(client))
+    print(f"We have logged in as {client.user}.")
 
 
 @client.event
@@ -39,128 +56,178 @@ async def on_close() -> None:
         await bc.finish(say_goodbye=False)
 
 
-@client.event
-async def on_message(message: Message) -> None:
-    global controllers
+# Allow only one async routine to calculate list at a time
+list_task_control_lock = asyncio.Lock()
+
+
+# List command
+@client.slash_command(name="list")
+@application_checks.has_role(config.dj_role_name)
+async def on_list(
+    interaction: Interaction,
+    list_channel: Optional[TextChannel] = SlashOption(
+        required=False, description="Target channel to list."
+    ),
+) -> None:
+    """Download and list all media sent in a chosen text channel."""
+    bc = get_controller(interaction.guild_id)
+
+    if bc and bc.is_active():
+        await interaction.response.send_message("We're busy busting.", ephemeral=True)
+        return
+
+    # Give up if locked
+    if list_task_control_lock.locked():
+        await interaction.response.send_message(
+            "A list is already in progress.", ephemeral=True
+        )
+        return
+
+    if list_channel is None:
+        list_channel = interaction.channel
+
+    async with list_task_control_lock:
+        # Notify user that "Busty is thinking"
+        await interaction.response.defer(ephemeral=True)
+        bc = await create_controller(
+            client, interaction, list_channel, loaded_image.get()
+        )
+        global controllers
+        controllers[interaction.guild_id] = bc
+        # If bc is None, something went wrong and we already edited the
+        # interaction response to inform the user.
+        if bc is not None:
+            await interaction.delete_original_message()
+
+
+# Bust command
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def bust(
+    interaction: Interaction,
+    index: int = SlashOption(
+        required=False,
+        min_value=1,
+        default=1,
+        description="Track number to start from.",
+    ),
+) -> None:
+    """Begin a bust."""
+    bc = get_controller(interaction.guild_id)
+
+    if bc is None:
+        await interaction.response.send_message(
+            "You need to use `/list` first.", ephemeral=True
+        )
+        return
+
+    elif bc.is_active():
+        await interaction.response.send_message(
+            "We're already busting.", ephemeral=True
+        )
+        return
+
+    if index > len(bc.current_channel_content):
+        await interaction.response.send_message(
+            "There aren't that many tracks.", ephemeral=True
+        )
+        return
+    await bc.play(interaction, index - 1)
+
+
+# Skip command
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def skip(interaction: Interaction) -> None:
+    """Skip currently playing song."""
+    bc = get_controller(interaction.guild_id)
+
+    if not bc or not bc.is_active():
+        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+        return
+
+    await interaction.response.send_message("I didn't like that track anyways.")
+    bc.skip_song()
+
+
+# Stop command
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def stop(interaction: Interaction) -> None:
+    """Stop playback."""
+    bc = controllers.get(interaction.guild_id)
+
+    if not bc or not bc.is_active():
+        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+        return
+
+    await interaction.response.send_message("Alright I'll shut up")
+    await bc.stop()
+
+
+# Image command
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def image(interaction: Interaction) -> None:
+    """Manage saved Google Forms image."""
+    pass
+
+
+@image.subcommand(name="upload")
+@application_checks.has_role(config.dj_role_name)
+async def image_upload(interaction: Interaction, image_file: Attachment) -> None:
+    """Upload a Google Forms image as attachment."""
     global loaded_image
+    # TODO: Some basic validity filtering
+    loaded_image.set(image_file.url)
+    await interaction.response.send_message(
+        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+    )
 
-    if message.author == client.user:
-        return
 
-    # Do not process messages outside of guild text channels
-    if not isinstance(message.channel, TextChannel):
-        return
+@image.subcommand(name="url")
+@application_checks.has_role(config.dj_role_name)
+async def image_url(interaction: Interaction, image_url: str) -> None:
+    """Set a Google Forms image by pasting a URL."""
+    global loaded_image
+    # TODO: Some basic validity filtering
+    loaded_image.set(image_url)
+    await interaction.response.send_message(
+        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+    )
 
-    # The message author must be a guild member, so that we can
-    # check if they have the appropriate role below
-    if not isinstance(message.author, Member):
-        return
 
-    for role in message.author.roles:
-        if role.name == config.dj_role_name:
-            break
+@image.subcommand(name="clear")
+@application_checks.has_role(config.dj_role_name)
+async def image_clear(interaction: Interaction) -> None:
+    """Clear the loaded Google Forms image."""
+    global loaded_image
+    loaded_image.set(None)
+    await interaction.response.send_message("\N{WASTEBASKET} Image cleared.")
+
+
+@image.subcommand("view")
+@application_checks.has_role(config.dj_role_name)
+async def image_view(interaction: Interaction) -> None:
+    """View the loaded Google Forms image."""
+    if loaded_image.get() is not None:
+        content = f"Loaded image: {loaded_image.get()}"
     else:
-        # This message's author does not have appropriate permissions
-        # to control the bot
-        return
+        content = "No image is currently loaded."
+    await interaction.response.send_message(content)
 
-    # Allow commands to be case-sensitive and contain leading/following spaces
-    message_text = message.content.lower().strip()
 
-    bc = controllers.get(message.guild.id, None)
-    # TODO: Put these lines inside of `!bust` handler.
-    # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
-    # keep the controllers map up to date by just deleting from
-    # the controllers map directly when bc.play() returns
-    if bc and bc.finished():
-        del controllers[message.guild.id]
-        bc = None
-
-    # Determine if the message was a command
-    if message_text.startswith("!list"):
-        if bc and bc.is_active():
-            await message.channel.send("We're busy busting.")
-            return
-
-        bc = await bust.create_controller(client, message, loaded_image.get())
-        if bc:
-            controllers[message.guild.id] = bc
-
-    elif message_text.startswith("!bust"):
-        if not bc:
-            await message.channel.send("You need to use !list first.")
-            return
-        elif bc.is_active():
-            await message.channel.send("We're already busting.")
-            return
-
-        command_args = message.content.split()[1:]
-        skip_count = 0
-        if command_args:
-            try:
-                # Expects a positive integer
-                bust_index = int(command_args[0])
-            except ValueError:
-                await message.channel.send("That isn't a number.")
-                return
-            if bust_index < 0:
-                await message.channel.send("That isn't possible.")
-                return
-            if bust_index == 0:
-                await message.channel.send("We start from 1 around here.")
-                return
-            if bust_index > len(bc.current_channel_content):
-                await message.channel.send("There aren't that many tracks.")
-                return
-            skip_count = bust_index - 1
-
-        await bc.play(message, skip_count)
-
-    elif message_text.startswith("!image"):
-        message_split = message.content.split()
-        if len(message_split) > 1:
-            arg1 = message_split[1]
-            # See if it's a clear command or giving a URL
-            if arg1 == "clear":
-                loaded_image.set(None)
-            else:
-                loaded_image.set(arg1)
-            await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
-        elif len(message.attachments) > 0:
-            # TODO: Some basic validity filtering
-            loaded_image.set(message.attachments[0].url)
-            await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
-        else:
-            if loaded_image.get():
-                message_reply_content = (
-                    f"Loaded image: {loaded_image.get()}\n\nTo change this image, "
-                    "either run `!image <image_url>` or "
-                    "just `!image` with a valid media attachment. "
-                    "To clear this image, run `!image clear`."
-                )
-            else:
-                message_reply_content = (
-                    "No image is currently loaded.\n\nTo add an image, "
-                    "either run `!image <image_url>` or "
-                    "just `!image` with a valid media attachment.\n"
-                )
-            await message.channel.send(message_reply_content)
-
-    elif message_text.startswith("!skip"):
-        if not bc or not bc.is_active():
-            await message.channel.send("Nothing is playing.")
-            return
-
-        await message.channel.send("I didn't like that track anyways.")
-        bc.skip_song()
-
-    elif message_text.startswith("!stop"):
-        if not bc or not bc.is_active():
-            await message.channel.send("I'm not busting.")
-            return
-
-        await message.channel.send("Alright I'll shut up.")
-        await bc.stop()
+@client.event
+async def on_application_command_error(
+    interaction: Interaction, error: Exception
+) -> None:
+    # Catch insufficient permissions exception, ignore all others
+    if isinstance(error, application_checks.errors.ApplicationMissingRole):
+        await interaction.response.send_message(
+            "You don't have permission to use this command.", ephemeral=True
+        )
+    else:
+        print(error)
 
 
 # Connect to discord
