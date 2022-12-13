@@ -105,7 +105,7 @@ async def on_list(
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
-    index: Optional[int] = SlashOption(
+    index: int = SlashOption(
         required=False,
         min_value=1,
         default=1,
