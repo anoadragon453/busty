@@ -65,7 +65,7 @@ list_task_control_lock = asyncio.Lock()
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
-    list_channel: Optional[TextChannel] = SlashOption(required=False),
+    list_channel: Optional[TextChannel] = SlashOption(required=False, description="Target channel to list."),
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
     bc = get_controller(interaction.guild_id)
@@ -103,7 +103,7 @@ async def on_list(
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
-    index: Optional[int] = SlashOption(required=False, min_value=1, default=1),
+    index: Optional[int] = SlashOption(required=False, min_value=1, default=1, description="Track number to start from."),
 ) -> None:
     """Begin a bust."""
     bc = get_controller(interaction.guild_id)
