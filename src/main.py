@@ -8,7 +8,7 @@ import config
 from bust import BustController, create_controller
 from persistent import PersistentString
 
-# This is necessary to query server members
+# This is necessary to query guild members
 intents = Intents.default()
 # To fetch guild member information.
 # Privileged intent. Requires enabling in Discord Developer Portal.
@@ -18,9 +18,9 @@ intents.message_content = True
 
 # Set up the Discord client. Connecting to Discord is done at
 # the bottom of this file.
-if config.testing_server:
-    print(f"Using testing server {config.testing_server}")
-    ids = [int(config.testing_server)]
+if config.testing_guild:
+    print(f"Using testing guilde {config.testing_guild}")
+    ids = [int(config.testing_guild)]
     client = commands.Bot(intents=intents, default_guild_ids=ids)
 else:
     client = commands.Bot(intents=intents)
@@ -29,7 +29,7 @@ controllers: Dict[int, BustController] = {}
 
 
 def get_controller(guild_id: int) -> Optional[BustController]:
-    """Get current bust controller for current server, if it exists"""
+    """Get current bust controller for current guild, if it exists"""
     # TODO: Put these lines inside of `/bust` handler.
     # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
     # keep the controllers map up to date by just deleting from

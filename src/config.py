@@ -40,8 +40,8 @@ google_form_folder = os.environ.get("BUSTY_GOOGLE_FORM_FOLDER")
 google_auth_file = os.environ.get("BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.json")
 # The location of the file which saves the state of the currently loaded image
 image_state_file = os.environ.get("BUSTY_IMAGE_STATE_FILE", ".image_state")
-# For developers only. Specify a testing server id to avoid 1 hour command update delay
-testing_server = os.environ.get("BUSTY_TESTING_SERVER_ID", None)
+# For developers only. Specify a testing guild id to avoid 1 hour command update delay
+testing_guild = os.environ.get("BUSTY_TESTING_GUILD_ID", None)
 
 # Warn about disabled Google Forms generation
 if google_form_folder is None:
