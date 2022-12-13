@@ -141,7 +141,7 @@ class BustController:
             try:
                 await self.play_song_task
             except asyncio.CancelledError:
-                # Voice client must be manually killed
+                # Voice client playback must be manually stoped
                 self.voice_client.stop()
 
         # tidy up
