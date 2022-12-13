@@ -85,6 +85,7 @@ async def on_list(
         list_channel = interaction.channel
 
     async with list_task_control_lock:
+        # Notify user that "Busty is thinking"
         await interaction.response.defer(ephemeral=True)
         bc = await create_controller(
             client, interaction, list_channel, loaded_image.get()
