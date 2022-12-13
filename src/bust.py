@@ -405,7 +405,7 @@ async def create_controller(
         list_message = await interaction.channel.send(embed=embed)
         message_list.append(list_message)
 
-    # If message channel == target channel, or we ask for a mock,
+    # If message channel == target channel,
     # pin messages in reverse order and generate Google Form
     pin_and_form = list_channel == interaction.channel
     if pin_and_form:
