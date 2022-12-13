@@ -9,6 +9,7 @@ from nextcord import (
     ClientException,
     Embed,
     FFmpegPCMAudio,
+    Interaction,
     Message,
     StageChannel,
     TextChannel,
@@ -21,9 +22,6 @@ import config
 import discord_utils
 import forms
 import song_utils
-
-# Allow only one async routine to calculate !list at a time
-list_task_control_lock = asyncio.Lock()
 
 
 class BustController:
@@ -86,24 +84,24 @@ class BustController:
         if self.play_song_task:
             self.play_song_task.cancel()
 
-    async def play(self, message: Message, skip_count: int = 0) -> None:
+    async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
-            message.guild.voice_channels
+            interaction.guild.voice_channels
         )
-        voice_channels.extend(message.guild.stage_channels)
+        voice_channels.extend(interaction.guild.stage_channels)
 
         if not voice_channels:
-            await message.channel.send(
-                "You need to be in an active voice or stage channel."
+            await interaction.response.send_message(
+                "You need to be in an active voice or stage channel.", ephemeral=True
             )
             return
 
         # Get a reference to the bot's Member object
-        bot_member = message.guild.get_member(self.client.user.id)
+        bot_member = interaction.guild.get_member(self.client.user.id)
 
         for voice_channel in voice_channels:
-            if message.author not in voice_channel.members:
+            if interaction.user not in voice_channel.members:
                 # Skip this voice channel
                 continue
 
@@ -123,14 +121,16 @@ class BustController:
                 return
         else:
             # No voice channel was found
-            await message.channel.send("You need to be in an active voice channel.")
+            await interaction.response.send_message(
+                "You need to be in an active voice channel.", ephemeral=True
+            )
             return
 
         # Save the bot's current display name (nick or name)
         # We'll restore it after songs have finished playing.
         self.original_bot_nickname = bot_member.display_name
 
-        await message.channel.send("Let's get **BUSTY**.")
+        await interaction.channel.send("Let's get **BUSTY**.")
 
         # Play songs
         for index in range(skip_count, len(self.current_channel_content)):
@@ -310,125 +310,103 @@ class BustController:
 
 
 async def create_controller(
-    client: Client, message: Message, image_url: Optional[str] = None
+    client: Client,
+    interaction: Interaction,
+    list_channel: TextChannel,
+    image_url: Optional[str] = None,
 ) -> Optional[BustController]:
     """Attempt to create a BustController given a channel list command"""
-
-    # Ensure two scrapes aren't making/deleting files at the same time
-    if list_task_control_lock.locked():
-        await message.add_reaction(config.COMMAND_FAIL_EMOJI)
+    # Scrape all tracks in the target channel and list them
+    channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
+    if not channel_media_attachments:
+        await interaction.edit_original_message(
+            content="\N{WARNING SIGN} No valid media files found."
+        )
         return None
 
-    # Pick a text channel to run the bust in. Default to the channel the command of the command.
-    target_channel = message.channel
-    # If any channels were mentioned in the message, use the first from the list
-    if message.channel_mentions:
-        target_channel = message.channel_mentions[0]
+    bc = BustController(client, channel_media_attachments, list_channel)
 
-    # Ensure target channel is text
-    if not isinstance(target_channel, TextChannel):
-        print(f"Cannot create controller for {type(target_channel)}")
-        await message.add_reaction(config.COMMAND_FAIL_EMOJI)
-        return None
+    # Title of /list embed
+    embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
+    embed_description_prefix = "**Track Listing**\n"
 
-    await message.add_reaction(config.COMMAND_SUCCESS_EMOJI)
+    # List of embed descriptions to circumvent the Discord character embed limit
+    embed_description_list: List[str] = []
+    embed_description_current = ""
 
-    async with list_task_control_lock:
-        # Scrape all tracks in the target channel and list them
-        channel_media_attachments = await discord_utils.scrape_channel_media(
-            target_channel
+    for index, (
+        submit_message,
+        attachment,
+        local_filepath,
+    ) in enumerate(channel_media_attachments):
+        list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
+        song_list_entry = list_format.format(
+            index + 1,
+            submit_message.author.mention,
+            song_utils.song_format(local_filepath, attachment.filename),
+            attachment.url,
+            submit_message.jump_url,
         )
 
-        # Break on no songs to list
-        if len(channel_media_attachments) == 0:
-            await message.channel.send("There aren't any songs there.")
-            return None
+        # We only add the embed description prefix to the first message
+        description_prefix_charcount = 0
+        if len(embed_description_list) == 0:
+            description_prefix_charcount = len(embed_description_prefix)
 
-        bc = BustController(client, channel_media_attachments, target_channel)
+        if (
+            description_prefix_charcount
+            + len(embed_description_current)
+            + len(song_list_entry)
+            > config.EMBED_DESCRIPTION_LIMIT
+        ):
+            # If adding a new list entry would go over, push our current list entries to a new embed
+            embed_description_list.append(embed_description_current)
+            # Start a new embed
+            embed_description_current = song_list_entry
+        else:
+            embed_description_current += song_list_entry
 
-        # Title of !list embed
-        embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
-        embed_description_prefix = "**Track Listing**\n"
+    # Add the leftover part to a new embed
+    embed_description_list.append(embed_description_current)
 
-        # List of embed descriptions to circumvent the Discord character embed limit
-        embed_description_list: List[str] = []
-        embed_description_current = ""
+    # Iterate through each embed description, send and pin messages
+    message_list = []
 
-        for index, (
-            submit_message,
-            attachment,
-            local_filepath,
-        ) in enumerate(channel_media_attachments):
-            list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
-            song_list_entry = list_format.format(
-                index + 1,
-                submit_message.author.mention,
-                song_utils.song_format(local_filepath, attachment.filename),
-                attachment.url,
-                submit_message.jump_url,
+    # Send messages, only first message gets title and prefix
+    for index, embed_description in enumerate(embed_description_list):
+        if index == 0:
+            embed = Embed(
+                title=embed_title,
+                description=embed_description_prefix + embed_description,
+                color=config.LIST_EMBED_COLOR,
             )
+        else:
+            embed = Embed(
+                description=embed_description,
+                color=config.LIST_EMBED_COLOR,
+            )
+        list_message = await interaction.channel.send(embed=embed)
+        message_list.append(list_message)
 
-            # We only add the embed description prefix to the first message
-            description_prefix_charcount = 0
-            if len(embed_description_list) == 0:
-                description_prefix_charcount = len(embed_description_prefix)
+    # If message channel == target channel,
+    # pin messages in reverse order and generate Google Form
+    pin_and_form = list_channel == interaction.channel
+    if pin_and_form:
+        for list_message in reversed(message_list):
+            await discord_utils.try_set_pin(list_message, True)
+        # Wrap form generation in try/catch so we don't block a list command if it fails
+        form_url = None
+        try:
+            form_url = bc.get_google_form_url(image_url)
+        except Exception as e:
+            print("Unknown error generating form:", e)
 
-            if (
-                description_prefix_charcount
-                + len(embed_description_current)
-                + len(song_list_entry)
-                > config.EMBED_DESCRIPTION_LIMIT
-            ):
-                # If adding a new list entry would go over, push our current list entries to a new embed
-                embed_description_list.append(embed_description_current)
-                # Start a new embed
-                embed_description_current = song_list_entry
-            else:
-                embed_description_current += song_list_entry
+        if form_url is not None:
+            vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
+            form_message = await interaction.channel.send(
+                f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
+            )
+            await discord_utils.try_set_pin(form_message, True)
 
-        # Add the leftover part to a new embed
-        embed_description_list.append(embed_description_current)
-
-        # Iterate through each embed description, send and pin messages
-        message_list = []
-
-        # Send messages, only first message gets title and prefix
-        for index, embed_description in enumerate(embed_description_list):
-            if index == 0:
-                embed = Embed(
-                    title=embed_title,
-                    description=embed_description_prefix + embed_description,
-                    color=config.LIST_EMBED_COLOR,
-                )
-            else:
-                embed = Embed(
-                    description=embed_description,
-                    color=config.LIST_EMBED_COLOR,
-                )
-            list_message = await message.channel.send(embed=embed)
-            message_list.append(list_message)
-
-        # If message channel == target channel, or we ask for a mock,
-        # pin messages in reverse order and generate Google Form
-        pin_and_form = (
-            target_channel == message.channel or "full" in message.content.split()
-        )
-        if pin_and_form:
-            for list_message in reversed(message_list):
-                await discord_utils.try_set_pin(list_message, True)
-            # Wrap form generation in try/catch so we don't block !list if it fails
-            form_url = None
-            try:
-                form_url = bc.get_google_form_url(image_url)
-            except Exception as e:
-                print("Unknown error generating form:", e)
-
-            if form_url is not None:
-                vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
-                form_message = await message.channel.send(
-                    f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
-                )
-                await discord_utils.try_set_pin(form_message, True)
-
-        # Return controller
-        return bc
+    # Return controller
+    return bc
