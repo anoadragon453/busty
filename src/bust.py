@@ -343,7 +343,7 @@ async def create_controller(
 
     bc = BustController(client, channel_media_attachments, list_channel)
 
-    # Title of !list embed
+    # Title of /list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
     embed_description_prefix = "**Track Listing**\n"
 
