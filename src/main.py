@@ -61,9 +61,9 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command()
+@client.slash_command(name="list")
 @application_checks.has_role(config.dj_role_name)
-async def list(
+async def on_list(
     interaction: Interaction,
     list_channel: Optional[TextChannel] = SlashOption(required=False),
 ) -> None:
