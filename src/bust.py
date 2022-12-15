@@ -246,6 +246,7 @@ class BustController:
 
         # Play song
         play_lock = asyncio.Lock()
+        # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
         self.voice_client.play(
             FFmpegPCMAudio(
