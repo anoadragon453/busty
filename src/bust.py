@@ -326,7 +326,7 @@ class BustController:
         )
         return form_url
 
-    async def send_stats(self, interaction: Interaction):
+    async def send_stats(self, interaction: Interaction) -> None:
         songs_len = int(self.total_song_len)
         num_songs = len(self.current_channel_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
