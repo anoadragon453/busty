@@ -331,7 +331,7 @@ class BustController:
         num_songs = len(self.current_channel_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
 
-        # Compute map submitter --> total length of all submissions
+        # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
 
         for submit_message, attachment, local_filepath in self.current_channel_content:
