@@ -134,9 +134,10 @@ class BustController:
 
         # Play songs
         for index in range(skip_count, len(self.current_channel_content)):
-            # wrap play_song() in a coroutine so it is cancellable
             if self.bust_stopped:
                 break
+
+            # wrap play_song() in a coroutine so it is cancellable
             self.play_song_task = asyncio.create_task(self.play_song(index))
             try:
                 await self.play_song_task
