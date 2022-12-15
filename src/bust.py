@@ -349,7 +349,7 @@ class BustController:
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
                 f"*Total bust length:* {song_utils.format_time(bust_len)}",
                 f"*Unique submitters:* {len(submitter_to_len)}",
-                f"*Longest submitter:* {longest_submitter.mention} : "
+                f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
             ]
         )
