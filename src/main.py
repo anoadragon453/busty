@@ -217,6 +217,22 @@ async def image_view(interaction: Interaction) -> None:
     await interaction.response.send_message(content)
 
 
+# Info command
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def info(interaction: Interaction) -> None:
+    """Get info about currently listed songs."""
+    bc = controllers.get(interaction.guild_id)
+
+    if bc is None:
+        await interaction.response.send_message(
+            "You need to use /list first", ephemeral=True
+        )
+        return
+
+    await bc.send_stats(interaction)
+
+
 @client.event
 async def on_application_command_error(
     interaction: Interaction, error: Exception

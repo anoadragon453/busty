@@ -12,10 +12,12 @@ MESSAGE_LIMIT = 2000
 NICKNAME_CHAR_LIMIT = 32
 # (A safe lower bound for) max allowed bytes in a Discord attachment
 ATTACHMENT_BYTE_LIMIT = 8000000
-# Color of !list embed
+# Color of list embed
 LIST_EMBED_COLOR = 0xDD2E44
 # Color of "Now Playing" embed
 PLAY_EMBED_COLOR = 0x33B86B
+# Color of info embed
+INFO_EMBED_COLOR = 0x219ECC
 # The maximum character length of any song title or artist name
 MAXIMUM_SONG_METADATA_CHARACTERS = 1000
 # The maximum number of messages to scan for song submissions
