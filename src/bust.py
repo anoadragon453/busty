@@ -39,7 +39,7 @@ class BustController:
         # Keep track of the coroutine used to play the next track, which is active while
         # waiting in the intermission between songs. This task should be interrupted if
         # stopping playback is requested.
-        self.play_next_task: Optional[asyncio.Task] = None
+        self.play_song_task: Optional[asyncio.Task] = None
 
         # The nickname of the bot. We need to store it as it will be
         # changed while songs are being played.
@@ -51,10 +51,8 @@ class BustController:
         self.current_channel_content: List[
             Tuple[Message, Attachment, str]
         ] = current_channel_content
-        # When play_next_task.cancel() is called, it is only actually cancelled on unsuspend
-        # so play_next_task.cancelled() may return False.
-        # We use this variable to keep track of /actual/ cancelled state
-        self.play_next_cancelled: bool = False
+        # Whether bust has been manually stopped
+        self.bust_stopped: bool = False
         # Client object
         self.client: Client = client
 
@@ -77,10 +75,14 @@ class BustController:
 
     async def stop(self) -> None:
         """Stop playing music."""
-        self.play_next_cancelled = True
-        if self.play_next_task:
-            self.play_next_task.cancel()
-        await self.finish(say_goodbye=False)
+        self.bust_stopped = True
+        if self.play_song_task:
+            self.play_song_task.cancel()
+
+    def skip_song(self) -> None:
+        """Skip current track."""
+        if self.play_song_task:
+            self.play_song_task.cancel()
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         # Join active voice call
@@ -128,25 +130,23 @@ class BustController:
         # We'll restore it after songs have finished playing.
         self.original_bot_nickname = bot_member.display_name
 
-        # Play content
         await interaction.channel.send("Let's get **BUSTY**.")
-        self.play_next_coro(skip_count)
 
-    def play_next_coro(self, skip_count: int = 0) -> None:
-        """Run play_next_song() wrapped in a coroutine so it is cancellable by stop command"""
-        self.play_next_cancelled = False
-        self.play_next_task = self.client.loop.create_task(
-            self.play_next_song(skip_count)
-        )
-        asyncio.run_coroutine_threadsafe(
-            self.play_next_task.get_coro(), self.client.loop
-        )
+        # Play songs
+        for index in range(skip_count, len(self.current_channel_content)):
+            if self.bust_stopped:
+                break
 
-    def skip_song(self) -> None:
-        # Stop any currently playing song
-        # The next song will play automatically.
-        if self.voice_client:
-            self.voice_client.stop()
+            # wrap play_song() in a coroutine so it is cancellable
+            self.play_song_task = asyncio.create_task(self.play_song(index))
+            try:
+                await self.play_song_task
+            except asyncio.CancelledError:
+                # Voice client playback must be manually stopped
+                self.voice_client.stop()
+
+        # tidy up
+        await self.finish(say_goodbye=not self.bust_stopped)
 
     async def finish(self, say_goodbye: bool = True) -> None:
         """End the current bust.
@@ -163,10 +163,6 @@ class BustController:
         if self.original_bot_nickname and self.current_channel:
             bot_member = self.current_channel.guild.get_member(self.client.user.id)
             await bot_member.edit(nick=self.original_bot_nickname)
-
-        # Unpin current "now playing" message if it exists
-        if self.now_playing_msg:
-            await discord_utils.try_set_pin(self.now_playing_msg, False)
 
         if say_goodbye:
             embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
@@ -186,12 +182,7 @@ class BustController:
         self.original_bot_nickname = None
         self._finished = True
 
-    async def play_next_song(self, skip_count: int = 0) -> None:
-        if not self.current_channel_content:
-            # If there are no more songs to play, conclude the bust
-            await self.finish()
-            return
-
+    async def play_song(self, index: int) -> None:
         # Wait some time between songs
         if config.seconds_between_songs:
             embed_title = "Currently Chilling"
@@ -203,15 +194,8 @@ class BustController:
             await self.current_channel.send(embed=embed)
             await asyncio.sleep(config.seconds_between_songs)
 
-        # Remove skip_count number of songs from the front of the queue
-        self.current_channel_content = self.current_channel_content[skip_count:]
-
         # Pop a song off the front of the queue and play it
-        (
-            submit_message,
-            attachment,
-            local_filepath,
-        ) = self.current_channel_content.pop(0)
+        submit_message, attachment, local_filepath = self.current_channel_content[index]
 
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list).encode("Latin1").decode()
@@ -251,21 +235,19 @@ class BustController:
         await discord_utils.try_set_pin(self.now_playing_msg, True)
 
         # Called when song finishes playing
-        def ffmpeg_post_hook(e: BaseException = None):
+        async def ffmpeg_post_hook(e: Exception = None):
             if e is not None:
                 print("Song playback quit with error:", e)
-
-            # Unpin song
-            asyncio.run_coroutine_threadsafe(
-                discord_utils.try_set_pin(self.now_playing_msg, False), self.client.loop
-            )
-            self.now_playing_msg = None
-
-            # Play next song if we were not stopped
-            if not self.play_next_cancelled:
-                self.play_next_coro()
+            # Unpin now playing message
+            if self.now_playing_msg:
+                await discord_utils.try_set_pin(self.now_playing_msg, False)
+                self.now_playing_msg = None
+            await play_lock.release()
 
         # Play song
+        play_lock = asyncio.Lock()
+        # Acquire the lock during playback so that on release, play_song() returns
+        await play_lock.acquire()
         self.voice_client.play(
             FFmpegPCMAudio(
                 local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
@@ -287,6 +269,9 @@ class BustController:
         # Set the new nickname
         bot_member = self.current_channel.guild.get_member(self.client.user.id)
         await bot_member.edit(nick=new_nick)
+
+        # Wait for song to finish playing
+        await play_lock.acquire()
 
     def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
         """Create a Google form for voting on this bust
