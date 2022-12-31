@@ -1,6 +1,7 @@
 import base64
 from io import BytesIO
 from os import path
+import os
 from typing import Optional
 
 from mutagen import File as MutagenFile, MutagenError
@@ -113,12 +114,25 @@ def format_time(seconds: int) -> str:
 
 
 # Get length of a song
-def get_song_length(filename: str) -> Optional[float]:
+def get_song_length(filename: str, recurse: bool = True) -> Optional[float]:
     try:
         audio = MutagenFile(filename)
         if audio is not None:
             return audio.info.length
     except MutagenError as e:
+        # symlink as the following extensions and retry
+        if recurse:
+            for ext in ["m4a", "flac", "wav", "ogg", "mp3"]:
+                if filename.endswith(ext):
+                    continue
+                new_filename = f"{filename}.{ext}"
+                filename = os.path.abspath(filename)
+                if not os.path.islink(new_filename):
+                    os.symlink(filename, new_filename)
+                print(filename, new_filename)
+                len = get_song_length(new_filename, recurse=False)
+                if len is not None:
+                    return len
         # Ignore file and move on
         print(f"Error reading length of {filename}:", e)
     except Exception as e:
