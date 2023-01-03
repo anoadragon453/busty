@@ -258,24 +258,18 @@ async def announce(
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
         interaction.response.send_message(
-            "Sending announcements to a guild outside of this channel is not allowed."
+            "Sending announcements to a guild outside of this channel is not allowed.",
+            ephemeral=True,
         )
         return
 
-    # If this command was invoked in the same channel the announcement is intended to be
-    # made in, then send the announcement as a response to the interaction.
+    await channel.send(embed=embed)
+    # Change reply to interaction depending on whether message was sent in current channel, or one in argument
     if channel.id == interaction.channel_id:
-        await interaction.response.send_message(embed=embed)
+        interaction_reply = "Announcement has been sent."
     else:
-        # Otherwise, we send the announcement in the separate channel...
-        await channel.send(embed=embed)
-
-        # ...and respond to the interaction with an ephemeral message informing the
-        # user that the announcement was successfully made.
-        await interaction.response.send_message(
-            f"Announcement has been sent in <#{channel.id}>.",
-            ephemeral=True,
-        )
+        interaction_reply = f"Announcement has been sent in {channel.mention}"
+    await interaction.response.send_message(interaction_reply, ephemeral=True)
 
 
 @client.event
