@@ -321,14 +321,22 @@ class BustController:
         submitter_to_len[bot_member] = 0.0
 
         song_len_error = False
+<<<<<<< HEAD
         for submit_message, attachment, local_filepath in self.bust_content:
+=======
+        for submit_message, attachment, local_filepath in self.current_channel_content:
+>>>>>>> 48f616d8d9d090c6c9c2c6cbb0f34f9d1647c091
             song_len = song_utils.get_song_length(local_filepath)
             if song_len:
                 submitter = submit_message.author
                 submitter_to_len[submitter] += song_len
             else:
                 song_len_error = True
+<<<<<<< HEAD
                 print(f"ERROR ON {attachment.filename}")
+=======
+                print('ERROR ON ' + attachment.filename)
+>>>>>>> 48f616d8d9d090c6c9c2c6cbb0f34f9d1647c091
 
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
@@ -345,7 +353,11 @@ class BustController:
             ]
         )
         if song_len_error:
+<<<<<<< HEAD
             embed_text += "\n\n**There were some errors in computing statistics.**"
+=======
+            embed_text += f'\n\n**There were some errors in computing statistics.**'
+>>>>>>> 48f616d8d9d090c6c9c2c6cbb0f34f9d1647c091
         embed = Embed(
             title="Listed Statistics",
             description=embed_text,
