@@ -127,7 +127,7 @@ async def bust(
         )
         return
 
-    if index > len(bc.current_channel_content):
+    if index > len(bc.bust_content):
         await interaction.response.send_message(
             "There aren't that many tracks.", ephemeral=True
         )
