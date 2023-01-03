@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Optional
 
-from nextcord import Attachment, Intents, Interaction, SlashOption, TextChannel
+from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
 from nextcord.ext import application_checks, commands
 
 import config
@@ -231,6 +231,45 @@ async def info(interaction: Interaction) -> None:
         return
 
     await bc.send_stats(interaction)
+
+
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def announce(
+    interaction: Interaction,
+    title: str = SlashOption(description="The title of the announcement."),
+    body: str = SlashOption(description="The text of the announcement."),
+    channel: Optional[TextChannel] = SlashOption(
+        required=False, description="Target channel to send message in."
+    ),
+) -> None:
+    """Send a message as the bot into a channel wrapped in an embed."""
+    if channel is None:
+        # Default to the current channel that the command was invoked in.
+        channel = interaction.channel
+
+    # Build the announcement embed
+    embed = Embed(
+        title=title,
+        description=body,
+        color=config.INFO_EMBED_COLOR,
+    )
+
+    # Disallow sending announcements from one guild into another.
+    if channel.guild.id != interaction.guild_id:
+        interaction.response.send_message(
+            "Sending announcements to a guild outside of this channel is not allowed.",
+            ephemeral=True,
+        )
+        return
+
+    await channel.send(embed=embed)
+    # Change reply to interaction depending on whether message was sent in current channel, or one in argument
+    if channel.id == interaction.channel_id:
+        interaction_reply = "Announcement has been sent."
+    else:
+        interaction_reply = f"Announcement has been sent in {channel.mention}"
+    await interaction.response.send_message(interaction_reply, ephemeral=True)
 
 
 @client.event
