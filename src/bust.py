@@ -29,8 +29,8 @@ class BustController:
     def __init__(
         self,
         client: Client,
-        current_channel_content: List[Tuple[Message, Attachment, str]],
-        current_channel: TextChannel,
+        bust_content: List[Tuple[Message, Attachment, str]],
+        message_channel: TextChannel,
     ):
 
         # The actively connected voice client
@@ -47,11 +47,9 @@ class BustController:
         self.original_bot_nickname: Optional[str] = None
 
         # The channel to send messages in
-        self.current_channel: TextChannel = current_channel
+        self.message_channel: TextChannel = message_channel
         # The media in the current channel
-        self.current_channel_content: List[
-            Tuple[Message, Attachment, str]
-        ] = current_channel_content
+        self.bust_content: List[Tuple[Message, Attachment, str]] = bust_content
         # Whether bust has been manually stopped
         self.bust_stopped: bool = False
         # Client object
@@ -59,7 +57,7 @@ class BustController:
 
         # Calculate total length of all songs in seconds
         self.total_song_len: float = 0.0
-        for _, _, local_filepath in self.current_channel_content:
+        for _, _, local_filepath in self.bust_content:
             song_len = song_utils.get_song_length(local_filepath)
             if song_len:
                 self.total_song_len += song_len
@@ -134,7 +132,7 @@ class BustController:
         await interaction.channel.send("Let's get **BUSTY**.")
 
         # Play songs
-        for index in range(skip_count, len(self.current_channel_content)):
+        for index in range(skip_count, len(self.bust_content)):
             if self.bust_stopped:
                 break
 
@@ -153,7 +151,7 @@ class BustController:
         """End the current bust.
 
         Args:
-            say_goodbye: If True, a goodbye message will be posted to `current_channel`. If False, the bust
+            say_goodbye: If True, a goodbye message will be posted to `message_channel`. If False, the bust
                 will be ended silently.
         """
         # Disconnect from voice if necessary
@@ -161,8 +159,8 @@ class BustController:
             await self.voice_client.disconnect()
 
         # Restore the bot's original guild nickname (if it had one)
-        if self.original_bot_nickname and self.current_channel:
-            bot_member = self.current_channel.guild.get_member(self.client.user.id)
+        if self.original_bot_nickname and self.message_channel:
+            bot_member = self.message_channel.guild.get_member(self.client.user.id)
             await bot_member.edit(nick=self.original_bot_nickname)
 
         if say_goodbye:
@@ -176,7 +174,7 @@ class BustController:
                 description=embed_content,
                 color=config.LIST_EMBED_COLOR,
             )
-            await self.current_channel.send(embed=embed)
+            await self.message_channel.send(embed=embed)
 
         # Clear variables relating to current bust
         self.voice_client = None
@@ -192,11 +190,11 @@ class BustController:
                 "s" if config.seconds_between_songs != 1 else "",
             )
             embed = Embed(title=embed_title, description=embed_content)
-            await self.current_channel.send(embed=embed)
+            await self.message_channel.send(embed=embed)
             await asyncio.sleep(config.seconds_between_songs)
 
         # Pop a song off the front of the queue and play it
-        submit_message, attachment, local_filepath = self.current_channel_content[index]
+        submit_message, attachment, local_filepath = self.bust_content[index]
 
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list).encode("Latin1").decode()
@@ -227,11 +225,11 @@ class BustController:
         cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
-            self.now_playing_msg = await self.current_channel.send(
+            self.now_playing_msg = await self.message_channel.send(
                 file=cover_art, embed=embed
             )
         else:
-            self.now_playing_msg = await self.current_channel.send(embed=embed)
+            self.now_playing_msg = await self.message_channel.send(embed=embed)
 
         await discord_utils.try_set_pin(self.now_playing_msg, True)
 
@@ -268,7 +266,7 @@ class BustController:
             new_nick = new_nick[: config.NICKNAME_CHAR_LIMIT - 1] + "…"
 
         # Set the new nickname
-        bot_member = self.current_channel.guild.get_member(self.client.user.id)
+        bot_member = self.message_channel.guild.get_member(self.client.user.id)
         await bot_member.edit(nick=new_nick)
 
         # Wait for song to finish playing
@@ -292,11 +290,11 @@ class BustController:
                 submit_message.author.display_name,
                 song_utils.song_format(local_filepath, attachment.filename),
             )
-            for submit_message, attachment, local_filepath in self.current_channel_content
+            for submit_message, attachment, local_filepath in self.bust_content
         ]
 
         # Extract bust number from channel name
-        bust_number = "".join([c for c in self.current_channel.name if c.isdigit()])
+        bust_number = "".join([c for c in self.message_channel.name if c.isdigit()])
         if bust_number:
             bust_number = bust_number + " "
 
@@ -313,13 +311,13 @@ class BustController:
 
     async def send_stats(self, interaction: Interaction) -> None:
         songs_len = int(self.total_song_len)
-        num_songs = len(self.current_channel_content)
+        num_songs = len(self.bust_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
 
-        for submit_message, attachment, local_filepath in self.current_channel_content:
+        for submit_message, attachment, local_filepath in self.bust_content:
             song_len = song_utils.get_song_length(local_filepath)
             submitter = submit_message.author
             submitter_to_len[submitter] += song_len
@@ -361,7 +359,7 @@ async def create_controller(
         )
         return None
 
-    bc = BustController(client, channel_media_attachments, list_channel)
+    bc = BustController(client, channel_media_attachments, interaction.channel)
 
     # Title of /list embed
     embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
