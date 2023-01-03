@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Optional
 
-from nextcord import Attachment, Intents, Interaction, SlashOption, TextChannel
+from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
 from nextcord.ext import application_checks, commands
 
 import config
@@ -231,6 +231,51 @@ async def info(interaction: Interaction) -> None:
         return
 
     await bc.send_stats(interaction)
+
+
+@client.slash_command()
+@application_checks.has_role(config.dj_role_name)
+async def announce(
+    interaction: Interaction,
+    title: str = SlashOption(description="The title of the announcement."),
+    body: str = SlashOption(description="The text of the announcement."),
+    channel: Optional[TextChannel] = SlashOption(
+        required=False, description="Target channel to send message in."
+    ),
+) -> None:
+    """Send a message as the bot into a channel wrapped in an embed."""
+    if channel is None:
+        # Default to the current channel that the command was invoked in.
+        channel = interaction.channel
+
+    # Build the announcement embed
+    embed = Embed(
+        title=title,
+        description=body,
+        color=config.INFO_EMBED_COLOR,
+    )
+
+    # Disallow sending announcements from one guild into another.
+    if channel.guild.id != interaction.guild_id:
+        interaction.response.send_message(
+            "Sending announcements to a guild outside of this channel is not allowed."
+        )
+        return
+
+    # If this command was invoked in the same channel the announcement is intended to be
+    # made in, then send the announcement as a response to the interaction.
+    if channel.id == interaction.channel_id:
+        await interaction.response.send_message(embed=embed)
+    else:
+        # Otherwise, we send the announcement in the separate channel...
+        await channel.send(embed=embed)
+
+        # ...and respond to the interaction with an ephemeral message informing the
+        # user that the announcement was successfully made.
+        await interaction.response.send_message(
+            f"Announcement has been sent in <#{channel.id}>.",
+            ephemeral=True,
+        )
 
 
 @client.event
