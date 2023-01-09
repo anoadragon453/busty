@@ -231,7 +231,15 @@ async def info(interaction: Interaction) -> None:
         return
 
     await bc.send_stats(interaction)
-
+    
+# Preview command
+@client.slash_command()
+async def preview(
+    interaction: Interaction,
+    file: Attachment = SlashOption(description="Upload file for preview.")
+) -> None:
+    """Send a message to user with embedded preview of uploaded song's metadata."""
+    pass
 
 @client.slash_command()
 @application_checks.has_role(config.dj_role_name)
