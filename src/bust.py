@@ -338,6 +338,8 @@ class BustController:
                 f"*Number of tracks:* {num_songs}",
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
                 f"*Total bust length:* {song_utils.format_time(bust_len)}",
+                # We account for the bot being included in the `submitter_to_len` dict
+                # by subtracting 1 from the total count.
                 f"*Unique submitters:* {len(submitter_to_len)-1}",
                 f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
