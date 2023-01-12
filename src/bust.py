@@ -341,7 +341,7 @@ class BustController:
         )
         if errors:
             embed_text += (
-                "\n\n**There were some errors. Statistics may not be accurate.**"
+                "\n\n**There were some errors. Statistics may be inaccurate.**"
             )
         embed = Embed(
             title="Listed Statistics",
