@@ -316,18 +316,14 @@ class BustController:
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
-        # Default entry in case no valid songs w/ length
-        bot_member = interaction.guild.get_member(self.client.user.id)
-        submitter_to_len[bot_member] = 0.0
 
         errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
             song_len = song_utils.get_song_length(local_filepath)
-            if song_len:
-                submitter = submit_message.author
-                submitter_to_len[submitter] += song_len
-            else:
+            if song_len is None:
                 errors = True
+                song_len = 0
+            submitter_to_len[submit_message.author] += song_len
 
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
@@ -338,9 +334,7 @@ class BustController:
                 f"*Number of tracks:* {num_songs}",
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
                 f"*Total bust length:* {song_utils.format_time(bust_len)}",
-                # We account for the bot being included in the `submitter_to_len` dict
-                # by subtracting 1 from the total count.
-                f"*Unique submitters:* {len(submitter_to_len)-1}",
+                f"*Unique submitters:* {len(submitter_to_len)}",
                 f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
             ]
