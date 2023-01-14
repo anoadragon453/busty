@@ -1,4 +1,5 @@
 import os
+from typing import Iterable, Mapping, Union
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -42,8 +43,14 @@ google_form_folder = os.environ.get("BUSTY_GOOGLE_FORM_FOLDER")
 google_auth_file = os.environ.get("BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.json")
 # The location of the file which saves the state of the currently loaded image
 image_state_file = os.environ.get("BUSTY_IMAGE_STATE_FILE", ".image_state")
+# The location of the file to store persistent bot state
+bot_state_file = os.environ.get("BUSTY_BOT_STATE_FILE", "bot_state.json")
 # For developers only. Specify a testing guild id to avoid 1 hour command update delay
 testing_guild = os.environ.get("BUSTY_TESTING_GUILD_ID", None)
+
+# TYPES
+# Acceptable data types to store in a JSON representation.
+JSON_DATA_TYPE = Union[str, int, float, bool, Mapping, Iterable, None]
 
 # Warn about disabled Google Forms generation
 if google_form_folder is None:
