@@ -7,7 +7,6 @@ from nextcord.ext import application_checks, commands
 import config
 import persistent_state
 from bust import BustController, create_controller
-from persistent import PersistentString
 
 # This is necessary to query guild members
 intents = Intents.default()
@@ -39,10 +38,6 @@ def get_controller(guild_id: int) -> Optional[BustController]:
     if bc and bc.finished():
         bc = None
     return bc
-
-
-# Cached image url to use for next bust
-loaded_image: PersistentString = PersistentString(filepath=config.image_state_file)
 
 
 @client.event
@@ -90,9 +85,7 @@ async def on_list(
     async with list_task_control_lock:
         # Notify user that "Busty is thinking"
         await interaction.response.defer(ephemeral=True)
-        bc = await create_controller(
-            client, interaction, list_channel, loaded_image.get()
-        )
+        bc = await create_controller(client, interaction, list_channel)
         global controllers
         controllers[interaction.guild_id] = bc
         # If bc is None, something went wrong and we already edited the
@@ -178,23 +171,33 @@ async def image(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def image_upload(interaction: Interaction, image_file: Attachment) -> None:
     """Upload a Google Forms image as attachment."""
-    global loaded_image
     # TODO: Some basic validity filtering
-    loaded_image.set(image_file.url)
+    # Persist the image URL
+    if not await persistent_state.save_form_image_url(interaction, image_file.url):
+        return
+
+    # Now load it again to ensure that it has saved correctly
+    loaded_image_url = persistent_state.get_form_image_url(interaction)
+
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image_url}"
     )
 
 
 @image.subcommand(name="url")
 @application_checks.has_role(config.dj_role_name)
-async def image_url(interaction: Interaction, image_url: str) -> None:
+async def image_by_url(interaction: Interaction, image_url: str) -> None:
     """Set a Google Forms image by pasting a URL."""
-    global loaded_image
     # TODO: Some basic validity filtering
-    loaded_image.set(image_url)
+    # Persist the image URL
+    if not await persistent_state.save_form_image_url(interaction, image_url):
+        return
+
+    # Now load it again to ensure that it has saved correctly
+    loaded_image_url = persistent_state.get_form_image_url(interaction)
+
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image_url}"
     )
 
 
@@ -202,20 +205,26 @@ async def image_url(interaction: Interaction, image_url: str) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def image_clear(interaction: Interaction) -> None:
     """Clear the loaded Google Forms image."""
-    global loaded_image
-    loaded_image.set(None)
+    image_existed = persistent_state.clear_form_image_url(interaction)
+    if not image_existed:
+        await interaction.response.send_message("No image is loaded", ephemeral=True)
+        return
+
     await interaction.response.send_message("\N{WASTEBASKET} Image cleared.")
 
 
-@image.subcommand("view")
+@image.subcommand(name="view")
 @application_checks.has_role(config.dj_role_name)
 async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
-    if loaded_image.get() is not None:
-        content = f"Loaded image: {loaded_image.get()}"
-    else:
-        content = "No image is currently loaded."
-    await interaction.response.send_message(content)
+    loaded_image_url = persistent_state.get_form_image_url(interaction)
+    if loaded_image_url is None:
+        await interaction.response.send_message(
+            "No image is currently loaded.", ephemeral=True
+        )
+        return
+
+    await interaction.response.send_message(f"Loaded image: {loaded_image_url}")
 
 
 # Info command

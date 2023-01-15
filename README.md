@@ -69,7 +69,6 @@ The complete list of environment variable configuration options is:
 1. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 1. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
 1. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
-1. `BUSTY_IMAGE_STATE_FILE` - The location of the file which saves the state of the currently loaded image (default = .image_state)
 1. `BUSTY_BOT_STATE_FILE` - The location of the file to store persistent bot state in (default = bot_state.json)
 1. `BUSTY_TESTING_GUILD_ID` - For developers only. Specify a testing guild id to avoid 1 hour command update delay (see [this Discord API issue](https://github.com/discord/discord-api-docs/issues/2372#issuecomment-761161082) for details) (default = None)
 

@@ -22,6 +22,7 @@ from nextcord.utils import escape_markdown
 import config
 import discord_utils
 import forms
+import persistent_state
 import song_utils
 
 
@@ -361,7 +362,6 @@ async def create_controller(
     client: Client,
     interaction: Interaction,
     list_channel: TextChannel,
-    image_url: Optional[str] = None,
 ) -> Optional[BustController]:
     """Attempt to create a BustController given a channel list command"""
     # Scrape all tracks in the target channel and list them
@@ -444,6 +444,7 @@ async def create_controller(
             await discord_utils.try_set_pin(list_message, True)
         # Wrap form generation in try/catch so we don't block a list command if it fails
         form_url = None
+        image_url = persistent_state.get_form_image_url(interaction)
         try:
             form_url = bc.get_google_form_url(image_url)
         except Exception as e:
