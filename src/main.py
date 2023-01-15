@@ -61,7 +61,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list")
+@client.slash_command(name="list", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -101,7 +101,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
@@ -136,7 +136,7 @@ async def bust(
 
 
 # Skip command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -151,7 +151,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -166,7 +166,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 # Image command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -218,7 +218,7 @@ async def image_view(interaction: Interaction) -> None:
 
 
 # Info command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -233,7 +233,7 @@ async def info(interaction: Interaction) -> None:
     await bc.send_stats(interaction)
 
 
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
