@@ -322,7 +322,9 @@ class BustController:
             song_len = song_utils.get_song_length(local_filepath)
             if song_len is None:
                 errors = True
-                song_len = 0
+                # Even if song length is an error, we still add 0 to submitter_to_len
+                # to ensure len(submitter_to_len) equals the number of submitters
+                song_len = 0.0
             submitter_to_len[submit_message.author] += song_len
 
         # User with longest total submission length
