@@ -257,7 +257,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        interaction.response.send_message(
+        await interaction.response.send_message(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
