@@ -161,7 +161,7 @@ async def stop(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Alright I'll shut up")
+    await interaction.response.send_message("Alright I'll shut up.")
     await bc.stop()
 
 
@@ -181,7 +181,7 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     # TODO: Some basic validity filtering
     loaded_image.set(image_file.url)
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image.get()}."
     )
 
 
@@ -226,7 +226,7 @@ async def info(interaction: Interaction) -> None:
 
     if bc is None:
         await interaction.response.send_message(
-            "You need to use /list first", ephemeral=True
+            "You need to use /list first.", ephemeral=True
         )
         return
 
@@ -268,7 +268,7 @@ async def announce(
     if channel.id == interaction.channel_id:
         interaction_reply = "Announcement has been sent."
     else:
-        interaction_reply = f"Announcement has been sent in {channel.mention}"
+        interaction_reply = f"Announcement has been sent in {channel.mention}."
     await interaction.response.send_message(interaction_reply, ephemeral=True)
 
 
