@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Optional
 
-from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
+from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel, Message
 from nextcord.ext import application_checks, commands
 
 import config
@@ -236,10 +236,17 @@ async def info(interaction: Interaction) -> None:
 @client.slash_command()
 async def preview(
     interaction: Interaction,
-    file: Attachment = SlashOption(description="Upload file for preview.")
+    song: Attachment = SlashOption(description="Uploaded file for submission."),
+    submit_message: str = SlashOption(required=False, description="Submit message for submission.")
 ) -> None:
     """Send a message to user with embedded preview of uploaded song's metadata."""
-    pass
+    bc = controllers.get(interaction.guild_id)
+    user = interaction.user
+    
+    if bc is None:
+        await interaction.response.send_message("Sorry, didn't catch that. Looks like I couldn't fetch the BustController properly.", ephemeral=True)
+    else:
+        await bc.show_preview(submit_message, song, user)
 
 @client.slash_command()
 @application_checks.has_role(config.dj_role_name)
@@ -294,9 +301,11 @@ async def on_application_command_error(
 
 
 # Connect to discord
-if config.discord_token:
-    client.run(config.discord_token)
-else:
-    print(
-        "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
-    )
+# if config.discord_token:
+#     client.run(config.discord_token)
+# else:
+#     print(
+#         "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
+#     )
+
+client.run("MTA0OTcyNzAxNTEwMTY2OTQ0Ng.GEpWhW.gUaDIRtui933-YkBVzkLBzAACDgHUBbzK3o4s4")
