@@ -67,7 +67,7 @@ and the
 enabled for form generation.
 
 Next, create (or use an existing) Google Drive folder to store the generated Google forms in. Share this folder with the
-email address associated with your service account (typically `account-name@project-name.iam.gserviceaccount.com`).
+email address associated with your service account (typically `account-name@project-id.iam.gserviceaccount.com`).
 Set `BUSTY_GOOGLE_FORM_FOLDER` to the ID of this folder when running the bot. To find the ID of a Google Drive folder,
 navigate inside it in your web browser. The folder ID is the token at the end of the URL.
 
