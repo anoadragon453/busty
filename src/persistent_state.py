@@ -67,7 +67,7 @@ def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
         # If no path was provided, just override all bot state with the given value.
         # The given value must be a dict.
         if not isinstance(value, dict):
-            raise Exception("Attempted to override all bot state with a non-dict type")
+            raise Exception("Attempted to override entire bot state with a non-dict type")
 
         _bot_state = value
 
