@@ -193,7 +193,7 @@ async def image_url(interaction: Interaction, image_url: str) -> None:
     # TODO: Some basic validity filtering
     loaded_image.set(image_url)
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image.get()}."
     )
 
 
@@ -211,7 +211,7 @@ async def image_clear(interaction: Interaction) -> None:
 async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
     if loaded_image.get() is not None:
-        content = f"Loaded image: {loaded_image.get()}"
+        content = f"The loaded image is {loaded_image.get()}."
     else:
         content = "No image is currently loaded."
     await interaction.response.send_message(content)
