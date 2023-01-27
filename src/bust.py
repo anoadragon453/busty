@@ -310,9 +310,6 @@ class BustController:
             ),
             after=ffmpeg_post_hook,
         )
-        
-        # Associate a random emoji with this song
-        random_emoji = random.choice(config.emoji_list).encode("Latin1").decode()
 
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
