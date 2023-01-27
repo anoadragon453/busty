@@ -61,7 +61,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list")
+@client.slash_command(name="list", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -101,7 +101,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
@@ -136,7 +136,7 @@ async def bust(
 
 
 # Skip command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -151,7 +151,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -161,12 +161,12 @@ async def stop(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Alright I'll shut up")
+    await interaction.response.send_message("Alright I'll shut up.")
     await bc.stop()
 
 
 # Image command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -181,7 +181,7 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     # TODO: Some basic validity filtering
     loaded_image.set(image_file.url)
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image.get()}."
     )
 
 
@@ -193,7 +193,7 @@ async def image_url(interaction: Interaction, image_url: str) -> None:
     # TODO: Some basic validity filtering
     loaded_image.set(image_url)
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image.get()}."
     )
 
 
@@ -211,14 +211,14 @@ async def image_clear(interaction: Interaction) -> None:
 async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
     if loaded_image.get() is not None:
-        content = f"Loaded image: {loaded_image.get()}"
+        content = f"The loaded image is {loaded_image.get()}."
     else:
         content = "No image is currently loaded."
     await interaction.response.send_message(content)
 
 
 # Info command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -226,7 +226,7 @@ async def info(interaction: Interaction) -> None:
 
     if bc is None:
         await interaction.response.send_message(
-            "You need to use /list first", ephemeral=True
+            "You need to use /list first.", ephemeral=True
         )
         return
 
@@ -248,7 +248,7 @@ async def preview(
     else:
         await bc.show_preview(submit_message, song, user)
 
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
@@ -272,7 +272,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        interaction.response.send_message(
+        await interaction.response.send_message(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
@@ -283,7 +283,7 @@ async def announce(
     if channel.id == interaction.channel_id:
         interaction_reply = "Announcement has been sent."
     else:
-        interaction_reply = f"Announcement has been sent in {channel.mention}"
+        interaction_reply = f"Announcement has been sent in {channel.mention}."
     await interaction.response.send_message(interaction_reply, ephemeral=True)
 
 

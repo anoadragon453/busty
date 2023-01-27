@@ -253,6 +253,24 @@ class BustController:
         
         self.embed_song(submit_message, local_filepath, attachment, submit_message.author)
 
+        # Associate a random emoji with this song
+        random_emoji = random.choice(config.emoji_list)
+
+        # Build and send "Now Playing" embed
+        embed_title = f"{random_emoji} Now Playing {random_emoji}"
+        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
+        embed_content = list_format.format(
+            submit_message.author.mention,
+            escape_markdown(
+                song_utils.song_format(local_filepath, attachment.filename)
+            ),
+            attachment.url,
+            submit_message.jump_url,
+        )
+        embed = Embed(
+            title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
+        )
+
         # Add message content as "More Info", truncating to the embed field.value character limit
         if submit_message.content:
             more_info = submit_message.content
@@ -359,10 +377,15 @@ class BustController:
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
 
+        errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
             song_len = song_utils.get_song_length(local_filepath)
-            submitter = submit_message.author
-            submitter_to_len[submitter] += song_len
+            if song_len is None:
+                errors = True
+                # Even if song length is an error, we still add 0 to submitter_to_len
+                # to ensure len(submitter_to_len) equals the number of submitters
+                song_len = 0.0
+            submitter_to_len[submit_message.author] += song_len
 
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
@@ -378,6 +401,10 @@ class BustController:
                 + f"{song_utils.format_time(longest_submitter_time)}",
             ]
         )
+        if errors:
+            embed_text += (
+                "\n\n**There were some errors. Statistics may be inaccurate.**"
+            )
         embed = Embed(
             title="Listed Statistics",
             description=embed_text,
