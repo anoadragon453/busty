@@ -5,6 +5,7 @@ from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextC
 from nextcord.ext import application_checks, commands
 
 import config
+import persistent_state
 from bust import BustController, create_controller
 from persistent import PersistentString
 
@@ -299,6 +300,9 @@ async def on_application_command_error(
     else:
         print(error)
 
+
+# Load the bot state.
+persistent_state.load_state_from_disk()
 
 # Connect to discord
 if config.discord_token:
