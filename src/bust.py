@@ -87,7 +87,7 @@ class BustController:
             
     def embed_song(self, submit_message, local_filepath, attachment, user) -> None:
         # Associate a random emoji with this song
-        random_emoji = random.choice(config.emoji_list).encode("Latin1").decode()
+        random_emoji = random.choice(config.emoji_list)
 
         # Build and send "Now Playing" embed
         embed_title = f"{random_emoji} Now Playing {random_emoji}"

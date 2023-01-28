@@ -301,11 +301,9 @@ async def on_application_command_error(
 
 
 # Connect to discord
-# if config.discord_token:
-#     client.run(config.discord_token)
-# else:
-#     print(
-#         "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
-#     )
-
-client.run("MTA0OTcyNzAxNTEwMTY2OTQ0Ng.GEpWhW.gUaDIRtui933-YkBVzkLBzAACDgHUBbzK3o4s4")
+if config.discord_token:
+    client.run(config.discord_token)
+else:
+    print(
+        "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
+    )
