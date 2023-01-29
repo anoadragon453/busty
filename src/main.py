@@ -207,7 +207,7 @@ async def image_clear(interaction: Interaction) -> None:
     """Clear the loaded Google Forms image."""
     image_existed = persistent_state.clear_form_image_url(interaction)
     if not image_existed:
-        await interaction.response.send_message("No image is loaded", ephemeral=True)
+        await interaction.response.send_message("No image is loaded.", ephemeral=True)
         return
 
     await interaction.response.send_message("\N{WASTEBASKET} Image cleared.")

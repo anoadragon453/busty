@@ -193,7 +193,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
         print("Unable to set form image:", e)
 
         await interaction.response.send_message(
-            f"Failed to upload image ({type(e)}). See the logs for more details",
+            f"Failed to upload image ({type(e)}). See the logs for more details.",
             ephemeral=True,
         )
         return False
