@@ -176,11 +176,8 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     if not await persistent_state.save_form_image_url(interaction, image_file.url):
         return
 
-    # Now load it again to ensure that it has saved correctly
-    loaded_image_url = persistent_state.get_form_image_url(interaction)
-
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image_url}."
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {image_file.url}."
     )
 
 
@@ -193,11 +190,8 @@ async def image_by_url(interaction: Interaction, image_url: str) -> None:
     if not await persistent_state.save_form_image_url(interaction, image_url):
         return
 
-    # Now load it again to ensure that it has saved correctly
-    loaded_image_url = persistent_state.get_form_image_url(interaction)
-
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image_url}."
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {image_url}."
     )
 
 
