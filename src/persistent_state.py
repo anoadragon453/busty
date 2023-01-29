@@ -69,7 +69,9 @@ def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
         # If no path was provided, just override all bot state with the given value.
         # The given value must be a dict.
         if not isinstance(value, dict):
-            raise Exception("Attempted to override all bot state with a non-dict type")
+            raise Exception(
+                "Attempted to override entire bot state with a non-dict type"
+            )
 
         _bot_state = value
 
@@ -159,7 +161,9 @@ def delete_state(path: Iterable[str]) -> bool:
 
     del state_at_path[field_to_delete]
 
-    # Store the updated state to disk
+    # Store the updated state to disk. We have to do this before calling `delete_state`
+    # below otherwise it will call `get_state` again and receive the bot state without
+    # any of the modifications above applied.
     set_state(path, state_at_path)
 
     # If deleting this field would result in an empty dict at this path, delete that path as well.

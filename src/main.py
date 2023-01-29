@@ -57,7 +57,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list")
+@client.slash_command(name="list", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -95,7 +95,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
@@ -130,7 +130,7 @@ async def bust(
 
 
 # Skip command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -145,7 +145,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -155,12 +155,12 @@ async def stop(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Alright I'll shut up")
+    await interaction.response.send_message("Alright I'll shut up.")
     await bc.stop()
 
 
 # Image command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -180,7 +180,7 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     loaded_image_url = persistent_state.get_form_image_url(interaction)
 
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image_url}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image_url}."
     )
 
 
@@ -197,7 +197,7 @@ async def image_by_url(interaction: Interaction, image_url: str) -> None:
     loaded_image_url = persistent_state.get_form_image_url(interaction)
 
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image_url}"
+        f"\N{WHITE HEAVY CHECK MARK} Image set to {loaded_image_url}."
     )
 
 
@@ -224,11 +224,11 @@ async def image_view(interaction: Interaction) -> None:
         )
         return
 
-    await interaction.response.send_message(f"Loaded image: {loaded_image_url}")
+    await interaction.response.send_message(f"The loaded image is {loaded_image_url}.")
 
 
 # Info command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -236,14 +236,14 @@ async def info(interaction: Interaction) -> None:
 
     if bc is None:
         await interaction.response.send_message(
-            "You need to use /list first", ephemeral=True
+            "You need to use /list first.", ephemeral=True
         )
         return
 
     await bc.send_stats(interaction)
 
 
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
@@ -267,7 +267,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        interaction.response.send_message(
+        await interaction.response.send_message(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
@@ -278,7 +278,7 @@ async def announce(
     if channel.id == interaction.channel_id:
         interaction_reply = "Announcement has been sent."
     else:
-        interaction_reply = f"Announcement has been sent in {channel.mention}"
+        interaction_reply = f"Announcement has been sent in {channel.mention}."
     await interaction.response.send_message(interaction_reply, ephemeral=True)
 
 

@@ -55,9 +55,21 @@ Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKE
 the bot token when running the bot.
 
 If you'd like automatic Google Form generation, you need a [Google service account](https://cloud.google.com/iam/docs/service-accounts).
-You must also ensure a Google service account key file is pointed to by `BUSTY_GOOGLE_AUTH_FILE`,
-and that `BUSTY_GOOGLE_FORM_FOLDER` contains a valid Google Drive folder ID accessible by your service account.
-To find the ID of a Google Drive folder, navigate inside it in your web browser. The folder ID is the token at the end of the URL.
+See [this page](https://console.cloud.google.com/iam-admin/serviceaccounts?walkthrough_id=iam--create-service-account-keys&start_index=1#step_index=1)
+to manage and create a service account (and a project if you don't already have one). Once created, go to the
+"keys" tab and click "Add Key" -> "Create new key" and download the key in JSON format. The path
+to this file is what you should use for the value of `BUSTY_GOOGLE_AUTH_FILE`.
+
+Once you've created an account, ensure the project it is attached to has both the
+[Google Forms API](https://console.developers.google.com/apis/api/forms.googleapis.com/overview)
+and the
+[Google Drive API](https://console.cloud.google.com/apis/api/drive.googleapis.com/metrics)
+enabled for form generation.
+
+Next, create (or use an existing) Google Drive folder to store the generated Google forms in. Share this folder with the
+email address associated with your service account (typically `account-name@project-id.iam.gserviceaccount.com`).
+Set `BUSTY_GOOGLE_FORM_FOLDER` to the ID of this folder when running the bot. To find the ID of a Google Drive folder,
+navigate inside it in your web browser. The folder ID is the token at the end of the URL.
 
 Finally, add the bot to your desired Discord server.
 
