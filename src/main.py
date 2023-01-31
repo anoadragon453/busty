@@ -253,7 +253,6 @@ async def preview(
     if uploaded_file.content_type is None:
         await interaction.response.send_message("Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.", ephemeral=True)
     else:
-        print(attachment_filepath)
         embed = song_utils.embed_song(submit_message, attachment_filepath, uploaded_file, user)
         await interaction.response.send_message(embed=embed, ephemeral=True)
         remove(attachment_filepath)

@@ -62,7 +62,6 @@ def embed_song(submit_message: Message | str, attachment_filepath: str, attachme
     
     # Add cover art and send
     cover_art = get_cover_art(attachment_filepath)
-    print(attachment_filepath)
     if cover_art is not None:
         embed.set_image(url=f"attachment://{cover_art.filename}")
     
