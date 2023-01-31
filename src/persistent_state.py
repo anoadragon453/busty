@@ -13,13 +13,17 @@ def load_state_from_disk() -> None:
     """Read the bot state from disk and store it in memory."""
     global _bot_state
 
-    with open(bot_state_file) as f:
-        bot_state_str = f.read()
+    bot_state_str = None
+    try:
+        with open(bot_state_file) as f:
+            bot_state_str = f.read()
+    except (FileNotFoundError, IOError):
+        print(f'Could not read state from {bot_state_file}. Continuing...')
 
-        if bot_state_str:
-            # Load the JSON representation of the bot's state and convert it to a Python dict so
-            # it can be easily manipulated.
-            _bot_state = json.loads(bot_state_str)
+    if bot_state_str:
+        # Load the JSON representation of the bot's state and convert it to a Python dict so
+        # it can be easily manipulated.
+        _bot_state = json.loads(bot_state_str)
 
 
 def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
