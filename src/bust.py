@@ -85,37 +85,6 @@ class BustController:
         if self.play_song_task:
             self.play_song_task.cancel()
             
-    def embed_song(self, submit_message, local_filepath, attachment, user) -> None:
-        # Associate a random emoji with this song
-        random_emoji = random.choice(config.emoji_list)
-
-        # Build and send "Now Playing" embed
-        embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        if submit_message is not str:
-            list_format = "{0}: [{1}]({2})"
-            embed_content = list_format.format(
-                user.mention,
-                escape_markdown(
-                    song_utils.song_format(local_filepath, attachment.filename)
-                ),
-                attachment.url
-            )
-        else:
-            list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-            embed_content = list_format.format(
-                user.mention,
-                escape_markdown(
-                    song_utils.song_format(local_filepath, attachment.filename)
-                ),
-                attachment.url,
-                submit_message.jump_url,
-            )
-        embed = Embed(
-            title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
-        )
-        
-        return embed
-            
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
@@ -213,28 +182,6 @@ class BustController:
         self.voice_client = None
         self.original_bot_nickname = None
         self._finished = True
-        
-    async def show_preview(self, submit_message: str, song: Attachment, user: User | Member) -> None:
-        local_filepath = song.url
-        embed = self.embed_song(submit_message, local_filepath, song, user)
-        
-        # Add message content as "More Info", truncating to the embed field.value character limit
-        if submit_message:
-            if len(submit_message) > config.EMBED_FIELD_VALUE_LIMIT:
-                more_info = submit_message[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-                embed.add_field(name="More Info", value=more_info, inline=False)
-            else:
-                embed.add_field(name="More Info", value=submit_message, inline=False)
-
-        # Add cover art and send
-        cover_art = song_utils.get_cover_art(local_filepath)
-        if cover_art is not None:
-            embed.set_image(url=f"attachment://{cover_art.filename}")
-            self.now_playing_msg = await self.message_channel.send(
-                file=cover_art, embed=embed
-            )
-        else:
-            self.now_playing_msg = await self.message_channel.send(embed=embed)
 
     async def play_song(self, index: int) -> None:
         # Wait some time between songs
@@ -250,26 +197,11 @@ class BustController:
 
         # Pop a song off the front of the queue and play it
         submit_message, attachment, local_filepath = self.bust_content[index]
-        
-        self.embed_song(submit_message, local_filepath, attachment, submit_message.author)
 
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list)
 
-        # Build and send "Now Playing" embed
-        embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-        embed_content = list_format.format(
-            submit_message.author.mention,
-            escape_markdown(
-                song_utils.song_format(local_filepath, attachment.filename)
-            ),
-            attachment.url,
-            submit_message.jump_url,
-        )
-        embed = Embed(
-            title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
-        )
+        embed = song_utils.embed_song(submit_message, local_filepath, attachment, submit_message.author, random_emoji)
 
         # Add message content as "More Info", truncating to the embed field.value character limit
         if submit_message.content:

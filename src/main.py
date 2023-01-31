@@ -1,10 +1,13 @@
 import asyncio
+from os import remove
 from typing import Dict, Optional
 
 from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel, Message
 from nextcord.ext import application_checks, commands
 
 import config
+import song_utils
+from discord_utils import filepath_builder
 import persistent_state
 from bust import BustController, create_controller
 from persistent import PersistentString
@@ -234,20 +237,26 @@ async def info(interaction: Interaction) -> None:
     await bc.send_stats(interaction)
     
 # Preview command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 async def preview(
     interaction: Interaction,
-    song: Attachment = SlashOption(description="Uploaded file for submission."),
-    submit_message: str = SlashOption(required=False, description="Submit message for submission.")
+    uploaded_file: Attachment = SlashOption(description="The uploaded file for submission."),
+    submit_message: str = SlashOption(required=False, description="The text for submission message.")
 ) -> None:
     """Send a message to user with embedded preview of uploaded song's metadata."""
-    bc = controllers.get(interaction.guild_id)
     user = interaction.user
+    attachment_filepath = filepath_builder(interaction.id, uploaded_file)
+    await uploaded_file.save(fp=attachment_filepath)
     
-    if bc is None:
-        await interaction.response.send_message("Sorry, didn't catch that. Looks like I couldn't fetch the BustController properly.", ephemeral=True)
+    # TODO: Catch file types that are not media files containing .wav, .mp3, etc.
+    # For now, we'll just have if file is None.
+    if uploaded_file.content_type is None:
+        await interaction.response.send_message("Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.", ephemeral=True)
     else:
-        await bc.show_preview(submit_message, song, user)
+        print(attachment_filepath)
+        embed = song_utils.embed_song(submit_message, attachment_filepath, uploaded_file, user)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        remove(attachment_filepath)
 
 @client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
