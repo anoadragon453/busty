@@ -17,20 +17,16 @@ import config
 
 def embed_song(submit_message: Message | str, attachment_filepath: str, attachment: Attachment, user: User | Member, random_emoji=None) -> Embed:
     
-    emoji = random_emoji
-    message = ""
-    
-    if submit_message is Message:
-        message = submit_message.content
+    if isinstance(submit_message, Message):
+        message: str = submit_message.content
     else:
-        message = submit_message
-    
-    if random_emoji is None:
-        emoji = random.choice(config.emoji_list)
+        message: str = submit_message
+        
+    emoji = random_emoji if random_emoji != None else random.choice(config.emoji_list)
     
     # Build and send "Now Playing" embed
-    embed_title = f"{emoji} Now Playing {emoji}"
-    if submit_message is not str:
+    if isinstance(submit_message, Message) == False:
+        embed_title = f"{emoji} Now Previewing {emoji}"
         list_format = "{0}: [{1}]({2})"
         embed_content = list_format.format(
             user.mention,
@@ -40,6 +36,7 @@ def embed_song(submit_message: Message | str, attachment_filepath: str, attachme
             attachment.url
         )
     else:
+        embed_title = f"{emoji} Now Playing {emoji}"
         list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             user.mention,
@@ -59,11 +56,6 @@ def embed_song(submit_message: Message | str, attachment_filepath: str, attachme
             embed.add_field(name="More Info", value=more_info, inline=False)
         else:
             embed.add_field(name="More Info", value=message, inline=False)
-    
-    # Add cover art and send
-    cover_art = get_cover_art(attachment_filepath)
-    if cover_art is not None:
-        embed.set_image(url=f"attachment://{cover_art.filename}")
     
     return embed
 

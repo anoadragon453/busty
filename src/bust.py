@@ -203,13 +203,6 @@ class BustController:
 
         embed = song_utils.embed_song(submit_message, local_filepath, attachment, submit_message.author, random_emoji)
 
-        # Add message content as "More Info", truncating to the embed field.value character limit
-        if submit_message.content:
-            more_info = submit_message.content
-            if len(more_info) > config.EMBED_FIELD_VALUE_LIMIT:
-                more_info = more_info[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-            embed.add_field(name="More Info", value=more_info, inline=False)
-
         # Add cover art and send
         cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is not None:

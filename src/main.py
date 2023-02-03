@@ -254,9 +254,16 @@ async def preview(
         await interaction.response.send_message("Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.", ephemeral=True)
     else:
         embed = song_utils.embed_song(submit_message, attachment_filepath, uploaded_file, user)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        remove(attachment_filepath)
+        cover_art = song_utils.get_cover_art(attachment_filepath)
 
+        if cover_art is not None:
+            embed.set_image(url=f"attachment://{cover_art.filename}")
+            await interaction.response.send_message(file=cover_art, embed=embed, ephemeral=True)
+        else: 
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        remove(attachment_filepath)
+        
 @client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def announce(
