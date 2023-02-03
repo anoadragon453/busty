@@ -9,11 +9,12 @@ from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
-from nextcord import File, Embed, Message, Attachment, User, Member
+from nextcord import Attachment, Embed, File, Member, Message, User
 from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 
 import config
+
 
 def embed_song(submit_message: Message | str, attachment_filepath: str, attachment: Attachment, user: User | Member, random_emoji=None) -> Embed:
     

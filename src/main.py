@@ -2,14 +2,22 @@ import asyncio
 from os import remove
 from typing import Dict, Optional
 
-from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel, Message
+from nextcord import (
+    Attachment,
+    Embed,
+    Intents,
+    Interaction,
+    Message,
+    SlashOption,
+    TextChannel,
+)
 from nextcord.ext import application_checks, commands
 
 import config
-import song_utils
-from discord_utils import filepath_builder
 import persistent_state
+import song_utils
 from bust import BustController, create_controller
+from discord_utils import filepath_builder
 from persistent import PersistentString
 
 # This is necessary to query guild members
