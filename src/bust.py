@@ -1,4 +1,6 @@
 import asyncio
+import datetime
+import time
 import random
 from collections import defaultdict
 from typing import List, Optional, Tuple, Union
@@ -293,10 +295,12 @@ class BustController:
             for submit_message, attachment, local_filepath in self.bust_content
         ]
 
-        # Extract bust number from channel name
-        bust_number = "".join([c for c in self.message_channel.name if c.isdigit()])
-        if bust_number:
-            bust_number = bust_number + " "
+        # # Extract bust number from channel name
+        # bust_number = "".join([c for c in self.message_channel.name if c.isdigit()])
+        # if bust_number:
+        #     bust_number = bust_number + " "
+        
+        bust_number = discord_utils.extract_bust_number(self.message_channel)
 
         form_url = forms.create_remote_form(
             f"Busty's {bust_number}Voting",
@@ -330,6 +334,11 @@ class BustController:
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
         longest_submitter_time = int(submitter_to_len[longest_submitter])
+        
+        # Calculate UNIX Timestamp from datetime for the End of Bust
+        unix_stamp = time.mktime(datetime.datetime.now().timetuple())
+        timestamp = str(unix_stamp).split(".")
+        unix_timestamp = f"<t:{timestamp[0]}:t>"
 
         embed_text = "\n".join(
             [
@@ -339,6 +348,7 @@ class BustController:
                 f"*Unique submitters:* {len(submitter_to_len)}",
                 f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
+                f"\n*End time:* {unix_timestamp}"
             ]
         )
         if errors:
@@ -348,7 +358,7 @@ class BustController:
         embed = Embed(
             title="Listed Statistics",
             description=embed_text,
-            color=config.INFO_EMBED_COLOR,
+            color=config.INFO_EMBED_COLOR
         )
         await interaction.response.send_message(embed=embed)
 
