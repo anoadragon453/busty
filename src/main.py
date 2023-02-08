@@ -267,6 +267,7 @@ async def preview(
             uploaded_file,
             user,
             random_emoji,
+            interaction.channel.jump_url
         )
         cover_art = song_utils.get_cover_art(attachment_filepath)
 

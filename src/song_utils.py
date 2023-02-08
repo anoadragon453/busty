@@ -21,15 +21,16 @@ def embed_song(
     attachment: Attachment,
     user: User | Member,
     random_emoji,
+    jump_url=None
 ) -> Embed:
     if isinstance(submit_message, Message) is False:
         embed_title = f"{random_emoji} Now Previewing {random_emoji}"
         message: str = submit_message
-        jump_url = ""
+        url = jump_url
     else:
         embed_title = f"{random_emoji} Now Playing {random_emoji}"
         message: str = submit_message.content
-        jump_url = submit_message.jump_url
+        url = submit_message.jump_url
 
     # Build and send "Now Playing" embed
     list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
@@ -37,7 +38,7 @@ def embed_song(
         user.mention,
         escape_markdown(song_format(attachment_filepath, attachment.filename)),
         attachment.url,
-        jump_url,
+        url,
     )
     embed = Embed(
         title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
