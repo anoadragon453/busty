@@ -23,10 +23,10 @@ def embed_song(submit_message: Message | str, attachment_filepath: str, attachme
     else:
         message: str = submit_message
         
-    emoji = random_emoji if random_emoji != None else random.choice(config.emoji_list)
+    emoji = random_emoji if random_emoji is not None else random.choice(config.emoji_list)
     
     # Build and send "Now Playing" embed
-    if isinstance(submit_message, Message) == False:
+    if isinstance(submit_message, Message) is False:
         embed_title = f"{emoji} Now Previewing {emoji}"
         list_format = "{0}: [{1}]({2})"
         embed_content = list_format.format(
@@ -59,6 +59,7 @@ def embed_song(submit_message: Message | str, attachment_filepath: str, attachme
             embed.add_field(name="More Info", value=message, inline=False)
     
     return embed
+
 
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None

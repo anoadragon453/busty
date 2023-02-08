@@ -11,15 +11,12 @@ from nextcord import (
     Embed,
     FFmpegPCMAudio,
     Interaction,
-    Member,
     Message,
     StageChannel,
     TextChannel,
-    User,
     VoiceChannel,
     VoiceClient,
 )
-from nextcord.utils import escape_markdown
 
 import config
 import discord_utils

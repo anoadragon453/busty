@@ -30,6 +30,7 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
     except (HTTPException, NotFound) as e:
         print("Altering message pin state failed:", e)
 
+
 def filepath_builder(message_id: int, attachment: Attachment) -> str:
     # Computed local filepath
     filepath = path.join(
@@ -41,6 +42,16 @@ def filepath_builder(message_id: int, attachment: Attachment) -> str:
         ),
     )
     return filepath
+
+
+def is_valid_media(attachment_content_type: str) -> bool:
+    if attachment_content_type is None or (
+        not attachment_content_type.startswith("audio")
+        and not attachment_content_type.startswith("video")
+    ):
+        return False
+    else:
+        return True
 
 async def scrape_channel_media(
     channel: TextChannel,
@@ -61,13 +72,10 @@ async def scrape_channel_media(
             continue
 
         for attachment in message.attachments:
-            if attachment.content_type is None or (
-                not attachment.content_type.startswith("audio")
-                and not attachment.content_type.startswith("video")
-            ):
-                # Ignore non-audio/video attachments
+            if is_valid_media(attachment.content_type) is False:
+            # Ignore non-audio/video attachments
                 continue
-
+                                
             attachment_filepath = filepath_builder(message.id, attachment)
             
             channel_media_attachments.append(

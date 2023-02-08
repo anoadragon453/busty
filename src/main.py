@@ -2,22 +2,14 @@ import asyncio
 from os import remove
 from typing import Dict, Optional
 
-from nextcord import (
-    Attachment,
-    Embed,
-    Intents,
-    Interaction,
-    Message,
-    SlashOption,
-    TextChannel,
-)
+from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
 from nextcord.ext import application_checks, commands
 
 import config
 import persistent_state
 import song_utils
 from bust import BustController, create_controller
-from discord_utils import filepath_builder
+from discord_utils import filepath_builder, is_valid_media
 from persistent import PersistentString
 
 # This is necessary to query guild members
@@ -244,6 +236,7 @@ async def info(interaction: Interaction) -> None:
 
     await bc.send_stats(interaction)
     
+    
 # Preview command
 @client.slash_command(dm_permission=False)
 async def preview(
@@ -255,10 +248,8 @@ async def preview(
     user = interaction.user
     attachment_filepath = filepath_builder(interaction.id, uploaded_file)
     await uploaded_file.save(fp=attachment_filepath)
-    
-    # TODO: Catch file types that are not media files containing .wav, .mp3, etc.
-    # For now, we'll just have if file is None.
-    if uploaded_file.content_type is None:
+
+    if is_valid_media(uploaded_file.content_type) is False:
         await interaction.response.send_message("Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.", ephemeral=True)
     else:
         embed = song_utils.embed_song(submit_message, attachment_filepath, uploaded_file, user)
@@ -271,6 +262,7 @@ async def preview(
             await interaction.response.send_message(embed=embed, ephemeral=True)
             
         remove(attachment_filepath)
+        
         
 @client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
@@ -333,4 +325,4 @@ if config.discord_token:
 else:
     print(
         "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
-    )
+    ) 
