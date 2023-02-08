@@ -1,4 +1,5 @@
 import asyncio
+import random
 from os import remove
 from typing import Dict, Optional
 
@@ -235,35 +236,51 @@ async def info(interaction: Interaction) -> None:
         return
 
     await bc.send_stats(interaction)
-    
-    
+
+
 # Preview command
 @client.slash_command(dm_permission=False)
 async def preview(
     interaction: Interaction,
-    uploaded_file: Attachment = SlashOption(description="The uploaded file for submission."),
-    submit_message: str = SlashOption(required=False, description="The text for submission message.")
+    uploaded_file: Attachment = SlashOption(
+        description="The uploaded file for submission."
+    ),
+    submit_message: str = SlashOption(
+        required=False, description="The text for submission message."
+    ),
 ) -> None:
     """Send a message to user with embedded preview of uploaded song's metadata."""
     user = interaction.user
     attachment_filepath = filepath_builder(interaction.id, uploaded_file)
+    random_emoji = random.choice(config.emoji_list)
     await uploaded_file.save(fp=attachment_filepath)
 
     if is_valid_media(uploaded_file.content_type) is False:
-        await interaction.response.send_message("Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.", ephemeral=True)
+        await interaction.response.send_message(
+            "Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.",
+            ephemeral=True,
+        )
     else:
-        embed = song_utils.embed_song(submit_message, attachment_filepath, uploaded_file, user)
+        embed = song_utils.embed_song(
+            submit_message,
+            attachment_filepath,
+            uploaded_file,
+            user,
+            random_emoji={random_emoji},
+        )
         cover_art = song_utils.get_cover_art(attachment_filepath)
 
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
-            await interaction.response.send_message(file=cover_art, embed=embed, ephemeral=True)
-        else: 
+            await interaction.response.send_message(
+                file=cover_art, embed=embed, ephemeral=True
+            )
+        else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
-            
+
         remove(attachment_filepath)
-        
-        
+
+
 @client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def announce(
@@ -325,4 +342,4 @@ if config.discord_token:
 else:
     print(
         "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
-    ) 
+    )

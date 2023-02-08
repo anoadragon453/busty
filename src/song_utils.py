@@ -1,5 +1,4 @@
 import base64
-import random
 from io import BytesIO
 from os import path
 from typing import Optional
@@ -16,48 +15,48 @@ from PIL import Image, UnidentifiedImageError
 import config
 
 
-def embed_song(submit_message: Message | str, attachment_filepath: str, attachment: Attachment, user: User | Member, random_emoji=None) -> Embed:
-    
+def embed_song(
+    submit_message: Message | str,
+    attachment_filepath: str,
+    attachment: Attachment,
+    user: User | Member,
+    random_emoji,
+) -> Embed:
+
     if isinstance(submit_message, Message):
         message: str = submit_message.content
     else:
         message: str = submit_message
-        
-    emoji = random_emoji if random_emoji is not None else random.choice(config.emoji_list)
-    
+
     # Build and send "Now Playing" embed
     if isinstance(submit_message, Message) is False:
-        embed_title = f"{emoji} Now Previewing {emoji}"
+        embed_title = f"{random_emoji} Now Previewing {random_emoji}"
         list_format = "{0}: [{1}]({2})"
         embed_content = list_format.format(
             user.mention,
-            escape_markdown(
-                song_format(attachment_filepath, attachment.filename)
-            ),
-            attachment.url
+            escape_markdown(song_format(attachment_filepath, attachment.filename)),
+            attachment.url,
         )
     else:
-        embed_title = f"{emoji} Now Playing {emoji}"
+        embed_title = f"{random_emoji} Now Playing {random_emoji}"
         list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
         embed_content = list_format.format(
             user.mention,
-            escape_markdown(
-                song_format(attachment_filepath, attachment.filename)
-            ),
+            escape_markdown(song_format(attachment_filepath, attachment.filename)),
             attachment.url,
             submit_message.jump_url,
         )
     embed = Embed(
         title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
     )
-    
+
     if message:
         if len(message) > config.EMBED_FIELD_VALUE_LIMIT:
             more_info = message[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
             embed.add_field(name="More Info", value=more_info, inline=False)
         else:
             embed.add_field(name="More Info", value=message, inline=False)
-    
+
     return embed
 
 

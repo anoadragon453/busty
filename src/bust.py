@@ -81,7 +81,7 @@ class BustController:
         """Skip current track."""
         if self.play_song_task:
             self.play_song_task.cancel()
-            
+
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
@@ -198,7 +198,13 @@ class BustController:
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list)
 
-        embed = song_utils.embed_song(submit_message, local_filepath, attachment, submit_message.author, random_emoji)
+        embed = song_utils.embed_song(
+            submit_message,
+            local_filepath,
+            attachment,
+            submit_message.author,
+            random_emoji,
+        )
 
         # Add cover art and send
         cover_art = song_utils.get_cover_art(local_filepath)

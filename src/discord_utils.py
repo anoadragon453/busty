@@ -53,6 +53,7 @@ def is_valid_media(attachment_content_type: str) -> bool:
     else:
         return True
 
+
 async def scrape_channel_media(
     channel: TextChannel,
 ) -> List[Tuple[Message, Attachment, str]]:
@@ -73,11 +74,11 @@ async def scrape_channel_media(
 
         for attachment in message.attachments:
             if is_valid_media(attachment.content_type) is False:
-            # Ignore non-audio/video attachments
+                # Ignore non-audio/video attachments
                 continue
-                                
+
             attachment_filepath = filepath_builder(message.id, attachment)
-            
+
             channel_media_attachments.append(
                 (
                     message,
