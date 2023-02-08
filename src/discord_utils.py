@@ -31,6 +31,15 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
         print("Altering message pin state failed:", e)
 
 
+def extract_bust_number(message_channel: TextChannel) -> str:
+    """Extract bust number from channel name"""
+    bust_number = "".join([c for c in message_channel.name if c.isdigit()])
+    if bust_number:
+        bust_number = bust_number + " "
+
+    return bust_number
+
+
 async def scrape_channel_media(
     channel: TextChannel,
 ) -> List[Tuple[Message, Attachment, str]]:
