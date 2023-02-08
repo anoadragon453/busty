@@ -21,7 +21,7 @@ def embed_song(
     attachment: Attachment,
     user: User | Member,
     random_emoji,
-    jump_url=None
+    jump_url=None,
 ) -> Embed:
     if isinstance(submit_message, Message) is False:
         embed_title = f"{random_emoji} Now Previewing {random_emoji}"
