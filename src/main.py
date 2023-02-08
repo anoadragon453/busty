@@ -266,7 +266,7 @@ async def preview(
             attachment_filepath,
             uploaded_file,
             user,
-            random_emoji={random_emoji},
+            random_emoji,
         )
         cover_art = song_utils.get_cover_art(attachment_filepath)
 

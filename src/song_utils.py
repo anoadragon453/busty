@@ -22,30 +22,23 @@ def embed_song(
     user: User | Member,
     random_emoji,
 ) -> Embed:
-
-    if isinstance(submit_message, Message):
-        message: str = submit_message.content
-    else:
-        message: str = submit_message
-
-    # Build and send "Now Playing" embed
     if isinstance(submit_message, Message) is False:
         embed_title = f"{random_emoji} Now Previewing {random_emoji}"
-        list_format = "{0}: [{1}]({2})"
-        embed_content = list_format.format(
-            user.mention,
-            escape_markdown(song_format(attachment_filepath, attachment.filename)),
-            attachment.url,
-        )
+        message: str = submit_message
+        jump_url = ""
     else:
         embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-        embed_content = list_format.format(
-            user.mention,
-            escape_markdown(song_format(attachment_filepath, attachment.filename)),
-            attachment.url,
-            submit_message.jump_url,
-        )
+        message: str = submit_message.content
+        jump_url = submit_message.jump_url
+
+    # Build and send "Now Playing" embed
+    list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
+    embed_content = list_format.format(
+        user.mention,
+        escape_markdown(song_format(attachment_filepath, attachment.filename)),
+        attachment.url,
+        jump_url,
+    )
     embed = Embed(
         title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
     )
