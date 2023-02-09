@@ -39,7 +39,9 @@ def embed_song(
 
     if message_content:
         if len(message_content) > config.EMBED_FIELD_VALUE_LIMIT:
-            message_content = message_content[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+            message_content = (
+                message_content[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+            )
         embed.add_field(name="More Info", value=message_content, inline=False)
 
     return embed
