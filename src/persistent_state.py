@@ -17,8 +17,12 @@ def load_state_from_disk() -> None:
     try:
         with open(bot_state_file) as f:
             bot_state_str = f.read()
-    except (FileNotFoundError, IOError):
-        print(f"Could not read state from {bot_state_file}. Continuing...")
+    except FileNotFoundError:
+        # Expected on first run or after setting a new custom bot state filepath.
+        pass
+    except IOError:
+        print(f"Could not read state from {bot_state_file}")
+        raise
 
     if bot_state_str:
         # Load the JSON representation of the bot's state and convert it to a Python dict so
