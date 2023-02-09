@@ -311,7 +311,7 @@ class BustController:
     async def send_stats(self, interaction: Interaction) -> None:
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
-        bust_len = songs_len + config.seconds_between_songs * num_songs
+        bust_len_in_seconds = songs_len + config.seconds_between_songs * num_songs
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
@@ -329,17 +329,20 @@ class BustController:
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
         longest_submitter_time = int(submitter_to_len[longest_submitter])
-
+        
         # Calculate UNIX Timestamp from datetime for the End of Bust
-        unix_stamp = time.mktime(datetime.datetime.now().timetuple())
-        timestamp = str(unix_stamp).split(".")
+        timestamp_now = time.mktime(datetime.datetime.now().timetuple())
+        timestamp_end = timestamp_now + float(bust_len_in_seconds)
+        
+        timestamp = str(timestamp_end).split(".")
         unix_timestamp = f"<t:{timestamp[0]}:t>"
+
 
         embed_text = "\n".join(
             [
                 f"*Number of tracks:* {num_songs}",
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
-                f"*Total bust length:* {song_utils.format_time(bust_len)}",
+                f"*Total bust length:* {song_utils.format_time(bust_len_in_seconds)}",
                 f"*Unique submitters:* {len(submitter_to_len)}",
                 f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
