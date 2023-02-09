@@ -20,12 +20,12 @@ def embed_song(
     attachment_filepath: str,
     attachment: Attachment,
     user: User,
-    random_emoji: str,
+    emoji: str,
     jump_url: str,
 ) -> Embed:
 
     # Build and send "Now Playing" embed
-    embed_title = f"{random_emoji} Now Playing {random_emoji}"
+    embed_title = f"{emoji} Now Playing {emoji}"
     list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
     embed_content = list_format.format(
         user.mention,
@@ -39,7 +39,7 @@ def embed_song(
 
     if message_content:
         if len(message_content) > config.EMBED_FIELD_VALUE_LIMIT:
-            message_content[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+            message_content = message_content[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
         embed.add_field(name="More Info", value=message_content, inline=False)
 
     return embed

@@ -246,13 +246,13 @@ async def info(interaction: Interaction) -> None:
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment = SlashOption(description="The file to submit."),
-    submit_message: str = SlashOption(
+    submit_message: Optional[str] = SlashOption(
         required=False, description="The submission message text."
     ),
 ) -> None:
     """Show a preview of a submission's "Now Playing" embed."""
     user = interaction.user
-    attachment_filepath = discord_utils.filepath_builder(interaction.id, uploaded_file)
+    attachment_filepath = discord_utils.attachment_local_filepath(interaction.id, uploaded_file)
     random_emoji = random.choice(config.emoji_list)
     await uploaded_file.save(fp=attachment_filepath)
 
@@ -269,7 +269,7 @@ async def preview(
         uploaded_file,
         user,
         random_emoji,
-        config.YOUTUBE_URL,
+        config.DEFAULT_JUMP_URL,
     )
 
     cover_art = song_utils.get_cover_art(attachment_filepath)

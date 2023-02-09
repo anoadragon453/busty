@@ -27,8 +27,8 @@ MAXIMUM_MESSAGES_TO_SCAN = 1000
 VOLUME_MULTIPLIER = 0.5
 # The maximum number of songs to download concurrently
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
-# Link to Rick Astley's Never Gonna Give You Up
-YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+# Holds a default URL value for the Preview Command.
+DEFAULT_JUMP_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 # SETTINGS
 # How many seconds to wait in-between songs
