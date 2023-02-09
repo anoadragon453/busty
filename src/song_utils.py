@@ -19,7 +19,7 @@ def embed_song(
     message_content: str,
     attachment_filepath: str,
     attachment: Attachment,
-    user: User | Member,
+    user: User,
     random_emoji: str,
     jump_url: str,
 ) -> Embed:

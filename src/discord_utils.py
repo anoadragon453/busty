@@ -70,7 +70,7 @@ async def scrape_channel_media(
             continue
 
         for attachment in message.attachments:
-            if is_valid_media(attachment.content_type) is False:
+            if not is_valid_media(attachment.content_type):
                 # Ignore non-audio/video attachments
                 continue
 

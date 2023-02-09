@@ -243,19 +243,19 @@ async def info(interaction: Interaction) -> None:
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment = SlashOption(
-        description="The uploaded file for submission."
+        description="The file to submit."
     ),
     submit_message: str = SlashOption(
-        required=False, description="The text for submission message."
+        required=False, description="The submission message text."
     ),
 ) -> None:
-    """Send a message to user with embedded preview of uploaded song's metadata."""
+    """Show a preview of a submission's "Now Playing" embed."""
     user = interaction.user
     attachment_filepath = discord_utils.filepath_builder(interaction.id, uploaded_file)
     random_emoji = random.choice(config.emoji_list)
     await uploaded_file.save(fp=attachment_filepath)
 
-    if discord_utils.is_valid_media(uploaded_file.content_type) is False:
+    if not discord_utils.is_valid_media(uploaded_file.content_type):
         await interaction.response.send_message(
             "You didn't send a valid media type. \nTry again.",
             ephemeral=True,
@@ -268,7 +268,7 @@ async def preview(
         uploaded_file,
         user,
         random_emoji,
-        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        config.YOUTUBE_URL,
     )
 
     cover_art = song_utils.get_cover_art(attachment_filepath)
