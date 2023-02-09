@@ -329,14 +329,13 @@ class BustController:
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
         longest_submitter_time = int(submitter_to_len[longest_submitter])
-        
+
         # Calculate UNIX Timestamp from datetime for the End of Bust
         timestamp_now = time.mktime(datetime.datetime.now().timetuple())
         timestamp_end = timestamp_now + float(bust_len_in_seconds)
-        
+
         timestamp = str(timestamp_end).split(".")
         unix_timestamp = f"<t:{timestamp[0]}:t>"
-
 
         embed_text = "\n".join(
             [
