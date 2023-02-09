@@ -8,7 +8,7 @@ from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
-from nextcord import Attachment, Embed, File, Member, Message, User
+from nextcord import Attachment, Embed, File, Member, User
 from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 
@@ -16,12 +16,12 @@ import config
 
 
 def embed_song(
-    message_content: Message | str,
+    message_content: str,
     attachment_filepath: str,
     attachment: Attachment,
     user: User | Member,
-    random_emoji,
-    jump_url,
+    random_emoji: str,
+    jump_url: str,
 ) -> Embed:
 
     # Build and send "Now Playing" embed
@@ -38,10 +38,9 @@ def embed_song(
     )
 
     if message_content:
-        more_info = message_content
-        if len(more_info) > config.EMBED_FIELD_VALUE_LIMIT:
-            more_info = more_info[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-        embed.add_field(name="More Info", value=more_info, inline=False)
+        if len(message_content) > config.EMBED_FIELD_VALUE_LIMIT:
+            message_content[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+        embed.add_field(name="More Info", value=message_content, inline=False)
 
     return embed
 

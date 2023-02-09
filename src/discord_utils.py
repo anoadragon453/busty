@@ -45,8 +45,8 @@ def filepath_builder(message_id: int, attachment: Attachment) -> str:
 
 
 def is_valid_media(attachment_content_type: str) -> bool:
-    return attachment_content_type is None or (
-        attachment_content_type.startswith("audio")
+    return attachment_content_type is not None and not (
+        not attachment_content_type.startswith("audio")
         and not attachment_content_type.startswith("video")
     )
 

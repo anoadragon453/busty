@@ -1,16 +1,16 @@
 import asyncio
+import os
 import random
-from os import remove
 from typing import Dict, Optional
 
 from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
 from nextcord.ext import application_checks, commands
 
 import config
+import discord_utils
 import persistent_state
 import song_utils
 from bust import BustController, create_controller
-from discord_utils import filepath_builder, is_valid_media
 from persistent import PersistentString
 
 # This is necessary to query guild members
@@ -251,11 +251,11 @@ async def preview(
 ) -> None:
     """Send a message to user with embedded preview of uploaded song's metadata."""
     user = interaction.user
-    attachment_filepath = filepath_builder(interaction.id, uploaded_file)
+    attachment_filepath = discord_utils.filepath_builder(interaction.id, uploaded_file)
     random_emoji = random.choice(config.emoji_list)
     await uploaded_file.save(fp=attachment_filepath)
 
-    if is_valid_media(uploaded_file.content_type) is False:
+    if discord_utils.is_valid_media(uploaded_file.content_type) is False:
         await interaction.response.send_message(
             "You didn't send a valid media type. \nTry again.",
             ephemeral=True,
@@ -281,7 +281,7 @@ async def preview(
 
     else:
         await interaction.response.send_message(embed=embed, ephemeral=True)
-    remove(attachment_filepath)
+    os.remove(attachment_filepath)
 
 
 @client.slash_command(dm_permission=False)
