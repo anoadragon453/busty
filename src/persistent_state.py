@@ -13,7 +13,6 @@ def load_state_from_disk() -> None:
     """Read the bot state from disk and store it in memory."""
     global _bot_state
 
-    bot_state_str = None
     try:
         with open(bot_state_file) as f:
             bot_state_str = f.read()
