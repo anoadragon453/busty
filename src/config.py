@@ -43,8 +43,6 @@ discord_token = os.environ.get("BUSTY_DISCORD_TOKEN")
 google_form_folder = os.environ.get("BUSTY_GOOGLE_FORM_FOLDER")
 # The service account auth file to use
 google_auth_file = os.environ.get("BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.json")
-# The location of the file which saves the state of the currently loaded image
-image_state_file = os.environ.get("BUSTY_IMAGE_STATE_FILE", ".image_state")
 # The location of the file to store persistent bot state
 bot_state_file = os.environ.get("BUSTY_BOT_STATE_FILE", "bot_state.json")
 # For developers only. Specify a testing guild id to avoid 1 hour command update delay
