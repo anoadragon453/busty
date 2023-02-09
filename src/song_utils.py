@@ -8,7 +8,7 @@ from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
-from nextcord import Attachment, Embed, File, Member, User
+from nextcord import Attachment, Embed, File, User
 from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 
