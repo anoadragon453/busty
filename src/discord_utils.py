@@ -45,13 +45,10 @@ def filepath_builder(message_id: int, attachment: Attachment) -> str:
 
 
 def is_valid_media(attachment_content_type: str) -> bool:
-    if attachment_content_type is None or (
-        not attachment_content_type.startswith("audio")
+    return attachment_content_type is None or (
+        attachment_content_type.startswith("audio")
         and not attachment_content_type.startswith("video")
-    ):
-        return False
-    else:
-        return True
+    )
 
 
 async def scrape_channel_media(

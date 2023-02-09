@@ -199,11 +199,12 @@ class BustController:
         random_emoji = random.choice(config.emoji_list)
 
         embed = song_utils.embed_song(
-            submit_message,
+            submit_message.content,
             local_filepath,
             attachment,
             submit_message.author,
             random_emoji,
+            submit_message.jump_url,
         )
 
         # Add cover art and send

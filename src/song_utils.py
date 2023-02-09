@@ -16,40 +16,32 @@ import config
 
 
 def embed_song(
-    submit_message: Message | str,
+    message_content: Message | str,
     attachment_filepath: str,
     attachment: Attachment,
     user: User | Member,
     random_emoji,
-    jump_url=None,
+    jump_url,
 ) -> Embed:
-    if isinstance(submit_message, Message) is False:
-        embed_title = f"{random_emoji} Now Previewing {random_emoji}"
-        message: str = submit_message
-        url = jump_url
-    else:
-        embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        message: str = submit_message.content
-        url = submit_message.jump_url
 
     # Build and send "Now Playing" embed
+    embed_title = f"{random_emoji} Now Playing {random_emoji}"
     list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
     embed_content = list_format.format(
         user.mention,
         escape_markdown(song_format(attachment_filepath, attachment.filename)),
         attachment.url,
-        url,
+        jump_url,
     )
     embed = Embed(
         title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
     )
 
-    if message:
-        if len(message) > config.EMBED_FIELD_VALUE_LIMIT:
-            more_info = message[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-            embed.add_field(name="More Info", value=more_info, inline=False)
-        else:
-            embed.add_field(name="More Info", value=message, inline=False)
+    if message_content:
+        more_info = message_content
+        if len(more_info) > config.EMBED_FIELD_VALUE_LIMIT:
+            more_info = more_info[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+        embed.add_field(name="More Info", value=more_info, inline=False)
 
     return embed
 

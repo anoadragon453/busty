@@ -257,29 +257,31 @@ async def preview(
 
     if is_valid_media(uploaded_file.content_type) is False:
         await interaction.response.send_message(
-            "Sorry, looks like you didn't send the correct media type. \nTry that one again, kid.",
+            "You didn't send a valid media type. \nTry again.",
             ephemeral=True,
         )
-    else:
-        embed = song_utils.embed_song(
-            submit_message,
-            attachment_filepath,
-            uploaded_file,
-            user,
-            random_emoji,
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        return
+
+    embed = song_utils.embed_song(
+        submit_message,
+        attachment_filepath,
+        uploaded_file,
+        user,
+        random_emoji,
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    )
+
+    cover_art = song_utils.get_cover_art(attachment_filepath)
+
+    if cover_art is not None:
+        embed.set_image(url=f"attachment://{cover_art.filename}")
+        await interaction.response.send_message(
+            file=cover_art, embed=embed, ephemeral=True
         )
-        cover_art = song_utils.get_cover_art(attachment_filepath)
 
-        if cover_art is not None:
-            embed.set_image(url=f"attachment://{cover_art.filename}")
-            await interaction.response.send_message(
-                file=cover_art, embed=embed, ephemeral=True
-            )
-        else:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-        remove(attachment_filepath)
+    else:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    remove(attachment_filepath)
 
 
 @client.slash_command(dm_permission=False)
