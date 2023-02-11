@@ -270,7 +270,7 @@ async def preview(
         uploaded_file,
         interaction.user,
         random_emoji,
-        config.DEFAULT_JUMP_URL,
+        config.PREVIEW_JUMP_URL,
     )
 
     cover_art = song_utils.get_cover_art(attachment_filepath)

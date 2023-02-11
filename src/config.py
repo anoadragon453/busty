@@ -28,7 +28,7 @@ VOLUME_MULTIPLIER = 0.5
 # The maximum number of songs to download concurrently
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 # Holds a default URL value jump url for jump_url parameter in embed_song.
-DEFAULT_JUMP_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+PREVIEW_JUMP_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 # SETTINGS
 # How many seconds to wait in-between songs
