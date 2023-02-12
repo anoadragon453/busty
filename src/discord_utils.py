@@ -33,7 +33,6 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
 
 def attachment_local_filepath(message_id: int, attachment: Attachment) -> str:
     """Build local filepath with provided Message ID & Attachment object for saving Attachments locally"""
-    # Computed local filepath
     filepath = path.join(
         config.attachment_directory_filepath,
         "{}.{}{}".format(
