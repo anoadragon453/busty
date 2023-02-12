@@ -251,6 +251,7 @@ async def preview(
     ),
 ) -> None:
     """Show a preview of a submission's "Now Playing" embed."""
+    user = interaction.user
     attachment_filepath = discord_utils.attachment_local_filepath(
         interaction.id, uploaded_file
     )
@@ -268,7 +269,7 @@ async def preview(
         submit_message,
         attachment_filepath,
         uploaded_file,
-        interaction.user,
+        user,
         random_emoji,
         config.PREVIEW_JUMP_URL,
     )
