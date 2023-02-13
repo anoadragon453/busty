@@ -24,7 +24,7 @@ def embed_song(
     jump_url: str,
 ) -> Embed:
 
-    # Build and send "Now Playing" embed
+    # Build and return "Now Playing" embed
     embed_title = f"{emoji} Now Playing {emoji}"
     list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
     embed_content = list_format.format(

@@ -27,7 +27,7 @@ MAXIMUM_MESSAGES_TO_SCAN = 1000
 VOLUME_MULTIPLIER = 0.5
 # The maximum number of songs to download concurrently
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
-# Holds a default URL value jump url for jump_url parameter in embed_song.
+# The URL that the '↲jump' link will lead to when using the /preview command.
 PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
 
 # SETTINGS

@@ -1,7 +1,7 @@
 import asyncio
 import os
 from os import path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from nextcord import (
     Attachment,
@@ -31,8 +31,26 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
         print("Altering message pin state failed:", e)
 
 
-def attachment_local_filepath(message_id: int, attachment: Attachment) -> str:
-    """Build local filepath with provided Message ID & Attachment object for saving Attachments locally"""
+def build_filepath_for_attachment(message_id: int, attachment: Attachment) -> str:
+    """
+    Generate a unique filepath for a given attachment for the purposes of saving it to disk
+
+    Generates a filepath in the following format:
+    <attachment_directory>/<Discord message ID>.<attachment ID>.<file extension>
+
+    For example:
+    /home/user/busty/625891304148303894.625891304081063986.mp3
+
+    Filepaths for each song should be unique and the rest of the codebase assumes that they are.
+    A Discord message can contain multiple attachments, including the attachment ID as well.
+
+    Args:
+        message_id: The ID of the Discord message that included this attachment.
+        attachment: The attachment to build a filepath for.
+
+    Returns:
+        An absolute filepath to a file for this attachment in the configured attachment directory.
+    """
     filepath = path.join(
         config.attachment_directory_filepath,
         "{}.{}{}".format(
@@ -44,10 +62,20 @@ def attachment_local_filepath(message_id: int, attachment: Attachment) -> str:
     return filepath
 
 
-def is_valid_media(attachment_content_type: str) -> bool:
+def is_valid_media(attachment_content_type: Optional[str]) -> bool:
+    """Returns whether an attachment's content type is considered "media".
+
+    Valid media types are those that start with "audio" or "video".
+
+    Args:
+        attachment_content_type: A content type (aka MIME type).
+
+    Returns:
+        True if the content type is considered to be media, otherwise False.
+    """
     return attachment_content_type is not None and (
-        (attachment_content_type.startswith("audio"))
-        or (attachment_content_type.startswith("video"))
+        attachment_content_type.startswith("audio")
+        or attachment_content_type.startswith("video")
     )
 
 
@@ -74,7 +102,7 @@ async def scrape_channel_media(
                 # Ignore non-audio/video attachments
                 continue
 
-            attachment_filepath = attachment_local_filepath(message.id, attachment)
+            attachment_filepath = build_filepath_for_attachment(message.id, attachment)
 
             channel_media_attachments.append(
                 (

@@ -252,11 +252,6 @@ async def preview(
 ) -> None:
     """Show a preview of a submission's "Now Playing" embed."""
     user = interaction.user
-    attachment_filepath = discord_utils.attachment_local_filepath(
-        interaction.id, uploaded_file
-    )
-    random_emoji = random.choice(config.emoji_list)
-    await uploaded_file.save(fp=attachment_filepath)
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
         await interaction.response.send_message(
@@ -264,6 +259,12 @@ async def preview(
             ephemeral=True,
         )
         return
+
+    attachment_filepath = discord_utils.build_filepath_for_attachment(
+        interaction.id, uploaded_file
+    )
+    random_emoji = random.choice(config.emoji_list)
+    await uploaded_file.save(fp=attachment_filepath)
 
     embed = song_utils.embed_song(
         submit_message,
@@ -284,6 +285,7 @@ async def preview(
 
     else:
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
     os.remove(attachment_filepath)
 
 
