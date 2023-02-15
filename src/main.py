@@ -84,14 +84,9 @@ async def on_list(
 
     async with list_task_control_lock:
         # Notify user that "Busty is thinking"
-        await interaction.response.defer(ephemeral=True)
         bc = await create_controller(client, interaction, list_channel)
         global controllers
         controllers[interaction.guild_id] = bc
-        # If bc is None, something went wrong and we already edited the
-        # interaction response to inform the user.
-        if bc is not None:
-            await interaction.delete_original_message()
 
 
 # Bust command
@@ -248,6 +243,7 @@ async def announce(
     ),
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
+    interaction.defer(ephemeral=True)
     if channel is None:
         # Default to the current channel that the command was invoked in.
         channel = interaction.channel

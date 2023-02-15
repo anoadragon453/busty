@@ -85,6 +85,7 @@ class BustController:
             self.play_song_task.cancel()
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
+        await interaction.response.defer(ephemeral=True)
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
             interaction.guild.voice_channels
@@ -131,6 +132,7 @@ class BustController:
         self.original_bot_nickname = bot_member.display_name
 
         await interaction.channel.send("Let's get **BUSTY**.")
+        interaction.delete_original_message()
 
         # Play songs
         for index in range(skip_count, len(self.bust_content)):
@@ -311,6 +313,7 @@ class BustController:
         return form_url
 
     async def send_stats(self, interaction: Interaction) -> None:
+        interaction.defer(ephemeral=True)
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
@@ -360,6 +363,7 @@ async def create_controller(
     list_channel: TextChannel,
 ) -> Optional[BustController]:
     """Attempt to create a BustController given a channel list command"""
+    await interaction.response.defer(ephemeral=True)
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
     if not channel_media_attachments:
@@ -453,5 +457,6 @@ async def create_controller(
             )
             await discord_utils.try_set_pin(form_message, True)
 
+    await interaction.delete_original_message()
     # Return controller
     return bc
