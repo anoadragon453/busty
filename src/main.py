@@ -177,7 +177,7 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
         return
 
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to {image_file.url}."
+        f":white_check_mark: Image set to {image_file.url}."
     )
 
 
@@ -191,7 +191,7 @@ async def image_by_url(interaction: Interaction, image_url: str) -> None:
         return
 
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to {image_url}."
+        f":white_check_mark: Image set to {image_url}."
     )
 
 
@@ -204,7 +204,7 @@ async def image_clear(interaction: Interaction) -> None:
         await interaction.response.send_message("No image is loaded.", ephemeral=True)
         return
 
-    await interaction.response.send_message("\N{WASTEBASKET} Image cleared.")
+    await interaction.response.send_message(":wastebasket: Image cleared.")
 
 
 @image.subcommand(name="view")
