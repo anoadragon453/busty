@@ -167,7 +167,8 @@ class BustController:
             await bot_member.edit(nick=self.original_bot_nickname)
 
         if say_goodbye:
-            embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
+            goodbye_emoji = ":heart_on_fire:"
+            embed_title = f"{goodbye_emoji} That's it everyone {goodbye_emoji}"
             embed_content = "Hope ya had a good **BUST!**"
             embed_content += "\n*Total length of all submissions: {}*".format(
                 song_utils.format_time(int(self.total_song_len))
@@ -368,14 +369,15 @@ async def create_controller(
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
     if not channel_media_attachments:
         await interaction.edit_original_message(
-            content="\N{WARNING SIGN} No valid media files found."
+            content=":warning: No valid media files found."
         )
         return None
 
     bc = BustController(client, channel_media_attachments, interaction.channel)
 
     # Title of /list embed
-    embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
+    bust_emoji = ":heart_on_fire:"
+    embed_title = f"{bust_emoji} AIGHT. IT'S BUSTY TIME {bust_emoji}"
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
@@ -451,7 +453,7 @@ async def create_controller(
             print("Unknown error generating form:", e)
 
         if form_url is not None:
-            vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
+            vote_emoji = ":ballot_box_with_ballot:"
             form_message = await interaction.channel.send(
                 f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
             )
