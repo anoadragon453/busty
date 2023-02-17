@@ -243,7 +243,7 @@ async def announce(
     ),
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
-    interaction.defer(ephemeral=True)
+    await interaction.defer(ephemeral=True)
     if channel is None:
         # Default to the current channel that the command was invoked in.
         channel = interaction.channel

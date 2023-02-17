@@ -132,7 +132,7 @@ class BustController:
         self.original_bot_nickname = bot_member.display_name
 
         await interaction.channel.send("Let's get **BUSTY**.")
-        interaction.delete_original_message()
+        await interaction.delete_original_message()
 
         # Play songs
         for index in range(skip_count, len(self.bust_content)):
@@ -313,7 +313,7 @@ class BustController:
         return form_url
 
     async def send_stats(self, interaction: Interaction) -> None:
-        interaction.defer(ephemeral=True)
+        await interaction.defer(ephemeral=True)
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
