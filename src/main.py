@@ -251,10 +251,11 @@ async def preview(
     ),
 ) -> None:
     """Show a preview of a submission's "Now Playing" embed."""
+    await interaction.response.defer()
     user = interaction.user
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "You didn't send a valid media type, try again.",
             ephemeral=True,
         )
@@ -279,12 +280,12 @@ async def preview(
 
     if cover_art is not None:
         embed.set_image(url=f"attachment://{cover_art.filename}")
-        await interaction.response.send_message(
+        await interaction.followup.send(
             file=cover_art, embed=embed, ephemeral=True
         )
 
     else:
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     os.remove(attachment_filepath)
 
