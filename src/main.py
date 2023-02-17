@@ -255,7 +255,7 @@ async def preview(
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
         await interaction.response.send_message(
-            "You didn't send a valid media type. \nTry again.",
+            "You didn't send a valid media type, try again.",
             ephemeral=True,
         )
         return
@@ -263,8 +263,8 @@ async def preview(
     attachment_filepath = discord_utils.build_filepath_for_attachment(
         interaction.id, uploaded_file
     )
-    random_emoji = random.choice(config.emoji_list)
     await uploaded_file.save(fp=attachment_filepath)
+    random_emoji = random.choice(config.emoji_list)
 
     embed = song_utils.embed_song(
         submit_message,
