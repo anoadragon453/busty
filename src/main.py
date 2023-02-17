@@ -280,9 +280,7 @@ async def preview(
 
     if cover_art is not None:
         embed.set_image(url=f"attachment://{cover_art.filename}")
-        await interaction.followup.send(
-            file=cover_art, embed=embed, ephemeral=True
-        )
+        await interaction.followup.send(file=cover_art, embed=embed, ephemeral=True)
 
     else:
         await interaction.followup.send(embed=embed, ephemeral=True)
