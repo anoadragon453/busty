@@ -264,6 +264,8 @@ async def preview(
     attachment_filepath = discord_utils.build_filepath_for_attachment(
         interaction.id, uploaded_file
     )
+
+    # Save attachment to disk for processing
     await uploaded_file.save(fp=attachment_filepath)
     random_emoji = random.choice(config.emoji_list)
 
@@ -285,6 +287,7 @@ async def preview(
     else:
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+    # Delete the attachment from disk after processing
     os.remove(attachment_filepath)
 
 
