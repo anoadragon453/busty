@@ -53,6 +53,8 @@ class BustController:
         self.message_channel: TextChannel = message_channel
         # The media in the current channel
         self.bust_content: List[Tuple[Message, Attachment, str]] = bust_content
+        # The current index of the song being played
+        self.current_song_index: int = 0
         # Whether bust has been manually stopped
         self.bust_stopped: bool = False
         # Client object
@@ -140,6 +142,7 @@ class BustController:
                 break
 
             # wrap play_song() in a coroutine so it is cancellable
+            self.current_song_index = index
             self.play_song_task = asyncio.create_task(self.play_song(index))
             try:
                 await self.play_song_task
@@ -315,6 +318,10 @@ class BustController:
         num_songs = len(self.bust_content)
         bust_len_in_seconds = songs_len + config.seconds_between_songs * num_songs
 
+        remaining_bust_len = sum([song_utils.get_song_length(local_filepath) for _, _, local_filepath in self.bust_content[self.current_song_index:]])
+        num_songs_left = len(self.bust_content) - (self.current_song_index + 1)
+        reamining_bust_len_in_seconds = remaining_bust_len + config.seconds_between_songs * num_songs_left
+
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
 
@@ -334,7 +341,7 @@ class BustController:
 
         # Calculate UNIX Timestamp from datetime for the End of Bust
         timestamp_now = time.mktime(datetime.datetime.now().timetuple())
-        timestamp_end = timestamp_now + float(bust_len_in_seconds)
+        timestamp_end = timestamp_now + float(reamining_bust_len_in_seconds)
 
         timestamp = str(timestamp_end).split(".")
         unix_timestamp = f"<t:{timestamp[0]}:t>"
