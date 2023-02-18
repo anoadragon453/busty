@@ -318,9 +318,16 @@ class BustController:
         num_songs = len(self.bust_content)
         bust_len_in_seconds = songs_len + config.seconds_between_songs * num_songs
 
-        remaining_bust_len = sum([song_utils.get_song_length(local_filepath) for _, _, local_filepath in self.bust_content[self.current_song_index:]])
+        remaining_bust_len = sum(
+            [
+                song_utils.get_song_length(local_filepath)
+                for _, _, local_filepath in self.bust_content[self.current_song_index :]
+            ]
+        )
         num_songs_left = len(self.bust_content) - (self.current_song_index + 1)
-        reamining_bust_len_in_seconds = remaining_bust_len + config.seconds_between_songs * num_songs_left
+        reamining_bust_len_in_seconds = (
+            remaining_bust_len + config.seconds_between_songs * num_songs_left
+        )
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
