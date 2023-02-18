@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import random
+import subprocess
 import time
 from collections import defaultdict
 from typing import List, Optional, Tuple, Union
@@ -348,7 +349,11 @@ class BustController:
 
         # Calculate UNIX Timestamp from datetime for the End of Bust
         timestamp_now = time.mktime(datetime.datetime.now().timetuple())
-        timestamp_end = timestamp_now + float(reamining_bust_len_in_seconds)
+
+        if num_songs is not num_songs_left:
+            timestamp_end = timestamp_now + float(reamining_bust_len_in_seconds)
+        else:
+            timestamp_end = timestamp_now + float(bust_len_in_seconds)
 
         timestamp = str(timestamp_end).split(".")
         unix_timestamp = f"<t:{timestamp[0]}:t>"
