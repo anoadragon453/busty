@@ -251,7 +251,7 @@ async def preview(
     ),
 ) -> None:
     """Show a preview of a submission's "Now Playing" embed."""
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     user = interaction.user
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
