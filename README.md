@@ -81,7 +81,6 @@ The complete list of environment variable configuration options is:
 1. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 1. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
 1. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
-1. `BUSTY_IMAGE_STATE_FILE` - The location of the file which saves the state of the currently loaded image (default = .image_state)
 1. `BUSTY_BOT_STATE_FILE` - The location of the file to store persistent bot state in (default = bot_state.json)
 1. `BUSTY_TESTING_GUILD_ID` - For developers only. Specify a testing guild id to avoid 1 hour command update delay (see [this Discord API issue](https://github.com/discord/discord-api-docs/issues/2372#issuecomment-761161082) for details) (default = None)
 
@@ -106,10 +105,10 @@ The expected flow for running a bust is:
 
 * Users submit songs into a channel.
 * All users join a voice channel or stage.
-* An admin runs `!list` to list all submitted songs and the order they will be played in.
-* An admin runs `!bust` to start the show. The bot will join the channel and begin playing songs in the order they were submitted.
+* An admin runs `/list` to list all submitted songs and the order they will be played in.
+* An admin runs `/bust` to start the show. The bot will join the channel and begin playing songs in the order they were submitted.
 * Users comment on songs while they play.
-* An admin can run `!skip` at any time to skip the current song, or `!stop` to manually stop the show.
+* An admin can run `/skip` at any time to skip the current song, or `/stop` to manually stop the show.
 * Once the last song has played, the bot will post a concluding message and leave the call.
 
 ### Command Reference

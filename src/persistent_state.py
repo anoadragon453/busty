@@ -1,6 +1,8 @@
 import copy
 import json
-from typing import Iterable
+from typing import Iterable, Optional
+
+from nextcord import Interaction
 
 from config import JSON_DATA_TYPE, bot_state_file
 
@@ -13,13 +15,20 @@ def load_state_from_disk() -> None:
     """Read the bot state from disk and store it in memory."""
     global _bot_state
 
-    with open(bot_state_file) as f:
-        bot_state_str = f.read()
+    try:
+        with open(bot_state_file) as f:
+            bot_state_str = f.read()
+    except FileNotFoundError:
+        # Expected on first run or after setting a new custom bot state filepath.
+        pass
+    except IOError:
+        print(f"Could not read state from {bot_state_file}")
+        raise
 
-        if bot_state_str:
-            # Load the JSON representation of the bot's state and convert it to a Python dict so
-            # it can be easily manipulated.
-            _bot_state = json.loads(bot_state_str)
+    if bot_state_str:
+        # Load the JSON representation of the bot's state and convert it to a Python dict so
+        # it can be easily manipulated.
+        _bot_state = json.loads(bot_state_str)
 
 
 def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
@@ -170,3 +179,56 @@ def delete_state(path: Iterable[str]) -> bool:
         delete_state(path)
 
     return True
+
+
+async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
+    """
+    Safely save a Google form image url to disk.
+
+    If saving the URL fails, the interaction is responded to.
+
+    Args:
+        interaction: The Nextcord interaction that triggered the image being saved.
+        image_url: The image url to save.
+
+    Returns:
+        True if the image url saved correctly, False if not.
+    """
+    try:
+        set_state(["guilds", str(interaction.guild_id), "form_image_url"], image_url)
+    except Exception as e:
+        print("Unable to set form image:", e)
+
+        await interaction.response.send_message(
+            f"Failed to upload image ({type(e)}). See the logs for more details.",
+            ephemeral=True,
+        )
+        return False
+
+    return True
+
+
+def get_form_image_url(interaction: Interaction) -> Optional[str]:
+    """
+    Retrieve a saved google form image url given an interaction in a guild.
+
+    Args:
+        interaction: The interaction that triggered this call.
+
+    Returns:
+        The image form URL if it was found, otherwise None.
+    """
+    return get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+
+
+def clear_form_image_url(interaction: Interaction) -> bool:
+    """
+    Clear a saved google form image url given an interaction in a guild.
+
+    Args:
+        The interaction that triggered this call.
+
+    Returns:
+        True if there was an image to delete, False if not.
+    """
+    return delete_state(["guilds", str(interaction.guild_id), "form_image_url"])
