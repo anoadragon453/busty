@@ -83,7 +83,6 @@ async def on_list(
         list_channel = interaction.channel
 
     async with list_task_control_lock:
-        # Notify user that "Busty is thinking"
         bc = await create_controller(client, interaction, list_channel)
         global controllers
         controllers[interaction.guild_id] = bc
