@@ -22,6 +22,7 @@ from nextcord.utils import escape_markdown
 import config
 import discord_utils
 import forms
+import persistent_state
 import song_utils
 
 
@@ -32,7 +33,6 @@ class BustController:
         bust_content: List[Tuple[Message, Attachment, str]],
         message_channel: TextChannel,
     ):
-
         # The actively connected voice client
         self.voice_client: Optional[VoiceClient] = None
         # Currently pinned "now playing" message ID
@@ -84,6 +84,14 @@ class BustController:
             self.play_song_task.cancel()
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
+        """Begin playback.
+
+        Args:
+            interaction: An interaction which has not yet been responded to.
+            skip_count: List index to start playback from.
+        """
+
+        await interaction.response.defer(ephemeral=True)
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
             interaction.guild.voice_channels
@@ -91,7 +99,7 @@ class BustController:
         voice_channels.extend(interaction.guild.stage_channels)
 
         if not voice_channels:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "You need to be in an active voice or stage channel.", ephemeral=True
             )
             return
@@ -120,7 +128,7 @@ class BustController:
                 return
         else:
             # No voice channel was found
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "You need to be in an active voice channel.", ephemeral=True
             )
             return
@@ -130,6 +138,7 @@ class BustController:
         self.original_bot_nickname = bot_member.display_name
 
         await interaction.channel.send("Let's get **BUSTY**.")
+        await interaction.delete_original_message()
 
         # Play songs
         for index in range(skip_count, len(self.bust_content)):
@@ -164,7 +173,8 @@ class BustController:
             await bot_member.edit(nick=self.original_bot_nickname)
 
         if say_goodbye:
-            embed_title = "❤️‍🔥 That's it everyone ❤️‍🔥"
+            goodbye_emoji = ":heart_on_fire:"
+            embed_title = f"{goodbye_emoji} That's it everyone {goodbye_emoji}"
             embed_content = "Hope ya had a good **BUST!**"
             embed_content += "\n*Total length of all submissions: {}*".format(
                 song_utils.format_time(int(self.total_song_len))
@@ -197,7 +207,7 @@ class BustController:
         submit_message, attachment, local_filepath = self.bust_content[index]
 
         # Associate a random emoji with this song
-        random_emoji = random.choice(config.emoji_list).encode("Latin1").decode()
+        random_emoji = random.choice(config.emoji_list)
 
         # Build and send "Now Playing" embed
         embed_title = f"{random_emoji} Now Playing {random_emoji}"
@@ -310,6 +320,11 @@ class BustController:
         return form_url
 
     async def send_stats(self, interaction: Interaction) -> None:
+        """Send statistics about current bust.
+
+        Args:
+            interaction: An interaction which has not yet been responded to."""
+        await interaction.response.defer(ephemeral=True)
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
@@ -320,15 +335,15 @@ class BustController:
         bot_member = interaction.guild.get_member(self.client.user.id)
         submitter_to_len[bot_member] = 0.0
 
-        song_len_error = False
+        errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
             song_len = song_utils.get_song_length(local_filepath)
-            if song_len:
-                submitter = submit_message.author
-                submitter_to_len[submitter] += song_len
-            else:
-                song_len_error = True
-                print(f"ERROR ON {attachment.filename}")
+            if song_len is None:
+                errors = True
+                # Even if song length is an error, we still add 0 to submitter_to_len
+                # to ensure len(submitter_to_len) equals the number of submitters
+                song_len = 0.0
+            submitter_to_len[submit_message.author] += song_len
 
         # User with longest total submission length
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
@@ -344,35 +359,42 @@ class BustController:
                 + f"{song_utils.format_time(longest_submitter_time)}",
             ]
         )
-        if song_len_error:
-            embed_text += "\n\n**There were some errors in computing statistics.**"
+        if errors:
+            embed_text += (
+                "\n\n**There were some errors. Statistics may be inaccurate.**"
+            )
         embed = Embed(
             title="Listed Statistics",
             description=embed_text,
             color=config.INFO_EMBED_COLOR,
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
 
 async def create_controller(
     client: Client,
     interaction: Interaction,
     list_channel: TextChannel,
-    image_url: Optional[str] = None,
 ) -> Optional[BustController]:
-    """Attempt to create a BustController given a channel list command"""
+    """Attempt to create a BustController listing a given channel.
+
+    Args:
+        interaction: An interaction which has not yet been responded to
+    """
+    await interaction.response.defer(ephemeral=True)
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
     if not channel_media_attachments:
         await interaction.edit_original_message(
-            content="\N{WARNING SIGN} No valid media files found."
+            content=":warning: No valid media files found."
         )
         return None
 
     bc = BustController(client, channel_media_attachments, interaction.channel)
 
     # Title of /list embed
-    embed_title = "❤️‍🔥 AIGHT. IT'S BUSTY TIME ❤️‍🔥"
+    bust_emoji = ":heart_on_fire:"
+    embed_title = f"{bust_emoji} AIGHT. IT'S BUSTY TIME {bust_emoji}"
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
@@ -441,17 +463,19 @@ async def create_controller(
             await discord_utils.try_set_pin(list_message, True)
         # Wrap form generation in try/catch so we don't block a list command if it fails
         form_url = None
+        image_url = persistent_state.get_form_image_url(interaction)
         try:
             form_url = bc.get_google_form_url(image_url)
         except Exception as e:
             print("Unknown error generating form:", e)
 
         if form_url is not None:
-            vote_emoji = "\N{BALLOT BOX WITH BALLOT}"
+            vote_emoji = ":ballot_box_with_ballot:"
             form_message = await interaction.channel.send(
                 f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
             )
             await discord_utils.try_set_pin(form_message, True)
 
+    await interaction.delete_original_message()
     # Return controller
     return bc

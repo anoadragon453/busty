@@ -5,8 +5,8 @@ from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextC
 from nextcord.ext import application_checks, commands
 
 import config
+import persistent_state
 from bust import BustController, create_controller
-from persistent import PersistentString
 
 # This is necessary to query guild members
 intents = Intents.default()
@@ -40,10 +40,6 @@ def get_controller(guild_id: int) -> Optional[BustController]:
     return bc
 
 
-# Cached image url to use for next bust
-loaded_image: PersistentString = PersistentString(filepath=config.image_state_file)
-
-
 @client.event
 async def on_ready() -> None:
     print(f"We have logged in as {client.user}.")
@@ -61,7 +57,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list")
+@client.slash_command(name="list", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -87,21 +83,13 @@ async def on_list(
         list_channel = interaction.channel
 
     async with list_task_control_lock:
-        # Notify user that "Busty is thinking"
-        await interaction.response.defer(ephemeral=True)
-        bc = await create_controller(
-            client, interaction, list_channel, loaded_image.get()
-        )
+        bc = await create_controller(client, interaction, list_channel)
         global controllers
         controllers[interaction.guild_id] = bc
-        # If bc is None, something went wrong and we already edited the
-        # interaction response to inform the user.
-        if bc is not None:
-            await interaction.delete_original_message()
 
 
 # Bust command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def bust(
     interaction: Interaction,
@@ -136,7 +124,7 @@ async def bust(
 
 
 # Skip command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -151,7 +139,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -161,12 +149,12 @@ async def stop(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Alright I'll shut up")
+    await interaction.response.send_message("Alright I'll shut up.")
     await bc.stop()
 
 
 # Image command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -177,23 +165,27 @@ async def image(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def image_upload(interaction: Interaction, image_file: Attachment) -> None:
     """Upload a Google Forms image as attachment."""
-    global loaded_image
     # TODO: Some basic validity filtering
-    loaded_image.set(image_file.url)
+    # Persist the image URL
+    if not await persistent_state.save_form_image_url(interaction, image_file.url):
+        return
+
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f":white_check_mark: Image set to {image_file.url}."
     )
 
 
 @image.subcommand(name="url")
 @application_checks.has_role(config.dj_role_name)
-async def image_url(interaction: Interaction, image_url: str) -> None:
+async def image_by_url(interaction: Interaction, image_url: str) -> None:
     """Set a Google Forms image by pasting a URL."""
-    global loaded_image
     # TODO: Some basic validity filtering
-    loaded_image.set(image_url)
+    # Persist the image URL
+    if not await persistent_state.save_form_image_url(interaction, image_url):
+        return
+
     await interaction.response.send_message(
-        f"\N{WHITE HEAVY CHECK MARK} Image set to: {loaded_image.get()}"
+        f":white_check_mark: Image set to {image_url}."
     )
 
 
@@ -201,24 +193,30 @@ async def image_url(interaction: Interaction, image_url: str) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def image_clear(interaction: Interaction) -> None:
     """Clear the loaded Google Forms image."""
-    global loaded_image
-    loaded_image.set(None)
-    await interaction.response.send_message("\N{WASTEBASKET} Image cleared.")
+    image_existed = persistent_state.clear_form_image_url(interaction)
+    if not image_existed:
+        await interaction.response.send_message("No image is loaded.", ephemeral=True)
+        return
+
+    await interaction.response.send_message(":wastebasket: Image cleared.")
 
 
-@image.subcommand("view")
+@image.subcommand(name="view")
 @application_checks.has_role(config.dj_role_name)
 async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
-    if loaded_image.get() is not None:
-        content = f"Loaded image: {loaded_image.get()}"
-    else:
-        content = "No image is currently loaded."
-    await interaction.response.send_message(content)
+    loaded_image_url = persistent_state.get_form_image_url(interaction)
+    if loaded_image_url is None:
+        await interaction.response.send_message(
+            "No image is currently loaded.", ephemeral=True
+        )
+        return
+
+    await interaction.response.send_message(f"The loaded image is {loaded_image_url}.")
 
 
 # Info command
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -226,14 +224,14 @@ async def info(interaction: Interaction) -> None:
 
     if bc is None:
         await interaction.response.send_message(
-            "You need to use /list first", ephemeral=True
+            "You need to use /list first.", ephemeral=True
         )
         return
 
     await bc.send_stats(interaction)
 
 
-@client.slash_command()
+@client.slash_command(dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
@@ -244,6 +242,7 @@ async def announce(
     ),
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
+    await interaction.response.defer(ephemeral=True)
     if channel is None:
         # Default to the current channel that the command was invoked in.
         channel = interaction.channel
@@ -257,7 +256,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        interaction.response.send_message(
+        await interaction.followup.send(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
@@ -268,8 +267,8 @@ async def announce(
     if channel.id == interaction.channel_id:
         interaction_reply = "Announcement has been sent."
     else:
-        interaction_reply = f"Announcement has been sent in {channel.mention}"
-    await interaction.response.send_message(interaction_reply, ephemeral=True)
+        interaction_reply = f"Announcement has been sent in {channel.mention}."
+    await interaction.followup.send(interaction_reply, ephemeral=True)
 
 
 @client.event
@@ -284,6 +283,9 @@ async def on_application_command_error(
     else:
         print(error)
 
+
+# Load the bot state.
+persistent_state.load_state_from_disk()
 
 # Connect to discord
 if config.discord_token:
