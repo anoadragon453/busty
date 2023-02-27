@@ -33,7 +33,6 @@ class BustController:
         bust_content: List[Tuple[Message, Attachment, str]],
         message_channel: TextChannel,
     ):
-
         # The actively connected voice client
         self.voice_client: Optional[VoiceClient] = None
         # Currently pinned "now playing" message ID
@@ -85,6 +84,13 @@ class BustController:
             self.play_song_task.cancel()
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
+        """Begin playback.
+
+        Args:
+            interaction: An interaction which has not yet been responded to.
+            skip_count: List index to start playback from.
+        """
+
         await interaction.response.defer(ephemeral=True)
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
@@ -314,6 +320,10 @@ class BustController:
         return form_url
 
     async def send_stats(self, interaction: Interaction) -> None:
+        """Send statistics about current bust.
+
+        Args:
+            interaction: An interaction which has not yet been responded to."""
         await interaction.response.defer(ephemeral=True)
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
@@ -363,7 +373,11 @@ async def create_controller(
     interaction: Interaction,
     list_channel: TextChannel,
 ) -> Optional[BustController]:
-    """Attempt to create a BustController given a channel list command"""
+    """Attempt to create a BustController listing a given channel.
+
+    Args:
+        interaction: An interaction which has not yet been responded to
+    """
     await interaction.response.defer(ephemeral=True)
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
