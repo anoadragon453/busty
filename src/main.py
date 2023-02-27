@@ -83,15 +83,9 @@ async def on_list(
         list_channel = interaction.channel
 
     async with list_task_control_lock:
-        # Notify user that "Busty is thinking"
-        await interaction.response.defer(ephemeral=True)
         bc = await create_controller(client, interaction, list_channel)
         global controllers
         controllers[interaction.guild_id] = bc
-        # If bc is None, something went wrong and we already edited the
-        # interaction response to inform the user.
-        if bc is not None:
-            await interaction.delete_original_message()
 
 
 # Bust command
@@ -248,6 +242,7 @@ async def announce(
     ),
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
+    await interaction.response.defer(ephemeral=True)
     if channel is None:
         # Default to the current channel that the command was invoked in.
         channel = interaction.channel
@@ -261,7 +256,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
@@ -273,7 +268,7 @@ async def announce(
         interaction_reply = "Announcement has been sent."
     else:
         interaction_reply = f"Announcement has been sent in {channel.mention}."
-    await interaction.response.send_message(interaction_reply, ephemeral=True)
+    await interaction.followup.send(interaction_reply, ephemeral=True)
 
 
 @client.event

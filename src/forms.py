@@ -38,7 +38,6 @@ def create_remote_form(
     high_label: str,
     image_url: Optional[str] = None,
 ) -> Optional[str]:
-
     form_info = {
         "info": {
             "title": title,
