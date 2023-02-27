@@ -331,9 +331,6 @@ class BustController:
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
-        # Default entry in case no valid songs w/ length
-        bot_member = interaction.guild.get_member(self.client.user.id)
-        submitter_to_len[bot_member] = 0.0
 
         errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
@@ -354,7 +351,7 @@ class BustController:
                 f"*Number of tracks:* {num_songs}",
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
                 f"*Total bust length:* {song_utils.format_time(bust_len)}",
-                f"*Unique submitters:* {len(submitter_to_len)-1}",
+                f"*Unique submitters:* {len(submitter_to_len)}",
                 f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
             ]
