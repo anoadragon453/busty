@@ -1,6 +1,5 @@
 import base64
 from io import BytesIO
-from os import path
 import os
 from typing import Optional
 
@@ -68,7 +67,7 @@ def song_format(
     if title:
         content += title
     else:
-        filename = path.splitext(filename)[0]
+        filename = os.path.splitext(filename)[0]
         content += filename.replace("_", " ")
 
     return content
