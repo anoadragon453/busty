@@ -32,7 +32,15 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
 
 
 def build_filepath_for_attachment(message_id: int, attachment: Attachment) -> str:
-    """Generate a unique filepath for a given attachment for the purposes of saving it to disk."""
+    """Generate a unique, absolute filepath for a given attachment located in the configured attachment directory."""
+
+    # Generate and return a filepath in the following format:
+    #     <attachment_directory>/<Discord message ID>.<attachment ID>.<file extension>
+    # For example:
+    #     /home/user/busty/625891304148303894.625891304081063986.mp3
+
+    # The Discord Message ID is included as well, as individual messages can have multiple attachments.\
+
     filepath = path.join(
         config.attachment_directory_filepath,
         "{}.{}{}".format(
