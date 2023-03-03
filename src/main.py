@@ -252,7 +252,6 @@ async def preview(
 ) -> None:
     """Show a preview of a submission's "Now Playing" embed."""
     await interaction.response.defer(ephemeral=True)
-    user = interaction.user
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
         await interaction.followup.send(
@@ -273,7 +272,7 @@ async def preview(
         submit_message,
         attachment_filepath,
         uploaded_file,
-        user,
+        interaction.user,
         random_emoji,
         config.PREVIEW_JUMP_URL,
     )
