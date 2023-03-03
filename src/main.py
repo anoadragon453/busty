@@ -245,7 +245,7 @@ async def info(interaction: Interaction) -> None:
 @client.slash_command(dm_permission=False)
 async def preview(
     interaction: Interaction,
-    uploaded_file: Attachment = SlashOption(description="The file to submit."),
+    uploaded_file: Attachment = SlashOption(description="The song to submit."),
     submit_message: Optional[str] = SlashOption(
         required=False, description="The submission message text."
     ),
