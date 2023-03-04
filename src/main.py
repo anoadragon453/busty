@@ -1,11 +1,15 @@
 import asyncio
+import os
+import random
 from typing import Dict, Optional
 
 from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
 from nextcord.ext import application_checks, commands
 
 import config
+import discord_utils
 import persistent_state
+import song_utils
 from bust import BustController, create_controller
 
 # This is necessary to query guild members
@@ -229,6 +233,55 @@ async def info(interaction: Interaction) -> None:
         return
 
     await bc.send_stats(interaction)
+
+
+# Preview command
+@client.slash_command(dm_permission=False)
+async def preview(
+    interaction: Interaction,
+    uploaded_file: Attachment = SlashOption(description="The song to submit."),
+    submit_message: Optional[str] = SlashOption(
+        required=False, description="The submission message text."
+    ),
+) -> None:
+    """Show a preview of a submission's "Now Playing" embed."""
+    await interaction.response.defer(ephemeral=True)
+
+    if not discord_utils.is_valid_media(uploaded_file.content_type):
+        await interaction.followup.send(
+            "You didn't send a valid media type, try again.",
+            ephemeral=True,
+        )
+        return
+
+    attachment_filepath = discord_utils.build_filepath_for_attachment(
+        interaction.id, uploaded_file
+    )
+
+    # Save attachment to disk for processing
+    await uploaded_file.save(fp=attachment_filepath)
+    random_emoji = random.choice(config.emoji_list)
+
+    embed = song_utils.embed_song(
+        submit_message,
+        attachment_filepath,
+        uploaded_file,
+        interaction.user,
+        random_emoji,
+        config.PREVIEW_JUMP_URL,
+    )
+
+    cover_art = song_utils.get_cover_art(attachment_filepath)
+
+    if cover_art is not None:
+        embed.set_image(url=f"attachment://{cover_art.filename}")
+        await interaction.followup.send(file=cover_art, embed=embed, ephemeral=True)
+
+    else:
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    # Delete the attachment from disk after processing
+    os.remove(attachment_filepath)
 
 
 @client.slash_command(dm_permission=False)

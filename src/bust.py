@@ -17,7 +17,6 @@ from nextcord import (
     VoiceChannel,
     VoiceClient,
 )
-from nextcord.utils import escape_markdown
 
 import config
 import discord_utils
@@ -209,27 +208,14 @@ class BustController:
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list)
 
-        # Build and send "Now Playing" embed
-        embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-        embed_content = list_format.format(
-            submit_message.author.mention,
-            escape_markdown(
-                song_utils.song_format(local_filepath, attachment.filename)
-            ),
-            attachment.url,
+        embed = song_utils.embed_song(
+            submit_message.content,
+            local_filepath,
+            attachment,
+            submit_message.author,
+            random_emoji,
             submit_message.jump_url,
         )
-        embed = Embed(
-            title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
-        )
-
-        # Add message content as "More Info", truncating to the embed field.value character limit
-        if submit_message.content:
-            more_info = submit_message.content
-            if len(more_info) > config.EMBED_FIELD_VALUE_LIMIT:
-                more_info = more_info[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-            embed.add_field(name="More Info", value=more_info, inline=False)
 
         # Add cover art and send
         cover_art = song_utils.get_cover_art(local_filepath)

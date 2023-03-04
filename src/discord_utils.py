@@ -1,7 +1,7 @@
 import asyncio
 import os
 from os import path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from nextcord import (
     Attachment,
@@ -31,6 +31,35 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
         print("Altering message pin state failed:", e)
 
 
+def build_filepath_for_attachment(message_id: int, attachment: Attachment) -> str:
+    """Generate a unique, absolute filepath for a given attachment located in the configured attachment directory."""
+
+    # Generate and return a filepath in the following format:
+    #     <attachment_directory>/<Discord message ID>.<attachment ID>.<file extension>
+    # For example:
+    #     /home/user/busty/625891304148303894.625891304081063986.mp3
+
+    # The Discord Message ID is included as well, as individual messages can have multiple attachments.
+
+    filepath = path.join(
+        config.attachment_directory_filepath,
+        "{}.{}{}".format(
+            message_id,
+            attachment.id,
+            os.path.splitext(attachment.filename)[1],
+        ),
+    )
+    return filepath
+
+
+def is_valid_media(attachment_content_type: Optional[str]) -> bool:
+    """Returns whether an attachment's content type is considered "media"."""
+    return attachment_content_type is not None and (
+        attachment_content_type.startswith("audio")
+        or attachment_content_type.startswith("video")
+    )
+
+
 async def scrape_channel_media(
     channel: TextChannel,
 ) -> List[Tuple[Message, Attachment, str]]:
@@ -50,22 +79,12 @@ async def scrape_channel_media(
             continue
 
         for attachment in message.attachments:
-            if attachment.content_type is None or (
-                not attachment.content_type.startswith("audio")
-                and not attachment.content_type.startswith("video")
-            ):
+            if not is_valid_media(attachment.content_type):
                 # Ignore non-audio/video attachments
                 continue
 
-            # Computed local filepath
-            attachment_filepath = path.join(
-                config.attachment_directory_filepath,
-                "{}.{}{}".format(
-                    message.id,
-                    attachment.id,
-                    os.path.splitext(attachment.filename)[1],
-                ),
-            )
+            attachment_filepath = build_filepath_for_attachment(message.id, attachment)
+
             channel_media_attachments.append(
                 (
                     message,
