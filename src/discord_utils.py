@@ -39,7 +39,7 @@ def build_filepath_for_attachment(message_id: int, attachment: Attachment) -> st
     # For example:
     #     /home/user/busty/625891304148303894.625891304081063986.mp3
 
-    # The Discord Message ID is included as well, as individual messages can have multiple attachments.\
+    # The Discord Message ID is included as well, as individual messages can have multiple attachments.
 
     filepath = path.join(
         config.attachment_directory_filepath,
