@@ -32,18 +32,6 @@ else:
 controllers: Dict[int, BustController] = {}
 
 
-def get_controller(guild_id: int) -> Optional[BustController]:
-    """Get current bust controller for current guild, if it exists"""
-    # TODO: Put these lines inside of `/bust` handler.
-    # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
-    # keep the controllers map up to date by just deleting from
-    # the controllers map directly when bc.play() returns
-    bc = controllers.get(guild_id)
-    if bc and bc.finished():
-        bc = None
-    return bc
-
-
 @client.event
 async def on_ready() -> None:
     print(f"We have logged in as {client.user}.")
@@ -70,7 +58,8 @@ async def on_list(
     ),
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
-    bc = get_controller(interaction.guild_id)
+    global controllers
+    bc = controllers.get(interaction.guild_id)
 
     if bc and bc.is_active():
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
@@ -88,7 +77,6 @@ async def on_list(
 
     async with list_task_control_lock:
         bc = await create_controller(client, interaction, list_channel)
-        global controllers
         controllers[interaction.guild_id] = bc
 
 
@@ -105,7 +93,8 @@ async def bust(
     ),
 ) -> None:
     """Begin a bust."""
-    bc = get_controller(interaction.guild_id)
+    global controllers
+    bc = controllers.get(interaction.guild_id)
 
     if bc is None:
         await interaction.response.send_message(
@@ -125,6 +114,7 @@ async def bust(
         )
         return
     await bc.play(interaction, index - 1)
+    del controllers[interaction.guild_id]
 
 
 # Skip command
@@ -132,7 +122,8 @@ async def bust(
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
-    bc = get_controller(interaction.guild_id)
+    global controllers
+    bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
@@ -147,6 +138,7 @@ async def skip(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
+    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -224,6 +216,7 @@ async def image_view(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
+    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if bc is None:
@@ -255,7 +248,7 @@ async def preview(
         return
 
     attachment_filepath = discord_utils.build_filepath_for_attachment(
-        interaction.id, uploaded_file
+        interaction.guild_id, uploaded_file
     )
 
     # Save attachment to disk for processing
