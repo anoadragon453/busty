@@ -97,7 +97,7 @@ async def scrape_channel_media(
                 )
             )
 
-    # Clear unused files in attachment directory
+    # Clear unused files in this guild's attachment directory
     used_files = {path for (_, _, path) in channel_media_attachments}
     for filename in os.listdir(attachment_dir):
         filepath = path.join(attachment_dir, filename)
