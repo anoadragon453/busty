@@ -58,7 +58,6 @@ async def on_list(
     ),
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
-    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if bc and bc.is_active():
@@ -93,7 +92,6 @@ async def bust(
     ),
 ) -> None:
     """Begin a bust."""
-    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if bc is None:
@@ -122,7 +120,6 @@ async def bust(
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
-    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -138,7 +135,6 @@ async def skip(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
-    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -216,7 +212,6 @@ async def image_view(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
-    global controllers
     bc = controllers.get(interaction.guild_id)
 
     if bc is None:
