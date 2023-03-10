@@ -39,10 +39,9 @@ def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:
     # For example:
     #     /home/user/busty/attachments/922994022916698154/625891304081063986
 
-    filepath = path.join(
+    return path.join(
         config.attachment_directory_filepath, str(guild_id), f"{attachment.id}"
     )
-    return filepath
 
 
 def is_valid_media(attachment_content_type: Optional[str]) -> bool:
