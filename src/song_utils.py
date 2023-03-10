@@ -1,6 +1,6 @@
 import base64
-from io import BytesIO
 import os
+from io import BytesIO
 from typing import Optional
 
 from mutagen import File as MutagenFile, MutagenError
