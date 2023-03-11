@@ -40,7 +40,7 @@ def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:
     #     /home/user/busty/attachments/922994022916698154/625891304081063986
 
     return path.join(
-        config.attachment_directory_filepath, str(guild_id), f"{attachment.id}"
+        config.attachment_directory_filepath, str(guild_id), str(attachment.id)
     )
 
 
