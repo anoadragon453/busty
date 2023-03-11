@@ -35,19 +35,13 @@ def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:
     """Generate a unique, absolute filepath for a given attachment located in the configured attachment directory."""
 
     # Generate and return a filepath in the following format:
-    #     <attachment_directory>/<Discord guild ID>/<attachment ID>.<file extension>
+    #     <attachment_directory>/<Discord guild ID>/<attachment ID>
     # For example:
-    #     /home/user/busty/attachments/922994022916698154/625891304081063986.mp3
+    #     /home/user/busty/attachments/922994022916698154/625891304081063986
 
-    filepath = path.join(
-        config.attachment_directory_filepath,
-        str(guild_id),
-        "{}{}".format(
-            attachment.id,
-            os.path.splitext(attachment.filename)[1],
-        ),
+    return path.join(
+        config.attachment_directory_filepath, str(guild_id), str(attachment.id)
     )
-    return filepath
 
 
 def is_valid_media(attachment_content_type: Optional[str]) -> bool:
