@@ -1,5 +1,6 @@
 discord_emoji>=1.4.1
 mutagen>=1.45.1
+nextcord>=2.4.1
 nextcord[voice]>=2.0.0a6
 google-api-python-client>=2.57.0
 oauth2client>=4.1.3
