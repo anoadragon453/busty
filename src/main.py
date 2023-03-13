@@ -237,7 +237,7 @@ async def preview(
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
         await interaction.followup.send(
-            "You didn't send a valid media type, try again.",
+            "You uploaded an invalid media file, please try again.",
             ephemeral=True,
         )
         return
