@@ -141,4 +141,6 @@ def create_remote_form(
         except Exception as e:
             print("Error moving form:", e)
 
-    return form_url
+    #return form_url
+    # Temporary patch to work around https://github.com/anoadragon453/busty/issues/179
+    return f"https://docs.google.com/forms/d/{form_id}/edit"
