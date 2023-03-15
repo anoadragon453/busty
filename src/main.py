@@ -3,13 +3,22 @@ import os
 import random
 from typing import Dict, Optional
 
-from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
+from nextcord import (
+    Attachment,
+    Embed,
+    Intents,
+    Interaction,
+    SlashOption,
+    TextChannel,
+    Message,
+)
 from nextcord.ext import application_checks, commands
 
 import config
 import discord_utils
 import persistent_state
 import song_utils
+import gpt
 from bust import BustController, create_controller
 
 # This is necessary to query guild members
@@ -42,6 +51,17 @@ async def on_close() -> None:
     # Finish all running busts on close
     for bc in controllers.values():
         await bc.finish(say_goodbye=False)
+
+
+@client.event
+async def on_message(message: Message) -> None:
+    if (
+        config.openai_api_key
+        and message.guild
+        and client.user in message.mentions
+        and message.author != client.user
+    ):
+        await gpt.reply(message)
 
 
 # Allow only one async routine to calculate list at a time

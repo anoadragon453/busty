@@ -29,6 +29,8 @@ VOLUME_MULTIPLIER = 0.5
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 # The URL that the '↲jump' link will lead to when using the /preview command.
 PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
+# The OpenAI model to use for GPT abilities
+OPENAI_MODEL = "gpt-3.5-turbo"
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -47,6 +49,8 @@ google_auth_file = os.environ.get("BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.js
 bot_state_file = os.environ.get("BUSTY_BOT_STATE_FILE", "bot_state.json")
 # For developers only. Specify a testing guild id to avoid 1 hour command update delay
 testing_guild = os.environ.get("BUSTY_TESTING_GUILD_ID", None)
+# OpenAI API Key
+openai_api_key = os.environ.get("BUSTY_OPENAI_API_KEY", None)
 
 # TYPES
 # Acceptable data types to store in a JSON representation.
@@ -61,6 +65,9 @@ elif not os.path.isfile(google_auth_file):
     print(
         f"Warning: {google_auth_file} is not a valid file, Google Forms generation will be disabled"
     )
+
+if openai_api_key is None:
+    print("Warning: BUSTY_OPENAI_API_KEY is not set, LLM abilities will be disabled")
 
 # Import list of emojis from either a custom or the default list.
 # The default list is expected to be stored at `./emoji_list.py`.

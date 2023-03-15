@@ -6,5 +6,5 @@ attachments/
 venv/
 src/__pycache__/
 
-# Bot state and google service keys
+# Bot state, google service keys, context
 *.json
