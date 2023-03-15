@@ -1,10 +1,11 @@
-import config
-import openai
-import datetime
 import json
 import re
-from nextcord import Message, Member
-from typing import Optional, List
+from typing import Optional
+
+import openai
+from nextcord import Member, Message
+
+import config
 
 openai.api_key = config.openai_api_key
 
@@ -31,7 +32,7 @@ async def get_author_context(message: Message) -> str:
 
     # Role-based info
     if isinstance(message.author, Member):
-        roles = set([role.name for role in message.author.roles])
+        roles = {role.name for role in message.author.roles}
 
         # Provide pronoun info
         pronouns = ["he/him", "they/them", "she/her", "any pronouns"]

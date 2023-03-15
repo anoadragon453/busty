@@ -8,17 +8,17 @@ from nextcord import (
     Embed,
     Intents,
     Interaction,
+    Message,
     SlashOption,
     TextChannel,
-    Message,
 )
 from nextcord.ext import application_checks, commands
 
 import config
 import discord_utils
+import gpt
 import persistent_state
 import song_utils
-import gpt
 from bust import BustController, create_controller
 
 # This is necessary to query guild members
