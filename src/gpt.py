@@ -85,7 +85,7 @@ async def query_api(message: Message) -> Optional[str]:
     context = "\n".join(static_context + author_context + optional_context)
 
     # Send data to API
-    print(context, content)
+    print(f"{context}\n{content}\n============\n")
     data = [
         {"role": "system", "content": context},
         {"role": "user", "content": content},
@@ -105,7 +105,6 @@ async def reply(message: Message):
         response = await query_api(message)
 
     if response:
-        print(response)
         await message.reply(response)
     else:
         await message.reply("busy rn")
