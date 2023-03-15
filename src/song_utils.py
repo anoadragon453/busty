@@ -1,6 +1,6 @@
 import base64
+import os
 from io import BytesIO
-from os import path
 from typing import Optional
 
 from mutagen import File as MutagenFile, MutagenError
@@ -100,7 +100,7 @@ def song_format(
     if title:
         content += title
     else:
-        filename = path.splitext(filename)[0]
+        filename = os.path.splitext(filename)[0]
         content += filename.replace("_", " ")
 
     return content
@@ -152,7 +152,6 @@ def get_song_length(filename: str) -> Optional[float]:
         if audio is not None:
             return audio.info.length
     except MutagenError as e:
-        # Ignore file and move on
         print(f"Error reading length of {filename}:", e)
     except Exception as e:
         print(f"Unknown error reading length of {filename}:", e)
