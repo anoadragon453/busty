@@ -27,7 +27,7 @@ async def get_author_context(message: Message) -> str:
     if message.guild and message.guild.scheduled_events:
         # No idea if these are sorted by time
         next_event = message.guild.scheduled_events[0]
-        result.append(f"Next bust numer and topic: {next_event.name}")
+        result.append(f"Next bust number and topic: {next_event.name}")
         result.append(f"Next bust time: {next_event.start_time.strftime('%b %d')}")
 
     # Role-based info
@@ -41,12 +41,8 @@ async def get_author_context(message: Message) -> str:
             result.append("User's pronouns: " + (", ".join(pronouns)))
 
         # Provide champion info
-        champ_map = [
-            ("Defending Champion", "1st"),
-            ("Runner-up", "2nd"),
-            ("Bronzer", "3rd"),
-        ]
-        for role, place in champ_map:
+        champ = ["Defending Champion", "Runner-up", "Bronzer"]
+        for place, role in enumerate(champ, 1):
             if role in roles:
                 result.append(f"User's place last bust: {place}")
                 break
@@ -63,8 +59,8 @@ async def get_author_context(message: Message) -> str:
 
 
 def get_optional_context(content):
+    # tokenize into successive strings of alphanumeric characters
     tokens = set(re.split(r"\W+", content.lower()))
-    print(tokens)
     context = []
     for token in tokens:
         if token in context_data["word_triggers"]:
