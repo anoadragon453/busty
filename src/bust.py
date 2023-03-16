@@ -310,7 +310,7 @@ class BustController:
 
         Args:
             interaction: An interaction which has not yet been responded to."""
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
         bust_len = songs_len + config.seconds_between_songs * num_songs
