@@ -1,11 +1,12 @@
 import datetime
 import json
+import asyncio
 import re
 from typing import List, Optional, Tuple
 
 import openai
 import tiktoken
-from nextcord import Member, Message, TextChannel
+from nextcord import Member, Message, TextChannel, User
 
 import config
 
@@ -14,12 +15,14 @@ def initialize(client):
     global context_data
     global encoding
     global self_user
+    global gpt_lock
 
     openai.api_key = config.openai_api_key
     with open("context.json") as f:
         context_data = json.load(f)
     encoding = tiktoken.encoding_for_model(config.OPENAI_MODEL)
     self_user = client.user
+    gpt_lock = asyncio.Lock()
 
 
 def get_name(user):
@@ -91,22 +94,35 @@ def strip_mentions(message: Message) -> str:
 
 # Fetch messages from history up to a certain token allowance
 async def fetch_history(
-    token_allowance: int, channel: TextChannel
+    token_allowance: int, message: Message
 ) -> List[Tuple[str, bool]]:
     total_tokens = 0
-    messages = []
-    async for idx, message in enumerate(channel.history()):
+    history = []
+    idx = 0
+    one_hour = datetime.timedelta(hours=1)
+    seen_message = False
+    async for msg in message.channel.history():
+        # Skip messages newer than message argument
+        seen_message = seen_message or (msg == message)
+        if not seen_message:
+            continue
+
         # Don't include messages which are both more than 3 back and an hour old
-        if idx >= 3 and (datetime.datetime.now() - message.created_at) > 3600:
+        idx += 1
+        timezone = message.created_at.tzinfo
+        now = datetime.datetime.now(timezone)
+        if idx > 3 and (now - message.created_at) > one_hour:
             break
-        msg = f"{get_name(message.author)}: {strip_mentions(message)}"
-        total_tokens += token_count(msg)
+
+        # Add message to data
+        msg_text = f"{get_name(msg.author)}: {strip_mentions(msg)}"
+        total_tokens += token_count(msg_text)
         if total_tokens > token_allowance:
             break
         else:
-            is_self = message.author == self_user
-            messages.append((msg, is_self))
-    return messages
+            is_self = msg.author == self_user
+            history.append((msg_text, is_self))
+    return history
 
 
 async def query_api(message: Message) -> Optional[str]:
@@ -120,7 +136,7 @@ async def query_api(message: Message) -> Optional[str]:
     context = "\n".join(static_context + author_context + optional_context)
 
     token_allowance = config.GPT_REQUEST_TOKEN_LIMIT - token_count(context)
-    history = await fetch_history(token_allowance, message.channel)
+    history = await fetch_history(token_allowance, message)
     # We couldn't git even a single message in history
     if not history:
         message.reply("I'm not reading all that.")
@@ -151,9 +167,23 @@ async def query_api(message: Message) -> Optional[str]:
     return None
 
 
-async def reply(message: Message):
-    async with message.channel.typing():
-        response = await query_api(message)
-
-    if response:
-        await message.reply(response)
+async def respond(message: Message):
+    # React with a "stop" hand, we're responding to someone else
+    if gpt_lock.locked():
+        raised_hand_emoji = "\N{RAISED HAND}\U0001F3FF"
+        await message.add_reaction(raised_hand_emoji)
+        return
+    # Respond to message
+    async with gpt_lock:
+        async with message.channel.typing():
+            response = await query_api(message)
+        if response:
+            # If user's message is most recent message in channel, send
+            # If others have been sent in the meantime, reply
+            most_recent_message = [
+                msg async for msg in message.channel.history(limit=1)
+            ][0]
+            if message == most_recent_message:
+                await message.channel.send(response)
+            else:
+                await message.reply(response)

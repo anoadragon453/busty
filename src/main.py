@@ -63,7 +63,7 @@ async def on_message(message: Message) -> None:
         and client.user in message.mentions
         and message.author != client.user
     ):
-        await gpt.reply(message)
+        await gpt.respond(message)
 
 
 # Allow only one async routine to calculate list at a time
