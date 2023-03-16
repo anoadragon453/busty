@@ -5,3 +5,4 @@ google-api-python-client>=2.57.0
 oauth2client>=4.1.3
 pillow>=9.0  # should be kept in sync with types-pillow in dev-requirements
 openai>=0.27.2
+tiktoken>=0.3.1

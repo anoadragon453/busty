@@ -44,6 +44,8 @@ controllers: Dict[int, BustController] = {}
 @client.event
 async def on_ready() -> None:
     print(f"We have logged in as {client.user}.")
+    if config.openai_api_key:
+        gpt.initialize(client)
 
 
 @client.event
