@@ -32,7 +32,7 @@ PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
 # The OpenAI model to use for GPT abilities
 OPENAI_MODEL = "gpt-3.5-turbo"
 # Max number of tokens to send in OpenAI API request
-GPT_REQUEST_TOKEN_LIMIT = 4096 - 2048
+GPT_REQUEST_TOKEN_LIMIT = 512
 
 # SETTINGS
 # How many seconds to wait in-between songs

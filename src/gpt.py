@@ -142,12 +142,11 @@ async def query_api(message: Message) -> Optional[str]:
         message.reply("I'm not reading all that.")
 
     # Send data to API
-    data = [
-        {"role": "system", "content": context},
-    ]
+    data = []
     for message, is_self in reversed(history):
         role = "assistant" if is_self else "user"
         data.append({"role": role, "content": message})
+    data.append({"role": "system", "content": context})
 
     print(data)
     print("=================")
