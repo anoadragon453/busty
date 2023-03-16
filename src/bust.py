@@ -98,7 +98,7 @@ class BustController:
         voice_channels.extend(interaction.guild.stage_channels)
 
         if not voice_channels:
-            await interaction.followup.send(
+            await interaction.send(
                 "You need to be in an active voice or stage channel.", ephemeral=True
             )
             return
@@ -127,7 +127,7 @@ class BustController:
                 return
         else:
             # No voice channel was found
-            await interaction.followup.send(
+            await interaction.send(
                 "You need to be in an active voice channel.", ephemeral=True
             )
             return
@@ -351,7 +351,7 @@ class BustController:
             description=embed_text,
             color=config.INFO_EMBED_COLOR,
         )
-        await interaction.followup.send(embed=embed)
+        await interaction.send(embed=embed)
 
 
 async def create_controller(

@@ -199,7 +199,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     except Exception as e:
         print("Unable to set form image:", e)
 
-        await interaction.response.send_message(
+        await interaction.send(
             f"Failed to upload image ({type(e)}). See the logs for more details.",
             ephemeral=True,
         )
