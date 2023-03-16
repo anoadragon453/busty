@@ -1,6 +1,7 @@
 import json
 import tiktoken
 import re
+import datetime
 from typing import Optional, List, Tuple
 
 import openai
@@ -94,7 +95,10 @@ async def fetch_history(
 ) -> List[Tuple[str, bool]]:
     total_tokens = 0
     messages = []
-    async for message in channel.history():
+    async for idx, message in enumerate(channel.history()):
+        # Don't include messages which are both more than 3 back and an hour old
+        if idx >= 3 and (datetime.datetime.now() - message.created_at) > 3600:
+            break
         msg = f"{get_name(message.author)}: {strip_mentions(message)}"
         total_tokens += token_count(msg)
         if total_tokens > token_allowance:
