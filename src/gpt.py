@@ -1,10 +1,10 @@
-import json
-import tiktoken
-import re
 import datetime
-from typing import Optional, List, Tuple
+import json
+import re
+from typing import List, Optional, Tuple
 
 import openai
+import tiktoken
 from nextcord import Member, Message, TextChannel
 
 import config
