@@ -1,12 +1,12 @@
+import asyncio
 import datetime
 import json
-import asyncio
 import re
 from typing import List, Optional, Tuple
 
 import openai
 import tiktoken
-from nextcord import Member, Message, TextChannel, User
+from nextcord import Member, Message
 
 import config
 
