@@ -83,14 +83,12 @@ async def on_list(
     bc = controllers.get(interaction.guild_id)
 
     if bc and bc.is_active():
-        await interaction.response.send_message("We're busy busting.", ephemeral=True)
+        await interaction.send("We're busy busting.", ephemeral=True)
         return
 
     # Give up if locked
     if list_task_control_lock.locked():
-        await interaction.response.send_message(
-            "A list is already in progress.", ephemeral=True
-        )
+        await interaction.send("A list is already in progress.", ephemeral=True)
         return
 
     if list_channel is None:
@@ -117,21 +115,15 @@ async def bust(
     bc = controllers.get(interaction.guild_id)
 
     if bc is None:
-        await interaction.response.send_message(
-            "You need to use `/list` first.", ephemeral=True
-        )
+        await interaction.send("You need to use `/list` first.", ephemeral=True)
         return
 
     elif bc.is_active():
-        await interaction.response.send_message(
-            "We're already busting.", ephemeral=True
-        )
+        await interaction.send("We're already busting.", ephemeral=True)
         return
 
     if index > len(bc.bust_content):
-        await interaction.response.send_message(
-            "There aren't that many tracks.", ephemeral=True
-        )
+        await interaction.send("There aren't that many tracks.", ephemeral=True)
         return
     await bc.play(interaction, index - 1)
     del controllers[interaction.guild_id]
@@ -145,10 +137,10 @@ async def skip(interaction: Interaction) -> None:
     bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
-        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+        await interaction.send("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("I didn't like that track anyways.")
+    await interaction.send("I didn't like that track anyways.")
     bc.skip_song()
 
 
@@ -160,10 +152,10 @@ async def stop(interaction: Interaction) -> None:
     bc = controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
-        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+        await interaction.send("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Alright I'll shut up.")
+    await interaction.send("Alright I'll shut up.")
     await bc.stop()
 
 
@@ -184,9 +176,7 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     if not await persistent_state.save_form_image_url(interaction, image_file.url):
         return
 
-    await interaction.response.send_message(
-        f":white_check_mark: Image set to {image_file.url}."
-    )
+    await interaction.send(f":white_check_mark: Image set to {image_file.url}.")
 
 
 @image.subcommand(name="url")
@@ -198,9 +188,7 @@ async def image_by_url(interaction: Interaction, image_url: str) -> None:
     if not await persistent_state.save_form_image_url(interaction, image_url):
         return
 
-    await interaction.response.send_message(
-        f":white_check_mark: Image set to {image_url}."
-    )
+    await interaction.send(f":white_check_mark: Image set to {image_url}.")
 
 
 @image.subcommand(name="clear")
@@ -209,10 +197,10 @@ async def image_clear(interaction: Interaction) -> None:
     """Clear the loaded Google Forms image."""
     image_existed = persistent_state.clear_form_image_url(interaction)
     if not image_existed:
-        await interaction.response.send_message("No image is loaded.", ephemeral=True)
+        await interaction.send("No image is loaded.", ephemeral=True)
         return
 
-    await interaction.response.send_message(":wastebasket: Image cleared.")
+    await interaction.send(":wastebasket: Image cleared.")
 
 
 @image.subcommand(name="view")
@@ -221,12 +209,10 @@ async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
     loaded_image_url = persistent_state.get_form_image_url(interaction)
     if loaded_image_url is None:
-        await interaction.response.send_message(
-            "No image is currently loaded.", ephemeral=True
-        )
+        await interaction.send("No image is currently loaded.", ephemeral=True)
         return
 
-    await interaction.response.send_message(f"The loaded image is {loaded_image_url}.")
+    await interaction.send(f"The loaded image is {loaded_image_url}.")
 
 
 # Info command
@@ -237,9 +223,7 @@ async def info(interaction: Interaction) -> None:
     bc = controllers.get(interaction.guild_id)
 
     if bc is None:
-        await interaction.response.send_message(
-            "You need to use /list first.", ephemeral=True
-        )
+        await interaction.send("You need to use /list first.", ephemeral=True)
         return
 
     await bc.send_stats(interaction)
@@ -258,7 +242,7 @@ async def preview(
     await interaction.response.defer(ephemeral=True)
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
-        await interaction.followup.send(
+        await interaction.send(
             "You uploaded an invalid media file, please try again.",
             ephemeral=True,
         )
@@ -285,10 +269,10 @@ async def preview(
 
     if cover_art is not None:
         embed.set_image(url=f"attachment://{cover_art.filename}")
-        await interaction.followup.send(file=cover_art, embed=embed, ephemeral=True)
+        await interaction.send(file=cover_art, embed=embed, ephemeral=True)
 
     else:
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.send(embed=embed, ephemeral=True)
 
     # Delete the attachment from disk after processing
     os.remove(attachment_filepath)
@@ -319,7 +303,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        await interaction.followup.send(
+        await interaction.send(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
@@ -331,7 +315,7 @@ async def announce(
         interaction_reply = "Announcement has been sent."
     else:
         interaction_reply = f"Announcement has been sent in {channel.mention}."
-    await interaction.followup.send(interaction_reply, ephemeral=True)
+    await interaction.send(interaction_reply, ephemeral=True)
 
 
 @client.event
@@ -340,7 +324,7 @@ async def on_application_command_error(
 ) -> None:
     # Catch insufficient permissions exception, ignore all others
     if isinstance(error, application_checks.errors.ApplicationMissingRole):
-        await interaction.response.send_message(
+        await interaction.send(
             "You don't have permission to use this command.", ephemeral=True
         )
     else:
