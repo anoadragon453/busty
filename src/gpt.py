@@ -130,6 +130,10 @@ def strip_mentions(message: Message) -> str:
     content = message.content
     for user in message.mentions:
         content = content.replace(user.mention, get_name(user))
+    for channel in message.channel_mentions:
+        content = content.replace(channel.mention, channel.name)
+    for role in message.role_mentions:
+        content = content.replace(role.mention, role.name)
     return content
 
 

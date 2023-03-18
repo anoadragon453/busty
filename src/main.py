@@ -60,7 +60,11 @@ async def on_message(message: Message) -> None:
     if (
         config.openai_api_key
         and message.guild
-        and client.user in message.mentions
+        and (
+            client.user in message.mentions
+            or any(role.name == client.user.name for role in message.role_mentions)
+            or random.random() < 1 / 150
+        )
         and message.author != client.user
     ):
         await gpt.respond(message)
