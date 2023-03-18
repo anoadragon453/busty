@@ -1,8 +1,9 @@
 import asyncio
 import datetime
 import json
+import random
 import re
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import openai
 import tiktoken
@@ -11,20 +12,72 @@ from nextcord import Member, Message
 import config
 
 
+# Initialize globals
 def initialize(client):
+    global gpt_lock
     global context_data
     global encoding
     global self_user
-    global gpt_lock
+    global banned_word_pattern
+    global word_trigger_pattern
+    global user_trigger_pattern
+    global user_info_map
 
     openai.api_key = config.openai_api_key
-    with open("context.json") as f:
-        context_data = json.load(f)
-    encoding = tiktoken.encoding_for_model(config.OPENAI_MODEL)
-    self_user = client.user
+    # Global lock for message response
     gpt_lock = asyncio.Lock()
+    # Load manual hidden data
+    try:
+        with open(config.gpt_context_file) as f:
+            context_data = json.load(f)
+    except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+        print(
+            f"ERROR: Issue loading {config.gpt_context_file}. GPT capabilities will be disabled.\n{e}"
+        )
+        # Signal context data was not loaded correctly
+        context_data = None
+        return
+    # Preload tokenizer
+    encoding = tiktoken.encoding_for_model(config.OPENAI_MODEL)
+    # Store bot user
+    self_user = client.user
+    # Cache regex for banned words
+    banned_word_pattern = re.compile(
+        r"\b{}\b".format("|".join(context_data["banned_phrases"]))
+    )
+
+    # Cache regex for word triggers
+    word_trigger_pattern = re.compile(
+        r"\b({})\b".format("|".join(context_data["word_triggers"].keys()))
+    )
+
+    # Cache regex for user info triggers
+    user_trigger_pattern = re.compile(
+        r"\b({})\b".format(
+            "|".join(
+                [
+                    user["name"].lower()
+                    for user in context_data["user_info"].values()
+                    if "info" in user
+                ]
+            )
+        )
+    )
+    # Store map for user info triggers
+    user_info_map = {
+        user["name"].lower(): user["info"].lower()
+        for user in context_data["user_info"].values()
+        if ("info" in user and "name" in user)
+    }
 
 
+# Check if a message should not be allow in API history
+# Currently this is just if it contains banned phrases
+def disallowed_message(message: Message) -> bool:
+    return banned_word_pattern.search(message.content.lower()) is not None
+
+
+# Get the name we should call the user
 def get_name(user):
     user_info = context_data["user_info"]
     id = str(user.id)
@@ -33,50 +86,38 @@ def get_name(user):
     return user.name
 
 
-async def get_author_context(message: Message) -> str:
+# Get context about the server
+async def get_server_context(message: Message) -> str:
     result = []
-    # Load server event info if message.guild and message.guild.scheduled_events:
-    # No idea if these are sorted by time
-    next_event = message.guild.scheduled_events[0]
-    result.append(f"Next bust number and topic: {next_event.name}")
-    result.append(f"Next bust time: {next_event.start_time.strftime('%b %d')}")
+    # Load server event info
+    if message.guild and message.guild.scheduled_events:
+        # No idea if these are sorted by time
+        next_event = message.guild.scheduled_events[0]
+        if ":" in next_event.name:
+            event_num, event_topic = next_event.name.split(":", maxsplit=1)
+            result.append(f"Next bust event: {event_num.strip()}")
+            result.append(f"Next bust topic: {event_topic.strip()}")
+        else:
+            result.append(f"Next bust event: {next_event.name}")
+
+        result.append(f"Next bust time: {next_event.start_time.strftime('%b %d')}")
+        result.append(f"Today's date: {datetime.date.today().strftime('%b %d')}")
+
+    user = get_name(message.author)
 
     # Role-based info
     if isinstance(message.author, Member):
         roles = {role.name for role in message.author.roles}
 
-        # Provide pronoun info
-        pronouns = ["he/him", "they/them", "she/her", "any pronouns"]
-        pronouns = [p for p in pronouns if p in roles]
-        if pronouns:
-            result.append("User's pronouns: " + (", ".join(pronouns)))
-
         # Provide champion info
         champ = ["Defending Champion", "Runner-up", "Bronzer"]
         for place, role in enumerate(champ, 1):
             if role in roles:
-                result.append(f"User's place last bust: {place}")
+                result.append(f"{user}'s place last bust: {place}")
                 break
 
-    user = get_name(message.author)
     result.append(f"Talking to: {user}")
-    # Bespoke user info
-    user_info = context_data["user_info"]
-    id = str(message.author.id)
-    if id in user_info and "info" in user_info[id]:
-        result.append(f"About {user}: {user_info[id]['info']}")
-
     return result
-
-
-def get_optional_context(content):
-    # tokenize into successive strings of alphanumeric characters
-    tokens = set(re.split(r"\W+", content.lower()))
-    context = []
-    for token in tokens:
-        if token in context_data["word_triggers"]:
-            context.append(context_data["word_triggers"][token])
-    return context
 
 
 # Count tokens in a string
@@ -94,15 +135,17 @@ def strip_mentions(message: Message) -> str:
 
 # Fetch messages from history up to a certain token allowance
 async def fetch_history(
-    token_allowance: int, message: Message
+    token_limit: int, speaking_turn_limit: int, message: Message
 ) -> List[Tuple[str, bool]]:
     total_tokens = 0
     history = []
     idx = 0
     one_hour = datetime.timedelta(hours=1)
     seen_message = False
+    speaking_turn_count = 0
+    last_author = None
     async for msg in message.channel.history():
-        # Skip messages newer than message argument
+        # Skip messages newer than what we're replying to
         seen_message = seen_message or (msg == message)
         if not seen_message:
             continue
@@ -114,10 +157,21 @@ async def fetch_history(
         if idx > 3 and (now - message.created_at) > one_hour:
             break
 
+        # Break if maximum number of speaking turns has been reached
+        if msg.author != last_author:
+            speaking_turn_count += 1
+            if speaking_turn_count > speaking_turn_limit:
+                break
+            last_author = msg.author
+
+        # Break if message is disallowed
+        if disallowed_message(msg):
+            break
+
         # Add message to data
         msg_text = f"{get_name(msg.author)}: {strip_mentions(msg)}"
         total_tokens += token_count(msg_text)
-        if total_tokens > token_allowance:
+        if total_tokens > token_limit:
             break
         else:
             is_self = msg.author == self_user
@@ -125,57 +179,95 @@ async def fetch_history(
     return history
 
 
-async def query_api(message: Message) -> Optional[str]:
-    # Replace mentions with names
-    content = strip_mentions(message)
-
+# Build context around a message
+async def get_message_context(message: Message) -> str:
     # build contexts
     static_context = context_data["static_context"]
-    author_context = await get_author_context(message)
-    optional_context = get_optional_context(content)
-    context = "\n".join(static_context + author_context + optional_context)
+    author_context = await get_server_context(message)
+    return static_context + author_context
 
-    token_allowance = config.GPT_REQUEST_TOKEN_LIMIT - token_count(context)
-    history = await fetch_history(token_allowance, message)
-    # We couldn't git even a single message in history
-    if not history:
-        message.reply("I'm not reading all that.")
 
-    # Send data to API
-    data = []
-    for message, is_self in reversed(history):
-        role = "assistant" if is_self else "user"
-        data.append({"role": role, "content": message})
-    data.append({"role": "system", "content": context})
-
-    print(data)
-    print("=================")
+# Query thge OpenAI API and return response
+async def query_api(data: Dict) -> Optional[str]:
     try:
         response = await openai.ChatCompletion.acreate(
             model=config.OPENAI_MODEL, messages=data
         )
-        text = response["choices"][0]["message"]["content"]
+        return response["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        print("OpenAI API exception:", e)
+        return None
+
+
+def get_history_context(history: List[Tuple[str, bool]]):
+    # Load additional context from history
+    word_triggers = set()
+    user_triggers = set()
+    for content, _ in history:
+        for word in word_trigger_pattern.findall(content):
+            word_triggers.add(word)
+        for user in user_trigger_pattern.findall(content):
+            user_triggers.add(user)
+    # Return context about users + word triggers from history
+    return [f"{user} info: {user_info_map[user]}" for user in user_triggers] + [
+        context_data["word_triggers"][word] for word in word_triggers
+    ]
+
+
+# Make an api query
+async def get_response_text(message: Message) -> Optional[str]:
+    context = await get_message_context(message)
+    if random.random() < 0.05 or disallowed_message(message):
+        # If message is disallowed (or the user is unlucky), pass a special instruction
+
+        # Get user info since we're not passing history which would trigger it
+        user = get_name(message.author).lower()
+        context.append(f"{user}: {user_info_map[user]}")
+        # Pass special instruction
+        context.append(context_data["banned_phrase_instruction"])
+        history = []
+    else:
+        # Load history with 512 token limit and 5 speaking turn limit
+        history = await fetch_history(512, 5, message)
+        # We couldn't fit even a single message in history
+        if not history:
+            message.reply("I'm not reading all that.")
+            return
+
+        context += get_history_context(history)
+
+    # Send data to API
+    data = []
+    data.append({"role": "system", "content": "\n".join(context)})
+
+    for msg, is_self in reversed(history):
+        role = "assistant" if is_self else "user"
+        data.append({"role": role, "content": msg})
+
+    response = await query_api(data)
+    if response:
         # Remove "Busty: " prefix
         prefix = f"{get_name(self_user)}: "
-        if text.startswith(prefix):
-            text = text[len(prefix) :]
-        return text
-    except Exception as e:
-        message.reply("busy rn")
-        print(e)
+        if response.startswith(prefix):
+            response = response[len(prefix) :]
+
+        return response
+    else:
+        await message.reply("busy rn")
     return None
 
 
 async def respond(message: Message):
     # React with a "stop" hand, we're responding to someone else
-    if gpt_lock.locked():
+    if gpt_lock.locked() or not context_data:
         raised_hand_emoji = "\N{RAISED HAND}\U0001F3FF"
         await message.add_reaction(raised_hand_emoji)
         return
     # Respond to message
     async with gpt_lock:
         async with message.channel.typing():
-            response = await query_api(message)
+            response = await get_response_text(message)
         if response:
             # If user's message is most recent message in channel, send
             # If others have been sent in the meantime, reply
