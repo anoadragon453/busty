@@ -86,6 +86,21 @@ def get_name(user):
     return user.name
 
 
+# Get totally random triggers about how to act:
+def get_random_context():
+    context = []
+    value = random.random()
+    if value < 0.25:
+        context.append("Respond in 10 words or less")
+    elif value < 0.5:
+        context.append("Be succinct")
+    elif value < 0.75:
+        context.append("Don't be too wordy")
+    else:
+        context.append("Write long detailed responses")
+    return context
+
+
 # Get context about the server
 async def get_server_context(message: Message) -> str:
     result = []
@@ -110,8 +125,12 @@ async def get_server_context(message: Message) -> str:
         roles = {role.name for role in message.author.roles}
 
         # Provide champion info
-        champ = ["Defending Champion", "Runner-up", "Bronzer"]
-        for place, role in enumerate(champ, 1):
+        champ = [
+            ("Defending Champion", "first"),
+            ("Runner-up", "second"),
+            ("Bronzer", "third"),
+        ]
+        for role, place in champ:
             if role in roles:
                 result.append(f"{user}'s place last bust: {place}")
                 break
@@ -188,14 +207,17 @@ async def get_message_context(message: Message) -> str:
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
-    return static_context + author_context
+    random_context = get_random_context()
+    return static_context + author_context + random_context
 
 
 # Query thge OpenAI API and return response
 async def query_api(data: Dict) -> Optional[str]:
     try:
         response = await openai.ChatCompletion.acreate(
-            model=config.OPENAI_MODEL, messages=data
+            model=config.OPENAI_MODEL,
+            messages=data,
+            timeout=10.0,
         )
         return response["choices"][0]["message"]["content"]
 
@@ -226,11 +248,12 @@ async def get_response_text(message: Message) -> Optional[str]:
         # If message is disallowed (or the user is unlucky), pass a special instruction
 
         # Get user info since we're not passing history which would trigger it
-        user = get_name(message.author).lower()
-        context.append(f"{user}: {user_info_map[user]}")
+        user = get_name(message.author)
+        context.append(f"{user}: {user_info_map[user.lower()]}")
         # Pass special instruction
         context.append(context_data["banned_phrase_instruction"])
-        history = []
+        # Make up empty history so she understands the format
+        history = [(f"{self_user.name}:", True), (f"{user}:", False)]
     else:
         # Load history with 512 token limit and 5 speaking turn limit
         history = await fetch_history(512, 5, message)
@@ -273,12 +296,17 @@ async def respond(message: Message):
         async with message.channel.typing():
             response = await get_response_text(message)
         if response:
+            response_split = [
+                response[i : i + config.MESSAGE_LIMIT]
+                for i in range(0, len(response), config.MESSAGE_LIMIT)
+            ]
             # If user's message is most recent message in channel, send
             # If others have been sent in the meantime, reply
             most_recent_message = [
                 msg async for msg in message.channel.history(limit=1)
             ][0]
-            if message == most_recent_message:
-                await message.channel.send(response)
-            else:
-                await message.reply(response)
+            for idx, text in enumerate(response_split):
+                if idx == 0 and message == most_recent_message:
+                    await message.channel.send(response)
+                else:
+                    await message.reply(response)
