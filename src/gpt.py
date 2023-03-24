@@ -211,7 +211,7 @@ async def get_message_context(message: Message) -> str:
     return static_context + author_context + random_context
 
 
-# Query thge OpenAI API and return response
+# Query the OpenAI API and return response
 async def query_api(data: Dict) -> Optional[str]:
     try:
         response = await openai.ChatCompletion.acreate(
