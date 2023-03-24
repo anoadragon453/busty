@@ -145,7 +145,7 @@ def token_count(data: str) -> int:
 
 
 # Replace Discord-style mentions with names
-def strip_mentions(message: Message) -> str:
+def substitute_mentions(message: Message) -> str:
     content = message.content
     for user in message.mentions:
         content = content.replace(user.mention, get_name(user))
