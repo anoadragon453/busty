@@ -16,7 +16,7 @@ from nextcord.ext import application_checks, commands
 
 import config
 import discord_utils
-import gpt
+import llm
 import persistent_state
 import song_utils
 from bust import BustController, create_controller
@@ -45,7 +45,7 @@ controllers: Dict[int, BustController] = {}
 async def on_ready() -> None:
     print(f"We have logged in as {client.user}.")
     if config.openai_api_key:
-        gpt.initialize(client)
+        llm.initialize(client)
 
 
 @client.event
@@ -69,7 +69,7 @@ async def on_message(message: Message) -> None:
         )
         and message.author != client.user
     ):
-        await gpt.respond(message)
+        await llm.respond(message)
 
 
 # Allow only one async routine to calculate list at a time
