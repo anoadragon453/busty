@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 import openai
 import tiktoken
-from nextcord import Member, Message
+from nextcord import Client, Member, Message
 
 import config
 
@@ -88,12 +88,14 @@ def get_name(user: Member) -> str:
 
 # Get totally random triggers about how to act:
 def get_random_context() -> List[str]:
-    random_context = random.choice([
-        "Respond in 10 words or less",
-        "Be succinct",
-        "Don't be too wordy",
-        "Write long detailed responses",
-    ])
+    random_context = random.choice(
+        [
+            "Respond in 10 words or less",
+            "Be succinct",
+            "Don't be too wordy",
+            "Write long detailed responses",
+        ]
+    )
     return [random_context]
 
 
@@ -192,7 +194,7 @@ async def fetch_history(
             break
 
         # Add this message's author and content to the returned history
-        msg_text = f"{get_name(msg.author)}: {strip_mentions(msg)}"
+        msg_text = f"{get_name(msg.author)}: {substitute_mentions(msg)}"
         total_tokens += token_count(msg_text)
         if total_tokens > token_limit:
             break
