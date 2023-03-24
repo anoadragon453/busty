@@ -13,7 +13,7 @@ import config
 
 
 # Initialize globals
-def initialize(client):
+def initialize(client: Client) -> None:
     global gpt_lock
     global context_data
     global encoding
