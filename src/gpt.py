@@ -226,7 +226,7 @@ async def query_api(data: Dict) -> Optional[str]:
         return None
 
 
-def get_history_context(history: List[Tuple[str, bool]]):
+def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
     # Load additional context from history
     word_triggers = set()
     user_triggers = set()
