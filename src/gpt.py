@@ -152,7 +152,7 @@ def substitute_mentions(message: Message) -> str:
     return content
 
 
-# Fetch messages from history up to a certain token allowance
+# Fetch message content from history up to a certain token allowance
 async def fetch_history(
     token_limit: int, speaking_turn_limit: int, message: Message
 ) -> List[Tuple[str, bool]]:
