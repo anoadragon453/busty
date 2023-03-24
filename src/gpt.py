@@ -280,8 +280,8 @@ async def get_response_text(message: Message) -> Optional[str]:
             response = response[len(prefix) :]
 
         return response
-    else:
-        await message.reply("busy rn")
+
+    await message.reply("busy rn")
     return None
 
 
