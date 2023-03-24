@@ -71,7 +71,7 @@ def initialize(client: Client) -> None:
     }
 
 
-# Check if a message should not be allow in API history
+# Check if a message's content should be allowed when feeding message history to the model
 # Currently this is just if it contains banned phrases
 def disallowed_message(message: Message) -> bool:
     return banned_word_pattern.search(message.content.lower()) is not None
