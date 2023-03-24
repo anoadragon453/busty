@@ -300,8 +300,7 @@ async def respond(message: Message) -> None:
                 response[i : i + config.MESSAGE_LIMIT]
                 for i in range(0, len(response), config.MESSAGE_LIMIT)
             ]
-            # If user's message is most recent message in channel, send
-            # If others have been sent in the meantime, reply
+            # Reply to the message if it's not the most recent on in the chat history
             most_recent_message = [
                 msg async for msg in message.channel.history(limit=1)
             ][0]
