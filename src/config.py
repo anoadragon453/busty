@@ -48,7 +48,7 @@ google_auth_file = os.environ.get("BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.js
 # The location of the file to store persistent bot state
 bot_state_file = os.environ.get("BUSTY_BOT_STATE_FILE", "bot_state.json")
 # The location of the file to store context for the GPT bot
-gpt_context_file = os.environ.get("BUSTY_GPT_CONTEXT_FILE", "gpt_context.json")
+llm_context_file = os.environ.get("BUSTY_LLM_CONTEXT_FILE", "llm_context.json")
 # For developers only. Specify a testing guild id to avoid 1 hour command update delay
 testing_guild = os.environ.get("BUSTY_TESTING_GUILD_ID", None)
 # OpenAI API Key

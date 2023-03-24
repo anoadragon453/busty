@@ -28,11 +28,11 @@ def initialize(client: Client) -> None:
     gpt_lock = asyncio.Lock()
     # Load manual hidden data
     try:
-        with open(config.gpt_context_file) as f:
+        with open(config.llm_context_file) as f:
             context_data = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
         print(
-            f"ERROR: Issue loading {config.gpt_context_file}. GPT capabilities will be disabled.\n{e}"
+            f"ERROR: Issue loading {config.llm_context_file}. GPT capabilities will be disabled.\n{e}"
         )
         # Signal context data was not loaded correctly
         context_data = None
