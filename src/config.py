@@ -69,7 +69,7 @@ elif not os.path.isfile(google_auth_file):
     )
 
 if openai_api_key is None:
-    print("Warning: BUSTY_OPENAI_API_KEY is not set, LLM abilities will be disabled")
+    print("Warning: BUSTY_OPENAI_API_KEY is not set, natural language abilities will be disabled")
 
 # Import list of emojis from either a custom or the default list.
 # The default list is expected to be stored at `./emoji_list.py`.
