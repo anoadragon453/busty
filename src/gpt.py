@@ -173,6 +173,7 @@ async def fetch_history(
             continue
 
         # Don't include messages which are both more than 3 back and an hour old
+        # as the discussion has likely moved on.
         idx += 1
         timezone = message.created_at.tzinfo
         now = datetime.datetime.now(timezone)
