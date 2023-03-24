@@ -78,7 +78,7 @@ def disallowed_message(message: Message) -> bool:
 
 
 # Get the name we should call the user
-def get_name(user):
+def get_name(user: Member) -> str:
     user_info = context_data["user_info"]
     id = str(user.id)
     if id in user_info and "name" in user_info[id]:
