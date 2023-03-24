@@ -87,7 +87,7 @@ def get_name(user: Member) -> str:
 
 
 # Get totally random triggers about how to act:
-def get_random_context():
+def get_random_context() -> List[str]:
     random_context = random.choice([
         "Respond in 10 words or less",
         "Be succinct",
