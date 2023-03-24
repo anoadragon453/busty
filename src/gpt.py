@@ -88,17 +88,13 @@ def get_name(user: Member) -> str:
 
 # Get totally random triggers about how to act:
 def get_random_context():
-    context = []
-    value = random.random()
-    if value < 0.25:
-        context.append("Respond in 10 words or less")
-    elif value < 0.5:
-        context.append("Be succinct")
-    elif value < 0.75:
-        context.append("Don't be too wordy")
-    else:
-        context.append("Write long detailed responses")
-    return context
+    random_context = random.choice([
+        "Respond in 10 words or less",
+        "Be succinct",
+        "Don't be too wordy",
+        "Write long detailed responses",
+    ])
+    return [random_context]
 
 
 # Get context about the server
