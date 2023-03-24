@@ -62,6 +62,8 @@ async def on_message(message: Message) -> None:
         and message.guild
         and (
             client.user in message.mentions
+            # For the case where a user accidentally mentions the bot's role
+            # instead of their nick (which are typically named the same).
             or any(role.name == client.user.name for role in message.role_mentions)
             or random.random() < 1 / 150
         )
