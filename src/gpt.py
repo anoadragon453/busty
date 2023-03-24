@@ -285,7 +285,7 @@ async def get_response_text(message: Message) -> Optional[str]:
     return None
 
 
-async def respond(message: Message):
+async def respond(message: Message) -> None:
     # React with a "stop" hand, we're responding to someone else
     if gpt_lock.locked() or not context_data:
         raised_hand_emoji = "\N{RAISED HAND}\U0001F3FF"
