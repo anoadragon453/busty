@@ -67,7 +67,7 @@ def initialize(client: Client) -> None:
     user_info_map = {
         user["name"].lower(): user["info"].lower()
         for user in context_data["user_info"].values()
-        if ("info" in user and "name" in user)
+        if "info" in user and "name" in user
     }
 
 
