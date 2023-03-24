@@ -191,7 +191,7 @@ async def fetch_history(
         if disallowed_message(msg):
             break
 
-        # Add message to data
+        # Add this message's author and content to the returned history
         msg_text = f"{get_name(msg.author)}: {strip_mentions(msg)}"
         total_tokens += token_count(msg_text)
         if total_tokens > token_limit:
