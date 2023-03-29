@@ -307,7 +307,7 @@ async def respond(message: Message) -> None:
                 msg async for msg in message.channel.history(limit=1)
             ][0]
             for idx, text in enumerate(response_split):
-                if idx == 0 and message == most_recent_message:
-                    await message.channel.send(response)
-                else:
+                if idx == 0 and message != most_recent_message:
                     await message.reply(response)
+                else:
+                    await message.channel.send(response)
