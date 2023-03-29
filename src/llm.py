@@ -104,16 +104,20 @@ async def get_server_context(message: Message) -> str:
     result = []
     # Load server event info
     if message.guild and message.guild.scheduled_events:
-        # No idea if these are sorted by time
-        next_event = message.guild.scheduled_events[0]
+        # Get earliest scheduled event by start time
+        # API doesn't seem to mention anywhere if they come sorted already
+        next_event = min(
+            message.guild.scheduled_events, key=lambda event: event.start_time
+        )
         if ":" in next_event.name:
             event_num, event_topic = next_event.name.split(":", maxsplit=1)
             result.append(f"Next bust event: {event_num.strip()}")
             result.append(f"Next bust topic: {event_topic.strip()}")
+            result.append(f"Next bust time: {next_event.start_time.strftime('%b %d')}")
         else:
-            result.append(f"Next bust event: {next_event.name}")
+            result.append(f"Next event: {next_event.name}")
+            result.append(f"Next event time: {next_event.start_time.strftime('%b %d')}")
 
-        result.append(f"Next bust time: {next_event.start_time.strftime('%b %d')}")
         result.append(f"Today's date: {datetime.date.today().strftime('%b %d')}")
 
     user = get_name(message.author)
