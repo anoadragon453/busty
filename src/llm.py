@@ -178,6 +178,10 @@ async def fetch_history(
         if not seen_message:
             continue
 
+        # Skip if message is disallowed
+        if disallowed_message(msg):
+            continue
+
         # Don't include messages which are both more than 3 back and an hour old
         # as the discussion has likely moved on.
         idx += 1
@@ -192,10 +196,6 @@ async def fetch_history(
             if speaking_turn_count > speaking_turn_limit:
                 break
             last_author = msg.author
-
-        # Break if message is disallowed
-        if disallowed_message(msg):
-            break
 
         # Add this message's author and content to the returned history
         msg_text = f"{get_name(msg.author)}: {substitute_mentions(msg)}"
