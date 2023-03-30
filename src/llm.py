@@ -254,9 +254,10 @@ async def get_response_text(message: Message) -> Optional[str]:
     if random.random() < 0.05 or disallowed_message(message):
         # If message is disallowed (or the user is unlucky), pass a special instruction
 
-        # Get user info since we're not passing history which would trigger it
+        # Get user info (if available) as we're not passing history which would trigger it
         user = get_name(message.author)
-        context.append(f"{user}: {user_info_map[user.lower()]}")
+        if user.lower() in user_info_map:
+            context.append(f"{user}: {user_info_map[user.lower()]}")
         # Pass special instruction
         context.append(context_data["banned_phrase_instruction"])
         # Make up empty history so the bot understands how to format the response
