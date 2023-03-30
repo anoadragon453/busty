@@ -34,7 +34,6 @@ def initialize(client: Client) -> None:
         print(
             f"ERROR: Issue loading {config.llm_context_file}. GPT capabilities will be disabled.\n{e}"
         )
-        # Signal context data was not loaded correctly
         context_data = None
         return
     # Preload tokenizer
