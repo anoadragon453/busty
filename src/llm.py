@@ -204,9 +204,9 @@ async def fetch_history(
         total_tokens += token_count(msg_text)
         if total_tokens > token_limit:
             break
-        else:
-            is_self = msg.author == self_user
-            history.append((msg_text, is_self))
+
+        is_self = msg.author == self_user
+        history.append((msg_text, is_self))
     return history
 
 
