@@ -260,7 +260,7 @@ async def get_response_text(message: Message) -> Optional[str]:
         context.append(f"{user}: {user_info_map[user.lower()]}")
         # Pass special instruction
         context.append(context_data["banned_phrase_instruction"])
-        # Make up empty history so she understands the format
+        # Make up empty history so the bot understands how to format the response
         history = [(f"{self_user.name}:", True), (f"{user}:", False)]
     else:
         # Load history with 512 token limit and 5 speaking turn limit
