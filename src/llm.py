@@ -165,7 +165,7 @@ async def fetch_history(
     total_tokens = 0
     # A list of (str, bool) tuples containing:
     #     - "{message author}: {message content}"
-    #     - True if the the message was sent by the bot user, False otherwise
+    #     - True if the message was sent by the bot user, False otherwise
     history = []
     idx = 0
     one_hour = datetime.timedelta(hours=1)
