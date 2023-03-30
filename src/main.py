@@ -59,6 +59,7 @@ async def on_close() -> None:
 async def on_message(message: Message) -> None:
     if (
         config.openai_api_key
+        # Ignore DMs to the bot.
         and message.guild
         and (
             client.user in message.mentions
