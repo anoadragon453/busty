@@ -100,7 +100,7 @@ def get_random_context() -> List[str]:
 
 
 # Get context about the server
-async def get_server_context(message: Message) -> str:
+async def get_server_context(message: Message) -> List[str]:
     result = []
     # Load server event info
     if message.guild and message.guild.scheduled_events:
