@@ -211,7 +211,7 @@ async def fetch_history(
 
 
 # Build context around a message
-async def get_message_context(message: Message) -> str:
+async def get_message_context(message: Message) -> List[str]:
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
