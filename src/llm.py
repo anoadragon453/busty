@@ -191,6 +191,8 @@ async def fetch_history(
             break
 
         # Break if maximum number of speaking turns has been reached
+        # We use turns instead of a simple message count as some people like to
+        # break up their thoughts into many separate messages.
         if msg.author != last_author:
             speaking_turn_count += 1
             if speaking_turn_count > speaking_turn_limit:
