@@ -3,11 +3,20 @@ import os
 import random
 from typing import Dict, Optional
 
-from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
+from nextcord import (
+    Attachment,
+    Embed,
+    Intents,
+    Interaction,
+    Message,
+    SlashOption,
+    TextChannel,
+)
 from nextcord.ext import application_checks, commands
 
 import config
 import discord_utils
+import llm
 import persistent_state
 import song_utils
 from bust import BustController, create_controller
@@ -35,6 +44,8 @@ controllers: Dict[int, BustController] = {}
 @client.event
 async def on_ready() -> None:
     print(f"We have logged in as {client.user}.")
+    if config.openai_api_key:
+        llm.initialize(client)
 
 
 @client.event
@@ -42,6 +53,25 @@ async def on_close() -> None:
     # Finish all running busts on close
     for bc in controllers.values():
         await bc.finish(say_goodbye=False)
+
+
+@client.event
+async def on_message(message: Message) -> None:
+    if (
+        config.openai_api_key
+        # Ignore DMs to the bot.
+        and message.guild
+        and (
+            client.user in message.mentions
+            # For the case where a user accidentally mentions the bot's role
+            # instead of their nick (which are typically named the same).
+            or any(role.name == client.user.name for role in message.role_mentions)
+            # Randomly respond to some messages, even if the bot is not mentioned.
+            or random.random() < 1 / 150
+        )
+        and message.author != client.user
+    ):
+        await llm.respond(message)
 
 
 # Allow only one async routine to calculate list at a time
