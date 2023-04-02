@@ -251,7 +251,7 @@ def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
 # Make an api query
 async def get_response_text(message: Message) -> Optional[str]:
     context = await get_message_context(message)
-    if random.random() < 0.05 or disallowed_message(message):
+    if disallowed_message(message):
         # If message is disallowed (or the user is unlucky), pass a special instruction
 
         # Get user info (if available) as we're not passing history which would trigger it
