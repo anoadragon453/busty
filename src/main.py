@@ -182,6 +182,7 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     if not await persistent_state.save_form_image_url(interaction, image_file.url):
         return
 
+    # No period so image preview shows
     await interaction.send(f":white_check_mark: Image set to {image_file.url}")
 
 
@@ -194,6 +195,7 @@ async def image_by_url(interaction: Interaction, image_url: str) -> None:
     if not await persistent_state.save_form_image_url(interaction, image_url):
         return
 
+    # No period so image preview shows
     await interaction.send(f":white_check_mark: Image set to {image_url}")
 
 
@@ -218,6 +220,7 @@ async def image_view(interaction: Interaction) -> None:
         await interaction.send("No image is currently loaded.", ephemeral=True)
         return
 
+    # No period so image preview shows
     await interaction.send(f"The loaded image is {loaded_image_url}")
 
 
