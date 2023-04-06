@@ -108,7 +108,7 @@ async def on_list(
 # Bust command
 @client.slash_command(name="bust", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
-async def do_bust(
+async def on_bust(
     interaction: Interaction,
     index: int = SlashOption(
         required=False,
