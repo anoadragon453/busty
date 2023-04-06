@@ -1,7 +1,7 @@
 import asyncio
 import random
 from collections import defaultdict
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 
 from nextcord import (
     Attachment,
@@ -61,10 +61,16 @@ class BustController:
             if song_len:
                 self.total_song_len += song_len
 
+        # None if no song is playing, otherwise formatted str "artist - title"
+        self.now_playing_str = None
+
         self._finished: bool = False
 
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
+
+    def current_song(self) -> str:
+        return self.now_playing_str
 
     def finished(self) -> bool:
         # TODO: This function should become unnecessary once for-refactor is done
@@ -250,11 +256,16 @@ class BustController:
             after=ffmpeg_post_hook,
         )
 
-        # Change the name of the bot to that of the currently playing song.
-        # This allows people to quickly see which song is currently playing.
-        new_nick = random_emoji + song_utils.song_format(
+        now_playing_str = song_utils.song_format(
             local_filepath, attachment.filename, submit_message.author.display_name
         )
+
+        # Set now playing title
+        self.now_playing_str = now_playing_str
+
+        # Change the name of the bot to that of the currently playing song.
+        # This allows people to quickly see which song is currently playing.
+        new_nick = random_emoji + now_playing_str
 
         # If necessary, truncate name to max length allowed by Discord,
         # appending an ellipsis on the end.
@@ -267,6 +278,7 @@ class BustController:
 
         # Wait for song to finish playing
         await play_lock.acquire()
+        self.now_playing_str = None
 
     def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
         """Create a Google form for voting on this bust
@@ -462,3 +474,6 @@ async def create_controller(
     await interaction.delete_original_message()
     # Return controller
     return bc
+
+
+controllers: Dict[int, BustController] = {}

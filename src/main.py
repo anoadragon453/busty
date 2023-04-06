@@ -1,7 +1,7 @@
 import asyncio
 import os
 import random
-from typing import Dict, Optional
+from typing import Optional
 
 from nextcord import (
     Attachment,
@@ -19,7 +19,7 @@ import discord_utils
 import llm
 import persistent_state
 import song_utils
-from bust import BustController, create_controller
+import bust
 
 # This is necessary to query guild members
 intents = Intents.default()
@@ -38,8 +38,6 @@ if config.testing_guild:
 else:
     client = commands.Bot(intents=intents)
 
-controllers: Dict[int, BustController] = {}
-
 
 @client.event
 async def on_ready() -> None:
@@ -51,7 +49,7 @@ async def on_ready() -> None:
 @client.event
 async def on_close() -> None:
     # Finish all running busts on close
-    for bc in controllers.values():
+    for bc in bust.controllers.values():
         await bc.finish(say_goodbye=False)
 
 
@@ -88,7 +86,7 @@ async def on_list(
     ),
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if bc and bc.is_active():
         await interaction.send("We're busy busting.", ephemeral=True)
@@ -103,14 +101,14 @@ async def on_list(
         list_channel = interaction.channel
 
     async with list_task_control_lock:
-        bc = await create_controller(client, interaction, list_channel)
-        controllers[interaction.guild_id] = bc
+        bc = await bust.create_controller(client, interaction, list_channel)
+        bust.controllers[interaction.guild_id] = bc
 
 
 # Bust command
-@client.slash_command(dm_permission=False)
+@client.slash_command(name="bust", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
-async def bust(
+async def do_bust(
     interaction: Interaction,
     index: int = SlashOption(
         required=False,
@@ -120,7 +118,7 @@ async def bust(
     ),
 ) -> None:
     """Begin a bust."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if bc is None:
         await interaction.send("You need to use `/list` first.", ephemeral=True)
@@ -134,7 +132,7 @@ async def bust(
         await interaction.send("There aren't that many tracks.", ephemeral=True)
         return
     await bc.play(interaction, index - 1)
-    del controllers[interaction.guild_id]
+    del bust.controllers[interaction.guild_id]
 
 
 # Skip command
@@ -142,7 +140,7 @@ async def bust(
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
         await interaction.send("Nothing is playing.", ephemeral=True)
@@ -157,7 +155,7 @@ async def skip(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
         await interaction.send("Nothing is playing.", ephemeral=True)
@@ -228,7 +226,7 @@ async def image_view(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if bc is None:
         await interaction.send("You need to use /list first.", ephemeral=True)
