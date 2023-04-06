@@ -256,16 +256,14 @@ class BustController:
             after=ffmpeg_post_hook,
         )
 
-        now_playing_str = song_utils.song_format(
+        # Set now playing title
+        self.now_playing_str = song_utils.song_format(
             local_filepath, attachment.filename, submit_message.author.display_name
         )
 
-        # Set now playing title
-        self.now_playing_str = now_playing_str
-
         # Change the name of the bot to that of the currently playing song.
         # This allows people to quickly see which song is currently playing.
-        new_nick = random_emoji + now_playing_str
+        new_nick = random_emoji + self.now_playing_str
 
         # If necessary, truncate name to max length allowed by Discord,
         # appending an ellipsis on the end.
