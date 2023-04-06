@@ -9,6 +9,7 @@ import openai
 import tiktoken
 from nextcord import Client, Member, Message
 
+import bust
 import config
 
 
@@ -101,6 +102,15 @@ def get_random_context() -> List[str]:
 # Get context about the server
 async def get_server_context(message: Message) -> List[str]:
     result = []
+
+    # Detect if song is currently playing
+    if hasattr(message, "guild"):
+        bc = bust.controllers.get(message.guild.id)
+        if bc and bc.is_active():
+            result.append("The bust is going on right now!")
+            result.append(f"Now playing: {bc.current_song()}")
+            result.append("Tell everyone you can't respond since you're busy busting.")
+
     # Load server event info
     if message.guild and message.guild.scheduled_events:
         # Get earliest scheduled event by start time
@@ -111,8 +121,8 @@ async def get_server_context(message: Message) -> List[str]:
         if ":" in next_event.name:
             event_num, event_topic = next_event.name.split(":", maxsplit=1)
             result.append(f"Next bust event: {event_num.strip()}")
-            result.append(f"Next bust topic: {event_topic.strip()}")
             result.append(f"Next bust time: {next_event.start_time.strftime('%b %d')}")
+            result.append(f"Bust topic: {event_topic.strip()}")
         else:
             result.append(f"Next event: {next_event.name}")
             result.append(f"Next event time: {next_event.start_time.strftime('%b %d')}")
@@ -137,6 +147,7 @@ async def get_server_context(message: Message) -> List[str]:
                 break
 
     result.append(f"Talking to: {user}")
+
     return result
 
 
@@ -299,6 +310,7 @@ async def respond(message: Message) -> None:
         raised_hand_emoji = "\N{RAISED HAND}\U0001F3FF"
         await message.add_reaction(raised_hand_emoji)
         return
+
     # Respond to message
     async with gpt_lock:
         async with message.channel.typing():
