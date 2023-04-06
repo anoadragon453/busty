@@ -14,12 +14,12 @@ from nextcord import (
 )
 from nextcord.ext import application_checks, commands
 
+import bust
 import config
 import discord_utils
 import llm
 import persistent_state
 import song_utils
-import bust
 
 # This is necessary to query guild members
 intents = Intents.default()

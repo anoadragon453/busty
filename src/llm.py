@@ -9,8 +9,8 @@ import openai
 import tiktoken
 from nextcord import Client, Member, Message
 
-import config
 import bust
+import config
 
 
 # Initialize globals

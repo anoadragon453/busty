@@ -1,7 +1,7 @@
 import asyncio
 import random
 from collections import defaultdict
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 from nextcord import (
     Attachment,
