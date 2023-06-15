@@ -97,6 +97,9 @@ class BustController:
         """
 
         await interaction.response.defer(ephemeral=True)
+        # Update message channel to where command was issued from
+        self.message_channel = interaction.channel
+
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
             interaction.guild.voice_channels
@@ -142,7 +145,7 @@ class BustController:
         # We'll restore it after songs have finished playing.
         self.original_bot_nickname = bot_member.display_name
 
-        await interaction.channel.send("Let's get **BUSTY**.")
+        await self.message_channel.send("Let's get **BUSTY**.")
         await interaction.delete_original_message()
 
         # Play songs
