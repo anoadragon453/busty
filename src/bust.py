@@ -97,6 +97,7 @@ class BustController:
         """
 
         await interaction.response.defer(ephemeral=True)
+
         # Update message channel to where command was issued from
         self.message_channel = interaction.channel
 
