@@ -29,8 +29,6 @@ VOLUME_MULTIPLIER = 0.5
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 # The URL that the '↲jump' link will lead to when using the /preview command.
 PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
-# The OpenAI model to use for GPT abilities
-OPENAI_MODEL = "gpt-3.5-turbo"
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -53,6 +51,8 @@ llm_context_file = os.environ.get("BUSTY_LLM_CONTEXT_FILE", "llm_context.json")
 testing_guild = os.environ.get("BUSTY_TESTING_GUILD_ID", None)
 # OpenAI API Key
 openai_api_key = os.environ.get("BUSTY_OPENAI_API_KEY", None)
+# The OpenAI model to use for GPT abilities
+openai_model= os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo")
 
 # TYPES
 # Acceptable data types to store in a JSON representation.

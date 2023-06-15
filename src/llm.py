@@ -38,7 +38,7 @@ def initialize(client: Client) -> None:
         context_data = None
         return
     # Preload tokenizer
-    encoding = tiktoken.encoding_for_model(config.OPENAI_MODEL)
+    encoding = tiktoken.encoding_for_model(config.openai_model)
     # Store bot user
     self_user = client.user
     # Cache regex for banned words
@@ -233,7 +233,7 @@ async def get_message_context(message: Message) -> List[str]:
 async def query_api(data: Dict) -> Optional[str]:
     try:
         response = await openai.ChatCompletion.acreate(
-            model=config.OPENAI_MODEL,
+            model=config.openai_model,
             messages=data,
             timeout=10.0,
         )
