@@ -52,7 +52,7 @@ testing_guild = os.environ.get("BUSTY_TESTING_GUILD_ID", None)
 # OpenAI API Key
 openai_api_key = os.environ.get("BUSTY_OPENAI_API_KEY", None)
 # The OpenAI model to use for GPT abilities
-openai_model= os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo")
+openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo")
 
 # TYPES
 # Acceptable data types to store in a JSON representation.
