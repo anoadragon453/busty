@@ -33,7 +33,8 @@ def initialize(client: Client) -> None:
             context_data = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
         print(
-            f"ERROR: Issue loading {config.llm_context_file}. GPT capabilities will be disabled.\n{e}"
+            f"ERROR: Issue loading {config.llm_context_file}. "
+            f"GPT capabilities will be disabled.\n{e}"
         )
         context_data = None
         return
@@ -291,15 +292,15 @@ async def get_response_text(message: Message) -> Optional[str]:
         role = "assistant" if is_self else "user"
         data.append({"role": role, "content": msg})
 
-    response = await query_api(data)
-    if response:
-        # Remove "Busty: " prefix
-        prefix = f"{get_name(self_user)}: "
-        if response.startswith(prefix):
-            response = response[len(prefix) :]
+    for x in range(config.LLM_RETRY):
+        response = await query_api(data)
+        if response:
+            # Remove "Busty: " prefix
+            prefix = f"{get_name(self_user)}: "
+            if response.startswith(prefix):
+                response = response[len(prefix) :]
 
-        return response
-
+            return response
     await message.reply("busy rn")
     return None
 

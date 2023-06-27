@@ -31,6 +31,8 @@ MAXIMUM_CONCURRENT_DOWNLOADS = 8
 PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
 # The OpenAI model to use for GPT abilities
 OPENAI_MODEL = "gpt-3.5-turbo"
+# Number of times to retry if API does not respond in time
+LLM_RETRY = 2
 
 # SETTINGS
 # How many seconds to wait in-between songs
