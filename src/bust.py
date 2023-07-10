@@ -99,6 +99,7 @@ class BustController:
         await interaction.response.defer(ephemeral=True)
 
         # Update message channel to where command was issued from
+        # (in case `list` was called from a separate/private channel).
         self.message_channel = interaction.channel
 
         # Join active voice call
