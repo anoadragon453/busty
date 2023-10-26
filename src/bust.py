@@ -160,7 +160,9 @@ class BustController:
                 break
 
             # wrap play_song() in a coroutine so it is cancellable
-            self.play_song_task = asyncio.create_task(self.play_song(self.playing_index))
+            self.play_song_task = asyncio.create_task(
+                self.play_song(self.playing_index)
+            )
             try:
                 await self.play_song_task
             except asyncio.CancelledError:

@@ -177,7 +177,7 @@ async def stop(interaction: Interaction) -> None:
         return
 
     await interaction.send("Alright I'll shut up.")
-    await bc.stop()
+    bc.stop()
 
 
 # Image command
