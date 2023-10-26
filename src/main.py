@@ -147,7 +147,22 @@ async def skip(interaction: Interaction) -> None:
         return
 
     await interaction.send("I didn't like that track anyways.")
-    bc.skip_song()
+    bc.skip_to_track(bc.playing_index + 1)
+
+
+# Replay command
+@client.slash_command(dm_permission=False)
+@application_checks.has_role(config.dj_role_name)
+async def replay(interaction: Interaction) -> None:
+    """Replay currently playing song from the beginning."""
+    bc = bust.controllers.get(interaction.guild_id)
+
+    if not bc or not bc.is_active():
+        await interaction.send("Nothing is playing.", ephemeral=True)
+        return
+
+    await interaction.send("Replaying this track.")
+    bc.skip_to_track(bc.playing_index)
 
 
 # Stop command
