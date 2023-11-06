@@ -23,8 +23,8 @@ def initialize(client: Client) -> None:
     global word_trigger_pattern
     global user_trigger_pattern
     global user_info_map
+    global openai_async_client
 
-    openai.api_key = config.openai_api_key
     # Global lock for message response
     gpt_lock = asyncio.Lock()
     # Load manual hidden data
@@ -37,6 +37,9 @@ def initialize(client: Client) -> None:
         )
         context_data = None
         return
+    # Initialize OpenAI client
+    openai_async_client = openai.AsyncOpenAI(api_key=config.openai_api_key)
+
     # Preload tokenizer
     encoding = tiktoken.encoding_for_model(config.openai_model)
     # Store bot user
@@ -232,12 +235,12 @@ async def get_message_context(message: Message) -> List[str]:
 # Query the OpenAI API and return response
 async def query_api(data: Dict) -> Optional[str]:
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = await openai_async_client.chat.completions.create(
             model=config.openai_model,
             messages=data,
             timeout=10.0,
         )
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
 
     except Exception as e:
         print("OpenAI API exception:", e)
