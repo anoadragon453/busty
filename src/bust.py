@@ -65,6 +65,7 @@ class BustController:
         self.now_playing_str = None
 
         self._finished: bool = False
+        self._playing_index: Optional[int] = None
 
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
@@ -77,15 +78,17 @@ class BustController:
         # See comment in main.py
         return self._finished
 
-    async def stop(self) -> None:
+    def stop(self) -> None:
         """Stop playing music."""
         self.bust_stopped = True
         if self.play_song_task:
             self.play_song_task.cancel()
 
-    def skip_song(self) -> None:
-        """Skip current track."""
+    def skip_to_track(self, track_number: int) -> None:
+        """Skip to track number (0-indexed)."""
         if self.play_song_task:
+            # Reduce playing index so it stays the same after increment upon task cancel
+            self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
@@ -151,17 +154,22 @@ class BustController:
         await interaction.delete_original_message()
 
         # Play songs
-        for index in range(skip_count, len(self.bust_content)):
+        self.playing_index = skip_count
+        while self.playing_index < len(self.bust_content):
             if self.bust_stopped:
                 break
 
             # wrap play_song() in a coroutine so it is cancellable
-            self.play_song_task = asyncio.create_task(self.play_song(index))
+            self.play_song_task = asyncio.create_task(
+                self.play_song(self.playing_index)
+            )
             try:
                 await self.play_song_task
             except asyncio.CancelledError:
                 # Voice client playback must be manually stopped
                 self.voice_client.stop()
+
+            self.playing_index += 1
 
         # tidy up
         await self.finish(say_goodbye=not self.bust_stopped)
@@ -173,6 +181,8 @@ class BustController:
             say_goodbye: If True, a goodbye message will be posted to `message_channel`. If False, the bust
                 will be ended silently.
         """
+        self.playing_index = None
+
         # Disconnect from voice if necessary
         if self.voice_client and self.voice_client.is_connected():
             await self.voice_client.disconnect()
