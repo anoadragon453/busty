@@ -84,7 +84,7 @@ class BustController:
         if self.play_song_task:
             self.play_song_task.cancel()
 
-    def skip_to_track(self, track_number) -> None:
+    def skip_to_track(self, track_number: int) -> None:
         """Skip to track number (0-indexed)."""
         if self.play_song_task:
             # Reduce playing index so it stays the same after increment upon task cancel
