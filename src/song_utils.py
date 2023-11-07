@@ -1,7 +1,7 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Tuple
 
 from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
@@ -47,6 +47,55 @@ def embed_song(
     return embed
 
 
+def get_song_metadata(
+    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
+) -> Tuple[Optional[str], str]:
+    """
+    Return nice artist and title names in a tuple (artist, title)
+
+    If no artist name is read from the file and no fallback is given,
+    artist will be None. The fallback song title if no title tag is
+    present is a beautified version of its filename.
+
+    Args:
+        local_filepath: the actual path on disc
+        filename: the filename on Discord
+        artist_fallback: the fallback author value (no fallback if not passed)
+
+    Returns:
+        A tuple (artist, title). Artist may be None.
+    """
+    artist = None
+    title = None
+
+    # load tags
+    try:
+        tags = MutagenFile(local_filepath, easy=True)
+        if tags is None:
+            raise MutagenError()
+        artist = tags.get("artist", [None])[0]
+        title = tags.get("title", [None])[0]
+    except MutagenError:
+        # Ignore file and move on
+        print(f"Error reading tags from file: {local_filepath}")
+
+    # Sanitize tag contents.
+    # We explicitly check for None here, as anything else means that the data was
+    # pulled from the audio.
+    if artist is None:
+        artist = artist_fallback
+    if artist is not None:
+        artist = sanitize_tag(artist)
+
+    # Always display either title or beautified filename
+    if title is None:
+        filename = os.path.splitext(filename)[0]
+        title = filename.replace("_", " ")
+    title = sanitize_tag(title)
+
+    return artist, title
+
+
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None
 ) -> str:
@@ -66,44 +115,11 @@ def song_format(
     Returns:
         A string presenting the given song information in a human-readable way.
     """
-    content = ""
-    artist = None
-    title = None
 
-    # load tags
-    try:
-        tags = MutagenFile(local_filepath, easy=True)
-        if tags is None:
-            raise MutagenError()
-        artist = tags.get("artist", [None])[0]
-        title = tags.get("title", [None])[0]
-    except MutagenError:
-        # Ignore file and move on
-        print(f"Error reading tags from file: {local_filepath}")
-
-    # Sanitize tag contents.
-    # We explicitly check for None here, as anything else means that the data was
-    # pulled from the audio.
-    if artist is not None:
-        artist = sanitize_tag(artist)
-    if title is not None:
-        title = sanitize_tag(title)
-
-    # Display in the format <Artist-tag> - <Title-tag>
-    # If no artist tag use fallback if valid. Otherwise, skip artist
-    if artist:
-        content += artist + " - "
-    elif artist_fallback:
-        content += artist_fallback + " - "
-
-    # Always display either title or beautified filename
-    if title:
-        content += title
-    else:
-        filename = os.path.splitext(filename)[0]
-        content += filename.replace("_", " ")
-
-    return content
+    artist, title = get_song_metadata(local_filepath, filename, artist_fallback)
+    if artist is None:
+        return title
+    return f"{artist} - {title}"
 
 
 def sanitize_tag(tag_value: str) -> str:
