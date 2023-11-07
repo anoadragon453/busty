@@ -65,7 +65,7 @@ class BustController:
         self.now_playing_str = None
 
         self._finished: bool = False
-        self.playing_index: Optional[bool] = None
+        self._playing_index: Optional[int] = None
 
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
