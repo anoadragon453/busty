@@ -243,7 +243,7 @@ class BustController:
                 if cover_art_url is not None:
                     image_data = requests.get(cover_art_url).content
                     image_bytes_fp = BytesIO(image_data)
-                    cover_art = File(image_bytes_fp, "cover.png")
+                    cover_art = File(image_bytes_fp, "ai_cover.png")
             except asyncio.TimeoutError:
                 print("Warning: cover art generation timed out")
 
