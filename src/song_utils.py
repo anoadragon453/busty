@@ -82,13 +82,13 @@ def get_song_metadata(
     # Sanitize tag contents.
     # We explicitly check for None here, as anything else means that the data was
     # pulled from the audio.
-    if artist is None:
+    if not artist:
         artist = artist_fallback
-    if artist is not None:
+    if artist:
         artist = sanitize_tag(artist)
 
     # Always display either title or beautified filename
-    if title is None:
+    if not title:
         filename = os.path.splitext(filename)[0]
         title = filename.replace("_", " ")
     title = sanitize_tag(title)
@@ -117,7 +117,7 @@ def song_format(
     """
 
     artist, title = get_song_metadata(local_filepath, filename, artist_fallback)
-    if artist is None:
+    if not artist:
         return title
     return f"{artist} - {title}"
 
