@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import json
-import random
 import re
 from typing import Dict, List, Optional, Tuple
 
@@ -87,19 +86,6 @@ def get_name(user: Member) -> str:
     if id in user_info and "name" in user_info[id]:
         return user_info[id]["name"]
     return user.name
-
-
-# Get totally random triggers about how to act:
-def get_random_context() -> List[str]:
-    random_context = random.choice(
-        [
-            "Respond in 10 words or less",
-            "Be succinct",
-            "Don't be too wordy",
-            "Write long detailed responses",
-        ]
-    )
-    return [random_context]
 
 
 # Get context about the server
@@ -228,8 +214,7 @@ async def get_message_context(message: Message) -> List[str]:
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
-    random_context = get_random_context()
-    return static_context + author_context + random_context
+    return static_context + author_context
 
 
 # Query the OpenAI API and return response
