@@ -242,6 +242,10 @@ class BustController:
                     timeout=20.0,
                 )
                 if cover_art_url is not None:
+                    # Attaching the URL for the artwork directly to the embed doesn't appear to work,
+                    # so instead download the art and upload it to Discord.
+                    # This also ensures that the cover art is preserved on Discord's CDN, whereas
+                    # the original URL may not remain forever.
                     image_data = requests.get(cover_art_url).content
                     image_bytes_fp = BytesIO(image_data)
                     cover_art = File(image_bytes_fp, "ai_cover.png")
