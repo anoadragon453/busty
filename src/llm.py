@@ -343,6 +343,7 @@ async def generate_album_art(
     ]
     if description:
         prompt.append(
+            # Cap the description to 1000 characters, to avoid going over any token limits.
             f"Here is how the artist describes the song: {description[:1000]}"
         )
     return await generate_image("\n".join(prompt))
