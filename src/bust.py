@@ -224,6 +224,7 @@ class BustController:
         )
         embed = Embed(title=embed_title, description=embed_content)
         await self.message_channel.send(embed=embed)
+        # Begin album art generation timer, so we know how long to wait afterwards
         start_album_generation = time.time()
 
         # Pop a song off the front of the queue and play it
@@ -252,6 +253,7 @@ class BustController:
             except asyncio.TimeoutError:
                 print("Warning: cover art generation timed out")
 
+        # Wait any remaining time not taken by image generation
         waited = time.time() - start_album_generation
         time_to_sleep = max(0, config.seconds_between_songs - waited)
         await asyncio.sleep(time_to_sleep)

@@ -337,6 +337,7 @@ async def respond(message: Message) -> None:
 async def generate_album_art(
     artist: str, title: str, description: Optional[str]
 ) -> Optional[str]:
+    """Generate album art given song metadata"""
     prompt = [
         "Generate bizarre photorealistic album art for the following song.",
         f"{artist} - {title}\n",
@@ -349,7 +350,9 @@ async def generate_album_art(
     return await generate_image("\n".join(prompt))
 
 
+# Generate any image with DALL-E 3 given a text prompt
 async def generate_image(prompt: str) -> Optional[str]:
+    """Generate any image with DALL-E 3 given a text prompt"""
     try:
         response = await openai_async_client.images.generate(
             model="dall-e-3",
