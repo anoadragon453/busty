@@ -232,6 +232,7 @@ class BustController:
         # Get cover art
         cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is None and config.openai_api_key:
+            # Use generative AI to create some album art for this song.
             artist, title = song_utils.get_song_metadata(
                 local_filepath, attachment.filename, submit_message.author.display_name
             )
