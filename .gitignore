@@ -11,6 +11,7 @@ src/__pycache__/
 
 # nix developer environment
 .devenv/
+.venv
 
 # direnv
 .envrc
