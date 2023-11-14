@@ -1,8 +1,11 @@
 import asyncio
 import random
+import time
 from collections import defaultdict
+from io import BytesIO
 from typing import Dict, List, Optional, Tuple, Union
 
+import requests
 from nextcord import (
     Attachment,
     ChannelType,
@@ -10,6 +13,7 @@ from nextcord import (
     ClientException,
     Embed,
     FFmpegPCMAudio,
+    File,
     Interaction,
     Message,
     StageChannel,
@@ -21,6 +25,7 @@ from nextcord import (
 import config
 import discord_utils
 import forms
+import llm
 import persistent_state
 import song_utils
 
@@ -212,19 +217,46 @@ class BustController:
         self._finished = True
 
     async def play_song(self, index: int) -> None:
-        # Wait some time between songs
-        if config.seconds_between_songs:
-            embed_title = "Currently Chilling"
-            embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
-                config.seconds_between_songs,
-                "s" if config.seconds_between_songs != 1 else "",
-            )
-            embed = Embed(title=embed_title, description=embed_content)
-            await self.message_channel.send(embed=embed)
-            await asyncio.sleep(config.seconds_between_songs)
+        # Send the chilling message
+        embed_title = "Currently Chilling"
+        embed_content = (
+            "The track will start soon...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**"
+        )
+        embed = Embed(title=embed_title, description=embed_content)
+        await self.message_channel.send(embed=embed)
+        # Begin album art generation timer, so we know how long to wait afterwards
+        start_album_generation = time.time()
 
         # Pop a song off the front of the queue and play it
         submit_message, attachment, local_filepath = self.bust_content[index]
+
+        # Get cover art
+        cover_art = song_utils.get_cover_art(local_filepath)
+        if cover_art is None and config.openai_api_key:
+            # Use generative AI to create some album art for this song.
+            artist, title = song_utils.get_song_metadata(
+                local_filepath, attachment.filename, submit_message.author.display_name
+            )
+            try:
+                cover_art_url = await asyncio.wait_for(
+                    llm.generate_album_art(artist, title, submit_message.content),
+                    timeout=20.0,
+                )
+                if cover_art_url is not None:
+                    # Attaching the URL for the artwork directly to the embed doesn't appear to work,
+                    # so instead download the art and upload it to Discord.
+                    # This also ensures that the cover art is preserved on Discord's CDN, whereas
+                    # the original URL may not remain forever.
+                    image_data = requests.get(cover_art_url).content
+                    image_bytes_fp = BytesIO(image_data)
+                    cover_art = File(image_bytes_fp, "ai_cover.png")
+            except asyncio.TimeoutError:
+                print("Warning: cover art generation timed out")
+
+        # Wait any remaining time not taken by image generation
+        waited = time.time() - start_album_generation
+        time_to_sleep = max(0, config.seconds_between_songs - waited)
+        await asyncio.sleep(time_to_sleep)
 
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list)
@@ -239,7 +271,6 @@ class BustController:
         )
 
         # Add cover art and send
-        cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
             self.now_playing_msg = await self.message_channel.send(

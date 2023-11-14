@@ -317,3 +317,36 @@ async def respond(message: Message) -> None:
                     await message.reply(response)
                 else:
                     await message.channel.send(response)
+
+
+async def generate_album_art(
+    artist: str, title: str, description: Optional[str]
+) -> Optional[str]:
+    """Generate album art given song metadata"""
+    prompt = [
+        "Generate bizarre photorealistic album art for the following song.",
+        f"{artist} - {title}\n",
+    ]
+    if description:
+        prompt.append(
+            # Cap the description to 1000 characters, to avoid going over any token limits.
+            f"Here is how the artist describes the song: {description[:1000]}"
+        )
+    return await generate_image("\n".join(prompt))
+
+
+# Generate any image with DALL-E 3 given a text prompt
+async def generate_image(prompt: str) -> Optional[str]:
+    """Generate any image with DALL-E 3 given a text prompt"""
+    try:
+        response = await openai_async_client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+    except openai.BadRequestError:
+        print(f"Warning: Bad request for prompt {prompt}")
+        return None
+    return response.data[0].url
