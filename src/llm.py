@@ -266,7 +266,7 @@ async def get_response_text(message: Message) -> Optional[str]:
         history = await fetch_history(512, 5, message)
         # We couldn't fit even a single message in history
         if not history:
-            message.reply("I'm not reading all that.")
+            await message.reply("I'm not reading all that.")
             return
 
         context += get_history_context(history)
