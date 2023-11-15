@@ -8,3 +8,11 @@ src/__pycache__/
 
 # Bot state, google service keys, llm context
 *.json
+
+# nix developer environment
+.devenv/
+.venv
+
+# direnv
+.envrc
+.direnv
