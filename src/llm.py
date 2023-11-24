@@ -346,7 +346,7 @@ async def generate_image(prompt: str) -> Optional[str]:
             quality="standard",
             n=1,
         )
-    except openai.BadRequestError:
-        print(f"Warning: Bad request for prompt {prompt}")
+    except Exception as e:
+        print("OpenAI API exception:", e)
         return None
     return response.data[0].url
