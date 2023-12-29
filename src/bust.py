@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import random
 import time
 from collections import defaultdict
@@ -54,6 +55,8 @@ class BustController:
         self.message_channel: TextChannel = message_channel
         # The media in the current channel
         self.bust_content: List[Tuple[Message, Attachment, str]] = bust_content
+        # The current index of the song being played
+        self.current_song_index: int = 0
         # Whether bust has been manually stopped
         self.bust_stopped: bool = False
         # Client object
@@ -345,10 +348,7 @@ class BustController:
             for submit_message, attachment, local_filepath in self.bust_content
         ]
 
-        # Extract bust number from channel name
-        bust_number = "".join([c for c in self.message_channel.name if c.isdigit()])
-        if bust_number:
-            bust_number = bust_number + " "
+        bust_number = discord_utils.extract_bust_number(self.message_channel)
 
         form_url = forms.create_remote_form(
             f"Busty's {bust_number}Voting",
@@ -369,7 +369,18 @@ class BustController:
         await interaction.response.defer()
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
-        bust_len = songs_len + config.seconds_between_songs * num_songs
+        bust_len_in_seconds = songs_len + config.seconds_between_songs * num_songs
+
+        remaining_bust_len = sum(
+            [
+                song_utils.get_song_length(local_filepath)
+                for _, _, local_filepath in self.bust_content[self.current_song_index :]
+            ]
+        )
+        num_songs_left = len(self.bust_content) - (self.current_song_index + 1)
+        reamining_bust_len_in_seconds = (
+            remaining_bust_len + config.seconds_between_songs * num_songs_left
+        )
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len = defaultdict(lambda: 0.0)
@@ -388,14 +399,26 @@ class BustController:
         longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
         longest_submitter_time = int(submitter_to_len[longest_submitter])
 
+        # Calculate UNIX Timestamp from datetime for the End of Bust
+        timestamp_now = time.mktime(datetime.datetime.now().timetuple())
+
+        if num_songs is not num_songs_left:
+            timestamp_end = timestamp_now + float(reamining_bust_len_in_seconds)
+        else:
+            timestamp_end = timestamp_now + float(bust_len_in_seconds)
+
+        timestamp = str(timestamp_end).split(".")
+        unix_timestamp = f"<t:{timestamp[0]}:t>"
+
         embed_text = "\n".join(
             [
                 f"*Number of tracks:* {num_songs}",
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
-                f"*Total bust length:* {song_utils.format_time(bust_len)}",
+                f"*Total bust length:* {song_utils.format_time(bust_len_in_seconds)}",
                 f"*Unique submitters:* {len(submitter_to_len)}",
                 f"*Longest submitter:* {longest_submitter.mention} - "
                 + f"{song_utils.format_time(longest_submitter_time)}",
+                f"\n*End time:* {unix_timestamp}",
             ]
         )
         if errors:
