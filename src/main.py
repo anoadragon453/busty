@@ -1,12 +1,25 @@
 import asyncio
-from typing import Dict, Optional
+import os
+import random
+from typing import Optional
 
-from nextcord import Attachment, Embed, Intents, Interaction, SlashOption, TextChannel
+from nextcord import (
+    Attachment,
+    Embed,
+    Intents,
+    Interaction,
+    Message,
+    SlashOption,
+    TextChannel,
+)
 from nextcord.ext import application_checks, commands
 
+import bust
 import config
+import discord_utils
+import llm
 import persistent_state
-from bust import BustController, create_controller
+import song_utils
 
 # This is necessary to query guild members
 intents = Intents.default()
@@ -25,31 +38,38 @@ if config.testing_guild:
 else:
     client = commands.Bot(intents=intents)
 
-controllers: Dict[int, BustController] = {}
-
-
-def get_controller(guild_id: int) -> Optional[BustController]:
-    """Get current bust controller for current guild, if it exists"""
-    # TODO: Put these lines inside of `/bust` handler.
-    # Once https://github.com/anoadragon453/busty/issues/123 is done, we can
-    # keep the controllers map up to date by just deleting from
-    # the controllers map directly when bc.play() returns
-    bc = controllers.get(guild_id)
-    if bc and bc.finished():
-        bc = None
-    return bc
-
 
 @client.event
 async def on_ready() -> None:
     print(f"We have logged in as {client.user}.")
+    if config.openai_api_key:
+        llm.initialize(client)
 
 
 @client.event
 async def on_close() -> None:
     # Finish all running busts on close
-    for bc in controllers.values():
+    for bc in bust.controllers.values():
         await bc.finish(say_goodbye=False)
+
+
+@client.event
+async def on_message(message: Message) -> None:
+    if (
+        config.openai_api_key
+        # Ignore DMs to the bot.
+        and message.guild
+        and (
+            client.user in message.mentions
+            # For the case where a user accidentally mentions the bot's role
+            # instead of their nick (which are typically named the same).
+            or any(role.name == client.user.name for role in message.role_mentions)
+            # Randomly respond to some messages, even if the bot is not mentioned.
+            or random.random() < 1 / 150
+        )
+        and message.author != client.user
+    ):
+        await llm.respond(message)
 
 
 # Allow only one async routine to calculate list at a time
@@ -66,38 +86,29 @@ async def on_list(
     ),
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
-    bc = get_controller(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if bc and bc.is_active():
-        await interaction.response.send_message("We're busy busting.", ephemeral=True)
+        await interaction.send("We're busy busting.", ephemeral=True)
         return
 
     # Give up if locked
     if list_task_control_lock.locked():
-        await interaction.response.send_message(
-            "A list is already in progress.", ephemeral=True
-        )
+        await interaction.send("A list is already in progress.", ephemeral=True)
         return
 
     if list_channel is None:
         list_channel = interaction.channel
 
     async with list_task_control_lock:
-        # Notify user that "Busty is thinking"
-        await interaction.response.defer(ephemeral=True)
-        bc = await create_controller(client, interaction, list_channel)
-        global controllers
-        controllers[interaction.guild_id] = bc
-        # If bc is None, something went wrong and we already edited the
-        # interaction response to inform the user.
-        if bc is not None:
-            await interaction.delete_original_message()
+        bc = await bust.create_controller(client, interaction, list_channel)
+        bust.controllers[interaction.guild_id] = bc
 
 
 # Bust command
-@client.slash_command(dm_permission=False)
+@client.slash_command(name="bust", dm_permission=False)
 @application_checks.has_role(config.dj_role_name)
-async def bust(
+async def on_bust(
     interaction: Interaction,
     index: int = SlashOption(
         required=False,
@@ -107,26 +118,21 @@ async def bust(
     ),
 ) -> None:
     """Begin a bust."""
-    bc = get_controller(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if bc is None:
-        await interaction.response.send_message(
-            "You need to use `/list` first.", ephemeral=True
-        )
+        await interaction.send("You need to use `/list` first.", ephemeral=True)
         return
 
     elif bc.is_active():
-        await interaction.response.send_message(
-            "We're already busting.", ephemeral=True
-        )
+        await interaction.send("We're already busting.", ephemeral=True)
         return
 
     if index > len(bc.bust_content):
-        await interaction.response.send_message(
-            "There aren't that many tracks.", ephemeral=True
-        )
+        await interaction.send("There aren't that many tracks.", ephemeral=True)
         return
     await bc.play(interaction, index - 1)
+    del bust.controllers[interaction.guild_id]
 
 
 # Skip command
@@ -134,14 +140,29 @@ async def bust(
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
-    bc = get_controller(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
-        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+        await interaction.send("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("I didn't like that track anyways.")
-    bc.skip_song()
+    await interaction.send("I didn't like that track anyways.")
+    bc.skip_to_track(bc.playing_index + 1)
+
+
+# Replay command
+@client.slash_command(dm_permission=False)
+@application_checks.has_role(config.dj_role_name)
+async def replay(interaction: Interaction) -> None:
+    """Replay currently playing song from the beginning."""
+    bc = bust.controllers.get(interaction.guild_id)
+
+    if not bc or not bc.is_active():
+        await interaction.send("Nothing is playing.", ephemeral=True)
+        return
+
+    await interaction.send("Replaying this track.")
+    bc.skip_to_track(bc.playing_index)
 
 
 # Stop command
@@ -149,14 +170,14 @@ async def skip(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
-        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+        await interaction.send("Nothing is playing.", ephemeral=True)
         return
 
-    await interaction.response.send_message("Alright I'll shut up.")
-    await bc.stop()
+    await interaction.send("Alright I'll shut up.")
+    bc.stop()
 
 
 # Image command
@@ -176,9 +197,8 @@ async def image_upload(interaction: Interaction, image_file: Attachment) -> None
     if not await persistent_state.save_form_image_url(interaction, image_file.url):
         return
 
-    await interaction.response.send_message(
-        f":white_check_mark: Image set to {image_file.url}."
-    )
+    # No period so image preview shows
+    await interaction.send(f":white_check_mark: Image set to {image_file.url}")
 
 
 @image.subcommand(name="url")
@@ -190,9 +210,8 @@ async def image_by_url(interaction: Interaction, image_url: str) -> None:
     if not await persistent_state.save_form_image_url(interaction, image_url):
         return
 
-    await interaction.response.send_message(
-        f":white_check_mark: Image set to {image_url}."
-    )
+    # No period so image preview shows
+    await interaction.send(f":white_check_mark: Image set to {image_url}")
 
 
 @image.subcommand(name="clear")
@@ -201,10 +220,10 @@ async def image_clear(interaction: Interaction) -> None:
     """Clear the loaded Google Forms image."""
     image_existed = persistent_state.clear_form_image_url(interaction)
     if not image_existed:
-        await interaction.response.send_message("No image is loaded.", ephemeral=True)
+        await interaction.send("No image is loaded.", ephemeral=True)
         return
 
-    await interaction.response.send_message(":wastebasket: Image cleared.")
+    await interaction.send(":wastebasket: Image cleared.")
 
 
 @image.subcommand(name="view")
@@ -213,12 +232,11 @@ async def image_view(interaction: Interaction) -> None:
     """View the loaded Google Forms image."""
     loaded_image_url = persistent_state.get_form_image_url(interaction)
     if loaded_image_url is None:
-        await interaction.response.send_message(
-            "No image is currently loaded.", ephemeral=True
-        )
+        await interaction.send("No image is currently loaded.", ephemeral=True)
         return
 
-    await interaction.response.send_message(f"The loaded image is {loaded_image_url}.")
+    # No period so image preview shows
+    await interaction.send(f"The loaded image is {loaded_image_url}")
 
 
 # Info command
@@ -226,15 +244,62 @@ async def image_view(interaction: Interaction) -> None:
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
-    bc = controllers.get(interaction.guild_id)
+    bc = bust.controllers.get(interaction.guild_id)
 
     if bc is None:
-        await interaction.response.send_message(
-            "You need to use /list first.", ephemeral=True
-        )
+        await interaction.send("You need to use /list first.", ephemeral=True)
         return
 
     await bc.send_stats(interaction)
+
+
+# Preview command
+@client.slash_command(dm_permission=False)
+async def preview(
+    interaction: Interaction,
+    uploaded_file: Attachment = SlashOption(description="The song to submit."),
+    submit_message: Optional[str] = SlashOption(
+        required=False, description="The submission message text."
+    ),
+) -> None:
+    """Show a preview of a submission's "Now Playing" embed."""
+    await interaction.response.defer(ephemeral=True)
+
+    if not discord_utils.is_valid_media(uploaded_file.content_type):
+        await interaction.send(
+            "You uploaded an invalid media file, please try again.",
+            ephemeral=True,
+        )
+        return
+
+    attachment_filepath = discord_utils.build_filepath_for_attachment(
+        interaction.guild_id, uploaded_file
+    )
+
+    # Save attachment to disk for processing
+    await uploaded_file.save(fp=attachment_filepath)
+    random_emoji = random.choice(config.emoji_list)
+
+    embed = song_utils.embed_song(
+        submit_message,
+        attachment_filepath,
+        uploaded_file,
+        interaction.user,
+        random_emoji,
+        config.PREVIEW_JUMP_URL,
+    )
+
+    cover_art = song_utils.get_cover_art(attachment_filepath)
+
+    if cover_art is not None:
+        embed.set_image(url=f"attachment://{cover_art.filename}")
+        await interaction.send(file=cover_art, embed=embed, ephemeral=True)
+
+    else:
+        await interaction.send(embed=embed, ephemeral=True)
+
+    # Delete the attachment from disk after processing
+    os.remove(attachment_filepath)
 
 
 @client.slash_command(dm_permission=False)
@@ -248,6 +313,7 @@ async def announce(
     ),
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
+    await interaction.response.defer(ephemeral=True)
     if channel is None:
         # Default to the current channel that the command was invoked in.
         channel = interaction.channel
@@ -261,7 +327,7 @@ async def announce(
 
     # Disallow sending announcements from one guild into another.
     if channel.guild.id != interaction.guild_id:
-        await interaction.response.send_message(
+        await interaction.send(
             "Sending announcements to a guild outside of this channel is not allowed.",
             ephemeral=True,
         )
@@ -273,7 +339,7 @@ async def announce(
         interaction_reply = "Announcement has been sent."
     else:
         interaction_reply = f"Announcement has been sent in {channel.mention}."
-    await interaction.response.send_message(interaction_reply, ephemeral=True)
+    await interaction.send(interaction_reply, ephemeral=True)
 
 
 @client.event
@@ -282,7 +348,7 @@ async def on_application_command_error(
 ) -> None:
     # Catch insufficient permissions exception, ignore all others
     if isinstance(error, application_checks.errors.ApplicationMissingRole):
-        await interaction.response.send_message(
+        await interaction.send(
             "You don't have permission to use this command.", ephemeral=True
         )
     else:

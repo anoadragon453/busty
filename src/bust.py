@@ -3,8 +3,10 @@ import datetime
 import random
 import time
 from collections import defaultdict
-from typing import List, Optional, Tuple, Union
+from io import BytesIO
+from typing import Dict, List, Optional, Tuple, Union
 
+import requests
 from nextcord import (
     Attachment,
     ChannelType,
@@ -12,6 +14,7 @@ from nextcord import (
     ClientException,
     Embed,
     FFmpegPCMAudio,
+    File,
     Interaction,
     Message,
     StageChannel,
@@ -19,11 +22,11 @@ from nextcord import (
     VoiceChannel,
     VoiceClient,
 )
-from nextcord.utils import escape_markdown
 
 import config
 import discord_utils
 import forms
+import llm
 import persistent_state
 import song_utils
 
@@ -35,7 +38,6 @@ class BustController:
         bust_content: List[Tuple[Message, Attachment, str]],
         message_channel: TextChannel,
     ):
-
         # The actively connected voice client
         self.voice_client: Optional[VoiceClient] = None
         # Currently pinned "now playing" message ID
@@ -67,28 +69,50 @@ class BustController:
             if song_len:
                 self.total_song_len += song_len
 
+        # None if no song is playing, otherwise formatted str "artist - title"
+        self.now_playing_str = None
+
         self._finished: bool = False
+        self._playing_index: Optional[int] = None
 
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
+
+    def current_song(self) -> str:
+        return self.now_playing_str
 
     def finished(self) -> bool:
         # TODO: This function should become unnecessary once for-refactor is done
         # See comment in main.py
         return self._finished
 
-    async def stop(self) -> None:
+    def stop(self) -> None:
         """Stop playing music."""
         self.bust_stopped = True
         if self.play_song_task:
             self.play_song_task.cancel()
 
-    def skip_song(self) -> None:
-        """Skip current track."""
+    def skip_to_track(self, track_number: int) -> None:
+        """Skip to track number (0-indexed)."""
         if self.play_song_task:
+            # Reduce playing index so it stays the same after increment upon task cancel
+            self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
+        """Begin playback.
+
+        Args:
+            interaction: An interaction which has not yet been responded to.
+            skip_count: List index to start playback from.
+        """
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Update message channel to where command was issued from
+        # (in case `list` was called from a separate/private channel).
+        self.message_channel = interaction.channel
+
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
             interaction.guild.voice_channels
@@ -96,7 +120,7 @@ class BustController:
         voice_channels.extend(interaction.guild.stage_channels)
 
         if not voice_channels:
-            await interaction.response.send_message(
+            await interaction.send(
                 "You need to be in an active voice or stage channel.", ephemeral=True
             )
             return
@@ -125,7 +149,7 @@ class BustController:
                 return
         else:
             # No voice channel was found
-            await interaction.response.send_message(
+            await interaction.send(
                 "You need to be in an active voice channel.", ephemeral=True
             )
             return
@@ -134,21 +158,26 @@ class BustController:
         # We'll restore it after songs have finished playing.
         self.original_bot_nickname = bot_member.display_name
 
-        await interaction.channel.send("Let's get **BUSTY**.")
+        await self.message_channel.send("Let's get **BUSTY**.")
+        await interaction.delete_original_message()
 
         # Play songs
-        for index in range(skip_count, len(self.bust_content)):
+        self.playing_index = skip_count
+        while self.playing_index < len(self.bust_content):
             if self.bust_stopped:
                 break
 
             # wrap play_song() in a coroutine so it is cancellable
-            self.current_song_index = index
-            self.play_song_task = asyncio.create_task(self.play_song(index))
+            self.play_song_task = asyncio.create_task(
+                self.play_song(self.playing_index)
+            )
             try:
                 await self.play_song_task
             except asyncio.CancelledError:
                 # Voice client playback must be manually stopped
                 self.voice_client.stop()
+
+            self.playing_index += 1
 
         # tidy up
         await self.finish(say_goodbye=not self.bust_stopped)
@@ -160,6 +189,8 @@ class BustController:
             say_goodbye: If True, a goodbye message will be posted to `message_channel`. If False, the bust
                 will be ended silently.
         """
+        self.playing_index = None
+
         # Disconnect from voice if necessary
         if self.voice_client and self.voice_client.is_connected():
             await self.voice_client.disconnect()
@@ -189,47 +220,60 @@ class BustController:
         self._finished = True
 
     async def play_song(self, index: int) -> None:
-        # Wait some time between songs
-        if config.seconds_between_songs:
-            embed_title = "Currently Chilling"
-            embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
-                config.seconds_between_songs,
-                "s" if config.seconds_between_songs != 1 else "",
-            )
-            embed = Embed(title=embed_title, description=embed_content)
-            await self.message_channel.send(embed=embed)
-            await asyncio.sleep(config.seconds_between_songs)
+        # Send the chilling message
+        embed_title = "Currently Chilling"
+        embed_content = (
+            "The track will start soon...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**"
+        )
+        embed = Embed(title=embed_title, description=embed_content)
+        await self.message_channel.send(embed=embed)
+        # Begin album art generation timer, so we know how long to wait afterwards
+        start_album_generation = time.time()
 
         # Pop a song off the front of the queue and play it
         submit_message, attachment, local_filepath = self.bust_content[index]
 
+        # Get cover art
+        cover_art = song_utils.get_cover_art(local_filepath)
+        if cover_art is None and config.openai_api_key:
+            # Use generative AI to create some album art for this song.
+            artist, title = song_utils.get_song_metadata(
+                local_filepath, attachment.filename, submit_message.author.display_name
+            )
+            try:
+                cover_art_url = await asyncio.wait_for(
+                    llm.generate_album_art(artist, title, submit_message.content),
+                    timeout=20.0,
+                )
+                if cover_art_url is not None:
+                    # Attaching the URL for the artwork directly to the embed doesn't appear to work,
+                    # so instead download the art and upload it to Discord.
+                    # This also ensures that the cover art is preserved on Discord's CDN, whereas
+                    # the original URL may not remain forever.
+                    image_data = requests.get(cover_art_url).content
+                    image_bytes_fp = BytesIO(image_data)
+                    cover_art = File(image_bytes_fp, "ai_cover.png")
+            except asyncio.TimeoutError:
+                print("Warning: cover art generation timed out")
+
+        # Wait any remaining time not taken by image generation
+        waited = time.time() - start_album_generation
+        time_to_sleep = max(0, config.seconds_between_songs - waited)
+        await asyncio.sleep(time_to_sleep)
+
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list)
 
-        # Build and send "Now Playing" embed
-        embed_title = f"{random_emoji} Now Playing {random_emoji}"
-        list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-        embed_content = list_format.format(
-            submit_message.author.mention,
-            escape_markdown(
-                song_utils.song_format(local_filepath, attachment.filename)
-            ),
-            attachment.url,
+        embed = song_utils.embed_song(
+            submit_message.content,
+            local_filepath,
+            attachment,
+            submit_message.author,
+            random_emoji,
             submit_message.jump_url,
         )
-        embed = Embed(
-            title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
-        )
-
-        # Add message content as "More Info", truncating to the embed field.value character limit
-        if submit_message.content:
-            more_info = submit_message.content
-            if len(more_info) > config.EMBED_FIELD_VALUE_LIMIT:
-                more_info = more_info[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
-            embed.add_field(name="More Info", value=more_info, inline=False)
 
         # Add cover art and send
-        cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
             self.now_playing_msg = await self.message_channel.send(
@@ -261,11 +305,14 @@ class BustController:
             after=ffmpeg_post_hook,
         )
 
-        # Change the name of the bot to that of the currently playing song.
-        # This allows people to quickly see which song is currently playing.
-        new_nick = random_emoji + song_utils.song_format(
+        # Set now playing title
+        self.now_playing_str = song_utils.song_format(
             local_filepath, attachment.filename, submit_message.author.display_name
         )
+
+        # Change the name of the bot to that of the currently playing song.
+        # This allows people to quickly see which song is currently playing.
+        new_nick = random_emoji + self.now_playing_str
 
         # If necessary, truncate name to max length allowed by Discord,
         # appending an ellipsis on the end.
@@ -278,6 +325,7 @@ class BustController:
 
         # Wait for song to finish playing
         await play_lock.acquire()
+        self.now_playing_str = None
 
     def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
         """Create a Google form for voting on this bust
@@ -314,6 +362,11 @@ class BustController:
         return form_url
 
     async def send_stats(self, interaction: Interaction) -> None:
+        """Send statistics about current bust.
+
+        Args:
+            interaction: An interaction which has not yet been responded to."""
+        await interaction.response.defer()
         songs_len = int(self.total_song_len)
         num_songs = len(self.bust_content)
         bust_len_in_seconds = songs_len + config.seconds_between_songs * num_songs
@@ -377,7 +430,7 @@ class BustController:
             description=embed_text,
             color=config.INFO_EMBED_COLOR,
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.send(embed=embed)
 
 
 async def create_controller(
@@ -385,7 +438,12 @@ async def create_controller(
     interaction: Interaction,
     list_channel: TextChannel,
 ) -> Optional[BustController]:
-    """Attempt to create a BustController given a channel list command"""
+    """Attempt to create a BustController listing a given channel.
+
+    Args:
+        interaction: An interaction which has not yet been responded to
+    """
+    await interaction.response.defer(ephemeral=True)
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
     if not channel_media_attachments:
@@ -480,5 +538,9 @@ async def create_controller(
             )
             await discord_utils.try_set_pin(form_message, True)
 
+    await interaction.delete_original_message()
     # Return controller
     return bc
+
+
+controllers: Dict[int, BustController] = {}
