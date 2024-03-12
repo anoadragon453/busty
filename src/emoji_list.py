@@ -2,19 +2,7 @@ from discord_emoji.table import DISCORD_TO_UNICODE as ORIGINAL_DISCORD_TO_UNICOD
 
 # Remove some emoji from the list that we don't want to appear next to song names.
 emoji_to_remove = [
-    # Mood-killers
-    "confused",
-    "slight_frown",
-    "slightly_frowning_face",
-    "frowning2",
-    "white_frowning_face",
-    "sweat",
-    "yawning_face",
-    "no_mouth",
-    "expressionless",
-    "rolling_eyes",
-    "frowning",
-    # Activities, transport, flags, items, symbols, flags
+    # Activities, transport, items, symbols, flags
     "soccer",
     "basketball",
     "football",
