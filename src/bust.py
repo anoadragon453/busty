@@ -384,9 +384,16 @@ class BustController:
                 song_len = 0.0
             submitter_to_len[submit_message.author] += song_len
 
-        # User with longest total submission length
-        longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
-        longest_submitter_time = int(submitter_to_len[longest_submitter])
+        # Format list of users with longest total submission length
+        submitters_sorted_by_len = sorted(
+            [(len, sub) for (sub, len) in submitter_to_len.items()], reverse=True
+        )
+        longest_submitters_formatted = [
+            f"{i+1}. {submitter.mention} - {song_utils.format_time(int(len))}"
+            for i, (len, submitter) in enumerate(
+                submitters_sorted_by_len[: config.num_longest_submitters]
+            )
+        ]
 
         embed_text = "\n".join(
             [
@@ -394,9 +401,9 @@ class BustController:
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
                 f"*Total bust length:* {song_utils.format_time(bust_len)}",
                 f"*Unique submitters:* {len(submitter_to_len)}",
-                f"*Longest submitter:* {longest_submitter.mention} - "
-                + f"{song_utils.format_time(longest_submitter_time)}",
+                "*Longest submitters:*",
             ]
+            + longest_submitters_formatted
         )
         if errors:
             embed_text += (
