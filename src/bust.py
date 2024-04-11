@@ -386,11 +386,11 @@ class BustController:
 
         # Format list of users with longest total submission length
         submitters_sorted_by_len = sorted(
-            [(len, sub) for (sub, len) in submitter_to_len.items()], reverse=True
+            [(length, sub) for (sub, length) in submitter_to_len.items()], reverse=True
         )
         longest_submitters_formatted = [
-            f"{i+1}. {submitter.mention} - {song_utils.format_time(int(len))}"
-            for i, (len, submitter) in enumerate(
+            f"{i+1}. {submitter.mention} - {song_utils.format_time(int(length))}"
+            for i, (length, submitter) in enumerate(
                 submitters_sorted_by_len[: config.num_longest_submitters]
             )
         ]
