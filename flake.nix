@@ -16,7 +16,7 @@
     # Output a development shell for x86_64/aarch64 Linux/Darwin (MacOS).
     systems.url = "github:nix-systems/default";
     # A development environment manager built on Nix. See https://devenv.sh.
-    devenv.url = "github:cachix/devenv/v1.0.5";
+    devenv.url = "github:cachix/devenv/v1.0.7";
   };
 
   outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
