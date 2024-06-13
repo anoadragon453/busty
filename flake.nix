@@ -16,7 +16,7 @@
     # Output a development shell for x86_64/aarch64 Linux/Darwin (MacOS).
     systems.url = "github:nix-systems/default";
     # A development environment manager built on Nix. See https://devenv.sh.
-    devenv.url = "github:cachix/devenv/v0.6.3";
+    devenv.url = "github:cachix/devenv/v1.0.7";
   };
 
   outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
@@ -36,11 +36,6 @@
             inherit inputs pkgs;
             modules = [
               {
-                # Make use of the Starship command prompt when this development environment
-                # is manually activated (via `nix develop --impure`).
-                # See https://starship.rs/ for details on the prompt itself.
-                starship.enable = true;
-
                 # Configure packages to install.
                 # Search for package names at https://search.nixos.org/packages?channel=unstable
                 packages = with pkgs; [
@@ -50,11 +45,12 @@
 
                 # Install Python at a specific version.
                 languages.python.enable = true;
-                languages.python.package = pkgs.python311;
+                languages.python.package = pkgs.python3;
 
                 # Create a virtualenv from the given requirements file.
                 languages.python.venv.enable = true;
-                languages.python.venv.requirements = builtins.readFile ./requirements.txt;
+                languages.python.venv.requirements =
+                  (builtins.readFile ./requirements.txt) + (builtins.readFile ./dev-requirements.txt);
               }
             ];
           };
