@@ -40,7 +40,7 @@
                 # Search for package names at https://search.nixos.org/packages?channel=unstable
                 packages = with pkgs; [
                   # Required to process user media downloaded from Discord.
-                  ffmpeg
+                  ffmpeg-headless
                 ];
 
                 # Install Python at a specific version.
