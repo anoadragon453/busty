@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import os
 import random
+import sys
 from typing import Optional
 
 from nextcord import (
@@ -20,6 +22,19 @@ import discord_utils
 import llm
 import persistent_state
 import song_utils
+
+
+def setup_logging(log_level):
+    logger = logging.getLogger("nextcord")
+    logger.setLevel(log_level)
+    handler = logging.StreamHandler(stream=sys.stderr)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s")
+    )
+    logger.addHandler(handler)
+
+
+setup_logging(logging.INFO)
 
 # This is necessary to query guild members
 intents = Intents.default()
