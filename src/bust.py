@@ -13,6 +13,7 @@ from nextcord import (
     ClientException,
     Embed,
     FFmpegPCMAudio,
+    FFmpegOpusAudio,
     File,
     Interaction,
     Message,
@@ -28,6 +29,8 @@ import forms
 import llm
 import persistent_state
 import song_utils
+import os
+import subprocess
 
 
 class BustController:
@@ -96,12 +99,13 @@ class BustController:
             self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
 
-    async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
+    async def play(self, interaction: Interaction, skip_count: int = 0, start_time: str = "") -> None:
         """Begin playback.
 
         Args:
             interaction: An interaction which has not yet been responded to.
             skip_count: List index to start playback from.
+            start_time: String in the format of: ##:## specifying start time, or a numeric string in seconds.
         """
 
         await interaction.response.defer(ephemeral=True)
@@ -158,6 +162,9 @@ class BustController:
         await self.message_channel.send("Let's get **BUSTY**.")
         await interaction.delete_original_message()
 
+        # Get first song offset
+        seek_to_seconds = song_utils.convert_timestamp_to_seconds(start_time)
+
         # Play songs
         self.playing_index = skip_count
         while self.playing_index < len(self.bust_content):
@@ -166,7 +173,7 @@ class BustController:
 
             # wrap play_song() in a coroutine so it is cancellable
             self.play_song_task = asyncio.create_task(
-                self.play_song(self.playing_index)
+                self.play_song(self.playing_index, seek_to_seconds)
             )
             try:
                 await self.play_song_task
@@ -174,6 +181,8 @@ class BustController:
                 # Voice client playback must be manually stopped
                 self.voice_client.stop()
 
+            if(seek_to_seconds > 0):
+                seek_to_seconds = 0
             self.playing_index += 1
 
         # tidy up
@@ -216,7 +225,7 @@ class BustController:
         self.original_bot_nickname = None
         self._finished = True
 
-    async def play_song(self, index: int) -> None:
+    async def play_song(self, index: int, timestamp: int) -> None:
         # Send the chilling message
         embed_title = "Currently Chilling"
         embed_content = (
@@ -281,8 +290,12 @@ class BustController:
 
         await discord_utils.try_set_pin(self.now_playing_msg, True)
 
+        temp_filename = f"temp_audio.ogg"
         # Called when song finishes playing
         async def ffmpeg_post_hook(e: Exception = None):
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+                print("Temp song deleted:", temp_filename)
             if e is not None:
                 print("Song playback quit with error:", e)
             # Unpin now playing message
@@ -291,16 +304,39 @@ class BustController:
                 self.now_playing_msg = None
             await play_lock.release()
 
+        # Get optional timestamp
+        song_len = 0
+        timeStr = None
+        if(timestamp > 0):
+            song_len = song_utils.get_song_length(local_filepath)
+            if(timestamp < song_len):
+                timeStr = f" -ss {timestamp}"
+            else:
+                print("Attempted to seek past length of song. Ignoring timestamp.")
+
+
         # Play song
         play_lock = asyncio.Lock()
         # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
-        self.voice_client.play(
-            FFmpegPCMAudio(
-                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
-            ),
-            after=ffmpeg_post_hook,
-        )
+        if(timeStr is not None):
+            ffmpeg_command = [
+                'ffmpeg', '-i', local_filepath, '-ss', str(timestamp), '-t', str(song_len - timestamp), '-c:a', 'libopus', '-b:a', '128k', '-y', temp_filename
+            ]
+            subprocess.run(ffmpeg_command, check=True)
+
+            self.voice_client.play(
+                FFmpegOpusAudio(
+                    temp_filename, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"),
+                    after=ffmpeg_post_hook,
+                    )
+        else:
+            self.voice_client.play(
+                FFmpegPCMAudio(
+                    local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"),
+                    after=ffmpeg_post_hook,
+                    )
+        
 
         # Set now playing title
         self.now_playing_str = song_utils.song_format(

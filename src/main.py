@@ -11,6 +11,8 @@ from nextcord import (
     Message,
     SlashOption,
     TextChannel,
+    SlashCommandOption,
+    application_command,
 )
 from nextcord.ext import application_checks, commands
 
@@ -77,7 +79,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list", dm_permission=False)
+@client.slash_command(name="list")
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -106,7 +108,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command(name="bust", dm_permission=False)
+@client.slash_command(name="bust")
 @application_checks.has_role(config.dj_role_name)
 async def on_bust(
     interaction: Interaction,
@@ -115,6 +117,10 @@ async def on_bust(
         min_value=1,
         default=1,
         description="Track number to start from.",
+    ),
+    starttime: str = SlashOption(
+        required=False,
+        description="Timestamp or time in seconds to seek the starting song from.",
     ),
 ) -> None:
     """Begin a bust."""
@@ -131,12 +137,12 @@ async def on_bust(
     if index > len(bc.bust_content):
         await interaction.send("There aren't that many tracks.", ephemeral=True)
         return
-    await bc.play(interaction, index - 1)
+    await bc.play(interaction, index - 1, starttime)
     del bust.controllers[interaction.guild_id]
 
 
 # Skip command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -151,7 +157,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Replay command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
@@ -166,7 +172,7 @@ async def replay(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -181,7 +187,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 # Image command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -240,7 +246,7 @@ async def image_view(interaction: Interaction) -> None:
 
 
 # Info command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -254,7 +260,7 @@ async def info(interaction: Interaction) -> None:
 
 
 # Preview command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment = SlashOption(description="The song to submit."),
@@ -302,7 +308,7 @@ async def preview(
     os.remove(attachment_filepath)
 
 
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
@@ -354,6 +360,15 @@ async def on_application_command_error(
     else:
         print(error)
 
+on_list.dm_permission = True
+on_bust.dm_permission = True
+skip.dm_permission = True
+replay.dm_permission = True
+stop.dm_permission = True
+image.dm_permission = True
+info.dm_permission = True
+preview.dm_permission = True
+announce.dm_permission = True
 
 # Load the bot state.
 persistent_state.load_state_from_disk()
