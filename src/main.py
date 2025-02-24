@@ -14,6 +14,8 @@ from nextcord import (
     Message,
     SlashOption,
     TextChannel,
+    SlashCommandOption,
+    application_command,
 )
 from nextcord.ext import application_checks, commands
 
@@ -132,6 +134,10 @@ async def on_bust(
         default=1,
         description="Track number to start from.",
     ),
+    starttime: str = SlashOption(
+        required=False,
+        description="Timestamp or time in seconds to seek the starting song from.",
+    ),
 ) -> None:
     """Begin a bust."""
     bc = bust.controllers.get(interaction.guild_id)
@@ -147,7 +153,7 @@ async def on_bust(
     if index > len(bc.bust_content):
         await interaction.send("There aren't that many tracks.", ephemeral=True)
         return
-    await bc.play(interaction, index - 1)
+    await bc.play(interaction, index - 1, starttime)
     del bust.controllers[interaction.guild_id]
 
 
@@ -370,6 +376,15 @@ async def on_application_command_error(
     else:
         print(error)
 
+on_list.dm_permission = True
+on_bust.dm_permission = True
+skip.dm_permission = True
+replay.dm_permission = True
+stop.dm_permission = True
+image.dm_permission = True
+info.dm_permission = True
+preview.dm_permission = True
+announce.dm_permission = True
 
 # Load the bot state.
 persistent_state.load_state_from_disk()
