@@ -12,10 +12,8 @@ from nextcord import (
     Interaction,
     InteractionContextType,
     Message,
-    SlashCommandOption,
     SlashOption,
     TextChannel,
-    application_command,
 )
 from nextcord.ext import application_checks, commands
 
