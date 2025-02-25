@@ -77,7 +77,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list", dm_permission=False)
+@client.slash_command(name="list")
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -106,7 +106,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command(name="bust", dm_permission=False)
+@client.slash_command(name="bust")
 @application_checks.has_role(config.dj_role_name)
 async def on_bust(
     interaction: Interaction,
@@ -140,7 +140,7 @@ async def on_bust(
 
 
 # Skip command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -155,7 +155,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Replay command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
@@ -170,7 +170,7 @@ async def replay(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -185,7 +185,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 # Image command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -244,7 +244,7 @@ async def image_view(interaction: Interaction) -> None:
 
 
 # Info command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -258,7 +258,7 @@ async def info(interaction: Interaction) -> None:
 
 
 # Preview command
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment = SlashOption(description="The song to submit."),
@@ -306,7 +306,7 @@ async def preview(
     os.remove(attachment_filepath)
 
 
-@client.slash_command(dm_permission=False)
+@client.slash_command()
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
@@ -358,6 +358,16 @@ async def on_application_command_error(
     else:
         print(error)
 
+# NextCord 3+ requires dm_permission parameters outside of the slash_command declaration
+on_list.dm_permission = False
+on_bust.dm_permission = False
+skip.dm_permission = False
+replay.dm_permission = False
+stop.dm_permission = False
+image.dm_permission = False
+info.dm_permission = False
+preview.dm_permission = False
+announce.dm_permission = False
 
 # Load the bot state.
 persistent_state.load_state_from_disk()
