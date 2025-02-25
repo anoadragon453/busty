@@ -374,16 +374,6 @@ async def on_application_command_error(
     else:
         print(error)
 
-# NextCord 3+ requires dm_permission parameters outside of the slash_command declaration
-on_list.dm_permission = False
-on_bust.dm_permission = False
-skip.dm_permission = False
-replay.dm_permission = False
-stop.dm_permission = False
-image.dm_permission = False
-info.dm_permission = False
-preview.dm_permission = False
-announce.dm_permission = False
 
 # Load the bot state.
 persistent_state.load_state_from_disk()
