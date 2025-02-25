@@ -237,22 +237,22 @@ def convert_timestamp_to_seconds(time_str):
     # Converts a time string into seconds. Returns 0 if format is invalid.
     # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
     if time_str is None:
-        return 0
+        return None
     
     if ':' not in time_str:
         if not time_str.isdigit():
-            return 0
+            return None
         return int(time_str)
     
     # Split the time string by colons
     parts = time_str.split(':')
     
     if len(parts) > 3:
-        return 0
+        return None
     
     # All parts must be digits
     if not all(part.isdigit() for part in parts):
-        return 0
+        return None
     parts = [int(part) for part in parts]
 
     # Pad with zeros if needed (e.g., "1:23" becomes [0, 1, 23])
@@ -264,8 +264,8 @@ def convert_timestamp_to_seconds(time_str):
     
     # Validate ranges
     if minutes >= 60 or seconds >= 60:
-        return 0
+        return None
     if hours < 0 or minutes < 0 or seconds < 0:
-        return 0
+        return None
         
     return (hours * 3600) + (minutes * 60) + seconds
