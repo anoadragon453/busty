@@ -9,9 +9,9 @@ from nextcord import (
     Intents,
     Interaction,
     Message,
+    SlashCommandOption,
     SlashOption,
     TextChannel,
-    SlashCommandOption,
     application_command,
 )
 from nextcord.ext import application_checks, commands

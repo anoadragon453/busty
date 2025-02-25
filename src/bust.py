@@ -1,5 +1,7 @@
 import asyncio
+import os
 import random
+import subprocess
 import time
 from collections import defaultdict
 from io import BytesIO
@@ -27,10 +29,8 @@ import config
 import discord_utils
 import forms
 import llm
-import os
 import persistent_state
 import song_utils
-import subprocess
 
 
 class BustController:
