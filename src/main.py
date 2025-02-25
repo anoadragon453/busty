@@ -10,6 +10,7 @@ from nextcord import (
     Embed,
     Intents,
     Interaction,
+    InteractionContextType,
     Message,
     SlashOption,
     TextChannel,
@@ -92,7 +93,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list", dm_permission=False)
+@client.slash_command(name="list", contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -121,7 +122,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command(name="bust", dm_permission=False)
+@client.slash_command(name="bust", contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def on_bust(
     interaction: Interaction,
@@ -166,7 +167,7 @@ async def skip(interaction: Interaction) -> None:
 
 
 # Replay command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
@@ -181,7 +182,7 @@ async def replay(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -196,7 +197,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 # Image command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -255,7 +256,7 @@ async def image_view(interaction: Interaction) -> None:
 
 
 # Info command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -269,7 +270,7 @@ async def info(interaction: Interaction) -> None:
 
 
 # Preview command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment = SlashOption(description="The song to submit."),
@@ -317,7 +318,7 @@ async def preview(
     os.remove(attachment_filepath)
 
 
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,
