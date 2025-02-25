@@ -152,7 +152,7 @@ async def on_bust(
 
 
 # Skip command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
