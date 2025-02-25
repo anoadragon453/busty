@@ -12,8 +12,8 @@ from nextcord import (
     Client,
     ClientException,
     Embed,
-    FFmpegPCMAudio,
     FFmpegOpusAudio,
+    FFmpegPCMAudio,
     File,
     Interaction,
     Message,
@@ -27,9 +27,9 @@ import config
 import discord_utils
 import forms
 import llm
+import os
 import persistent_state
 import song_utils
-import os
 import subprocess
 
 
@@ -74,7 +74,7 @@ class BustController:
 
         self._finished: bool = False
         self._playing_index: Optional[int] = None
-        self.temp_audio_file: str = f"temp_audio.ogg"
+        self.temp_audio_file: str = ""
 
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
@@ -99,13 +99,14 @@ class BustController:
             os.remove(self.temp_audio_file)
 
     def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
+
         song_len = song_utils.get_song_length(local_filepath)
         if(timestamp >= song_len):
             timestamp = 0
             print("Attempted to seek past length of song. Ignoring timestamp.")
 
         ffmpeg_command = [
-            'ffmpeg', '-i', local_filepath, '-ss', str(timestamp), '-t', str(song_len - timestamp), '-c:a', 'libopus', '-b:a', '128k', '-y', self.temp_audio_file
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', local_filepath, '-ss', str(timestamp), '-c:a', 'libopus', '-b:a', '128k', '-y', self.temp_audio_file
         ]
         subprocess.run(ffmpeg_command, check=True)
 
@@ -127,6 +128,15 @@ class BustController:
 
         await interaction.response.defer(ephemeral=True)
 
+        # Get first song offset
+        seek_to_seconds = song_utils.convert_timestamp_to_seconds(start_time)
+        if(seek_to_seconds is None and len(start_time) > 0):
+            await interaction.send(
+                "Not a legit start time.", ephemeral=True
+            )
+            return
+        self.temp_audio_file = discord_utils.build_filepath_for_media(interaction.guild.id, "temp_audio.ogg")
+        
         # Update message channel to where command was issued from
         # (in case `list` was called from a separate/private channel).
         self.message_channel = interaction.channel
@@ -179,9 +189,6 @@ class BustController:
         await self.message_channel.send("Let's get **BUSTY**.")
         await interaction.delete_original_message()
 
-        # Get first song offset
-        seek_to_seconds = song_utils.convert_timestamp_to_seconds(start_time)
-
         # Play songs
         self.playing_index = skip_count
         while self.playing_index < len(self.bust_content):
@@ -190,7 +197,7 @@ class BustController:
 
             # wrap play_song() in a coroutine so it is cancellable
             self.play_song_task = asyncio.create_task(
-                self.play_song(self.playing_index, seek_to_seconds)
+                self.play_song(interaction, self.playing_index, seek_to_seconds)
             )
             try:
                 await self.play_song_task
@@ -198,8 +205,8 @@ class BustController:
                 # Voice client playback must be manually stopped
                 self.voice_client.stop()
 
-            if(seek_to_seconds > 0):
-                seek_to_seconds = 0
+            if(seek_to_seconds is not None):
+                seek_to_seconds = None
             self.playing_index += 1
 
         # tidy up
@@ -242,7 +249,7 @@ class BustController:
         self.original_bot_nickname = None
         self._finished = True
 
-    async def play_song(self, index: int, timestamp: int) -> None:
+    async def play_song(self, interaction: Interaction, index: int, timestamp: int) -> None:
         # Send the chilling message
         embed_title = "Currently Chilling"
         embed_content = (
@@ -322,20 +329,15 @@ class BustController:
         play_lock = asyncio.Lock()
         # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
-        if(timestamp > 0):
-            self.seek_and_convert_to_opus(timestamp, local_filepath)
 
-            self.voice_client.play(
-                FFmpegOpusAudio(
-                    self.temp_audio_file, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"),
-                    after=ffmpeg_post_hook,
-                    )
+        audio_to_play = None
+        if(timestamp is not None):
+            self.seek_and_convert_to_opus(timestamp, local_filepath)
+            audio_to_play = FFmpegOpusAudio(self.temp_audio_file, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}")
         else:
-            self.voice_client.play(
-                FFmpegPCMAudio(
-                    local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"),
-                    after=ffmpeg_post_hook,
-                    )
+            audio_to_play = FFmpegPCMAudio(local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}")
+        
+        self.voice_client.play(audio_to_play, after=ffmpeg_post_hook,)
         
 
         # Set now playing title
