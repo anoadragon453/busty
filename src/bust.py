@@ -197,7 +197,7 @@ class BustController:
 
             # wrap play_song() in a coroutine so it is cancellable
             self.play_song_task = asyncio.create_task(
-                self.play_song(interaction, self.playing_index, seek_to_seconds)
+                self.play_song(self.playing_index, seek_to_seconds)
             )
             try:
                 await self.play_song_task
@@ -249,7 +249,7 @@ class BustController:
         self.original_bot_nickname = None
         self._finished = True
 
-    async def play_song(self, interaction: Interaction, index: int, timestamp: int) -> None:
+    async def play_song(self, index: int, timestamp: int) -> None:
         # Send the chilling message
         embed_title = "Currently Chilling"
         embed_content = (
