@@ -132,6 +132,10 @@ async def on_bust(
         default=1,
         description="Track number to start from.",
     ),
+    starttime: str = SlashOption(
+        required=False,
+        description="Timestamp or time in seconds to seek the starting song from.",
+    ),
 ) -> None:
     """Begin a bust."""
     bc = bust.controllers.get(interaction.guild_id)
@@ -147,7 +151,7 @@ async def on_bust(
     if index > len(bc.bust_content):
         await interaction.send("There aren't that many tracks.", ephemeral=True)
         return
-    await bc.play(interaction, index - 1)
+    await bc.play(interaction, index - 1, starttime)
     del bust.controllers[interaction.guild_id]
 
 
