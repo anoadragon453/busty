@@ -9,8 +9,10 @@ from nextcord import (
     HTTPException,
     Message,
     NotFound,
+    Object,
     TextChannel,
 )
+from nextcord.utils import DISCORD_EPOCH
 
 import config
 
@@ -67,8 +69,11 @@ async def scrape_channel_media(
         os.makedirs(attachment_dir)
 
     # Iterate through each message in the channel
+    # We pass `after` explicitly to work around this nextcord
+    # bug: https://github.com/nextcord/nextcord/issues/1238
+    after = Object(id=DISCORD_EPOCH)
     async for message in channel.history(
-        limit=config.MAXIMUM_MESSAGES_TO_SCAN, oldest_first=True
+        limit=config.MAXIMUM_MESSAGES_TO_SCAN, after=after, oldest_first=True
     ):
         if not message.attachments:
             # This message has no attached media
