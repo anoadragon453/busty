@@ -1,6 +1,8 @@
 import os
 from typing import Iterable, Mapping, Union
 
+from busty.emoji_list import DISCORD_TO_UNICODE
+
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
 # Max number of characters in an embed description
@@ -75,8 +77,5 @@ if openai_api_key is None:
         "Warning: BUSTY_OPENAI_API_KEY is not set, natural language abilities will be disabled"
     )
 
-# Import list of emojis from either a custom or the default list.
-# The default list is expected to be stored at `./emoji_list.py`.
-emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "emoji_list")
-# List of emoji for pulling random emoji
-emoji_list = list(__import__(emoji_filepath).DISCORD_TO_UNICODE.values())
+# Import list of emojis
+emoji_list = list(DISCORD_TO_UNICODE.values())

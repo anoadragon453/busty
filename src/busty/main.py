@@ -17,12 +17,12 @@ from nextcord import (
 )
 from nextcord.ext import application_checks, commands
 
-import bust
-import config
-import discord_utils
-import llm
-import persistent_state
-import song_utils
+import busty.bust as bust
+import busty.config as config
+import busty.discord_utils as discord_utils
+import busty.llm as llm
+import busty.persistent_state as persistent_state
+import busty.song_utils as song_utils
 
 
 def setup_logging(log_level):
@@ -371,13 +371,15 @@ async def on_application_command_error(
         print(error)
 
 
-# Load the bot state.
-persistent_state.load_state_from_disk()
+def main():
+    persistent_state.load_state_from_disk()
+    if config.discord_token:
+        client.run(config.discord_token)
+    else:
+        print(
+            "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
+        )
 
-# Connect to discord
-if config.discord_token:
-    client.run(config.discord_token)
-else:
-    print(
-        "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
-    )
+
+if __name__ == "__main__":
+    main()

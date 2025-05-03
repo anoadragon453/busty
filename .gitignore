@@ -4,7 +4,10 @@ attachments/
 .idea/
 .image_state
 venv/
-src/__pycache__/
+__pycache__
+
+# ruff
+.ruff_cache/
 
 # Bot state, google service keys, llm context
 *.json

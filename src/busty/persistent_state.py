@@ -4,7 +4,7 @@ from typing import Iterable, Optional
 
 from nextcord import Interaction
 
-from config import JSON_DATA_TYPE, bot_state_file
+import busty.config as config
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
@@ -16,13 +16,13 @@ def load_state_from_disk() -> None:
     global _bot_state
 
     try:
-        with open(bot_state_file) as f:
+        with open(config.bot_state_file) as f:
             bot_state_str = f.read()
     except FileNotFoundError:
         # Expected on first run or after setting a new custom bot state filepath.
         bot_state_str = None
     except IOError:
-        print(f"Could not read state from {bot_state_file}")
+        print(f"Could not read state from {config.bot_state_file}")
         raise
 
     if bot_state_str:
@@ -31,7 +31,7 @@ def load_state_from_disk() -> None:
         _bot_state = json.loads(bot_state_str)
 
 
-def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
+def set_state(path: Iterable[str], value: config.JSON_DATA_TYPE) -> None:
     """Modifies the bot's state in memory, then dumps the modified state to disk.
 
     This function should not be made async! We do not want to yield from it before we update
@@ -83,14 +83,14 @@ def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
         _bot_state = value
 
     # Now write the modified `bot_state` back to disk.
-    with open(bot_state_file, "w") as f:
+    with open(config.bot_state_file, "w") as f:
         # We add indenting (which also adds newlines) into the file to make it easy for a human
         # to look through in case of the need for debugging (the performance cost in minimal).
         bot_state_str = json.dumps(_bot_state, indent=2)
         f.write(bot_state_str)
 
 
-def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
+def get_state(path: Iterable[str]) -> config.JSON_DATA_TYPE:
     """Retrieve persistent state at a given path.
 
     Args:

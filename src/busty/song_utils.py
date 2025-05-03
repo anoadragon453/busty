@@ -3,7 +3,8 @@ import os
 from io import BytesIO
 from typing import Optional, Tuple
 
-from mutagen import File as MutagenFile, MutagenError
+from mutagen import File as MutagenFile
+from mutagen import MutagenError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
@@ -12,7 +13,7 @@ from nextcord import Attachment, Embed, File, User
 from nextcord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 
-import config
+import busty.config as config
 
 
 def embed_song(
@@ -34,7 +35,9 @@ def embed_song(
         jump_url,
     )
     embed = Embed(
-        title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
+        title=embed_title,
+        description=embed_content,
+        color=config.PLAY_EMBED_COLOR,
     )
 
     if message_content:
