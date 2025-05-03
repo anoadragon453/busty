@@ -14,7 +14,7 @@ from nextcord import (
 )
 from nextcord.utils import DISCORD_EPOCH
 
-import config
+import busty.config as config
 
 
 async def try_set_pin(message: Message, pin_state: bool) -> None:

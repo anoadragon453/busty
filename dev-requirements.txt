@@ -1,8 +1,0 @@
-# Tools required to lint the codebase
-isort==5.13.2
-flake8==7.0.0
-flake8-comprehensions==3.14.0
-black==24.4.2
-
-# type stubs
-types-pillow>=9.0  # should be kept in sync with pillow in requirements

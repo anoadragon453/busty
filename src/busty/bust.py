@@ -22,12 +22,12 @@ from nextcord import (
     VoiceClient,
 )
 
-import config
-import discord_utils
-import forms
-import llm
-import persistent_state
-import song_utils
+import busty.config as config
+import busty.discord_utils as discord_utils
+import busty.forms as forms
+import busty.llm as llm
+import busty.persistent_state as persistent_state
+import busty.song_utils as song_utils
 
 
 class BustController:
@@ -297,7 +297,8 @@ class BustController:
         await play_lock.acquire()
         self.voice_client.play(
             FFmpegPCMAudio(
-                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
+                local_filepath,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             ),
             after=ffmpeg_post_hook,
         )
@@ -389,7 +390,7 @@ class BustController:
             [(length, sub) for (sub, length) in submitter_to_len.items()], reverse=True
         )
         longest_submitters_formatted = [
-            f"{i+1}. {submitter.mention} - {song_utils.format_time(int(length))}"
+            f"{i + 1}. {submitter.mention} - {song_utils.format_time(int(length))}"
             for i, (length, submitter) in enumerate(
                 submitters_sorted_by_len[: config.num_longest_submitters]
             )

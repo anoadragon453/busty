@@ -15,45 +15,32 @@
     nixpkgs.url = "github:NixOS/nixpkgs/master";
     # Output a development shell for x86_64/aarch64 Linux/Darwin (MacOS).
     systems.url = "github:nix-systems/default";
-    # A development environment manager built on Nix. See https://devenv.sh.
-    devenv.url = "github:cachix/devenv/v1.0.7";
   };
 
-  outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
+  outputs = { self, nixpkgs, systems, ... }:
     let
       forEachSystem = nixpkgs.lib.genAttrs (import systems);
     in {
-      devShells = forEachSystem (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-          };
-        in {
-          # Everything is configured via devenv - a Nix module for creating declarative
-          # developer environments. See https://devenv.sh/reference/options/ for a list
-          # of all possible options.
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
-            modules = [
-              {
-                # Configure packages to install.
-                # Search for package names at https://search.nixos.org/packages?channel=unstable
-                packages = with pkgs; [
-                  # Required to process user media downloaded from Discord.
-                  ffmpeg
-                ];
-
-                # Install Python at a specific version.
-                languages.python.enable = true;
-                languages.python.package = pkgs.python3;
-
-                # Create a virtualenv from the given requirements file.
-                languages.python.venv.enable = true;
-                languages.python.venv.requirements =
-                  (builtins.readFile ./requirements.txt) + (builtins.readFile ./dev-requirements.txt);
-              }
-            ];
-          };
-        });
+      devShells = forEachSystem (system: {
+        default = 
+          let
+            pkgs = import nixpkgs { inherit system; };
+          in
+            pkgs.mkShell {
+              packages = with pkgs; [
+                ffmpeg
+                python3
+                poetry
+                python3Packages.ruff
+              ];
+              shellHook = ''
+                export LD_LIBRARY_PATH="${pkgs.libopus}/lib:$LD_LIBRARY_PATH"
+                if [ ! -d .venv ]; then
+                  poetry install
+                fi
+                poetry env activate
+              '';
+            };
+      });
     };
 }

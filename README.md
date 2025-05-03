@@ -26,23 +26,19 @@ features, or to suggest your own.
 
 ## Install
 
-You'll need at least Python 3.6 and [ffmpeg](https://ffmpeg.org/) installed.
+You'll need at least Python 3.12 and [ffmpeg](https://ffmpeg.org/) installed.
 
-Create a python virtual environment to install python dependencies in.
-
-```
-python3 -m venv env
-source env/bin/activate
-```
-
-And install the dependencies:
+Install [Poetry](https://python-poetry.org/) if you haven't already:
 
 ```
-pip install -r requirements.txt
+pip install poetry
 ```
 
-To install an additional set of python dependencies for speeding up the bot, install the
-`nextcord[speed]` package as well.You may need to install additional system packages.
+Then, in your project directory, install dependencies:
+
+```
+poetry install
+```
 
 ## Configure
 
@@ -95,7 +91,7 @@ the import path (often simply the filename without an extension) of the new modu
 With the proper environment variables set, start the bot with:
 
 ```
-python src/main.py
+poetry run busty
 ```
 
 It should connect to Discord and display the currently logged-in application name.
@@ -139,15 +135,10 @@ please double-check that a pull request for the issue
 
 ### Installing the development dependencies
 
-Some extra Python modules are necessary when developing for Busty. These are
-contained in the `dev-requirements.txt` file. To install them, run:
+To install extra dependencies for development (linting, etc):
 
 ```shell
-# Activate the virtualenv if not already done so
-source env/bin/activate
-
-# Install development dependencies
-pip install -r dev-requirements.txt
+poetry install --with dev
 ```
 
 ### Testing your changes
@@ -161,11 +152,9 @@ additionally tested by reviewers before merging them, but we're only human.
 
 ### Linting
 
-Once you have implemented your feature and tested that it works, you'll need to
-ensure your code is properly formatted. Running `./scripts-dev/lint.sh` will
-check this for you and - in most cases - fix any style issues automatically.
+To check and fix code style issues, run:
 
-Otherwise, some issues may need to be fixed manually. These will be printed when
-`lint.sh` is run. They must be fixed before your PR will be accepted. If you
-are unable to figure out how to appease the linter, simply post and mark your
-pull request as a draft and ask for help in a comment.
+```
+poetry run ruff check .
+poetry run ruff format .
+```
