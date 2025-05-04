@@ -101,12 +101,25 @@ class BustController:
     def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
 
         song_len = song_utils.get_song_length(local_filepath)
-        if (timestamp >= song_len):
+        if timestamp >= song_len:
             timestamp = 0
             print("Attempted to seek past length of song. Ignoring timestamp.")
 
         ffmpeg_command = [
-            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', local_filepath, '-ss', str(timestamp), '-c:a', 'libopus', '-b:a', '128k', '-y', self.temp_audio_file
+            'ffmpeg',
+            '-hide_banner',
+            '-loglevel',
+            'error',
+            '-i',
+            local_filepath,
+            '-ss',
+            str(timestamp),
+            '-c:a',
+            'libopus',
+            '-b:a',
+            '128k',
+            '-y',
+            self.temp_audio_file
         ]
         subprocess.run(ffmpeg_command, check=True)
 
@@ -130,12 +143,12 @@ class BustController:
 
         # Get first song offset
         seek_to_seconds = song_utils.convert_timestamp_to_seconds(start_time)
-        if (seek_to_seconds is None and len(start_time) > 0):
-            await interaction.send(
-                "Not a legit start time.", ephemeral=True
-            )
+        if seek_to_seconds is None and len(start_time) > 0:
+            await interaction.send("Not a legit start time.", ephemeral=True)
             return
-        self.temp_audio_file = discord_utils.build_filepath_for_media(interaction.guild.id, "temp_audio.ogg")
+        self.temp_audio_file = discord_utils.build_filepath_for_media(
+            interaction.guild.id, "temp_audio.ogg"
+        )
 
         # Update message channel to where command was issued from
         # (in case `list` was called from a separate/private channel).
@@ -205,7 +218,7 @@ class BustController:
                 # Voice client playback must be manually stopped
                 self.voice_client.stop()
 
-            if (seek_to_seconds is not None):
+            if seek_to_seconds is not None:
                 seek_to_seconds = None
             self.playing_index += 1
 
@@ -331,13 +344,19 @@ class BustController:
         await play_lock.acquire()
 
         audio_to_play = None
-        if (timestamp is not None):
+        if timestamp is not None:
             self.seek_and_convert_to_opus(timestamp, local_filepath)
-            audio_to_play = FFmpegOpusAudio(self.temp_audio_file, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}")
+            audio_to_play = FFmpegOpusAudio(
+                self.temp_audio_file,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
+            )
         else:
             audio_to_play = FFmpegPCMAudio(local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}")
 
-        self.voice_client.play(audio_to_play, after=ffmpeg_post_hook,)
+        self.voice_client.play(
+            audio_to_play,
+            after=ffmpeg_post_hook,
+        )
 
         # Set now playing title
         self.now_playing_str = song_utils.song_format(

@@ -240,13 +240,13 @@ def convert_timestamp_to_seconds(time_str):
     if time_str is None:
         return None
 
-    if ':' not in time_str:
+    if ":" not in time_str:
         if not time_str.isdigit():
             return None
         return int(time_str)
 
     # Split the time string by colons
-    parts = time_str.split(':')
+    parts = time_str.split(":")
 
     if len(parts) > 3:
         return None
