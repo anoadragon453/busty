@@ -106,19 +106,19 @@ class BustController:
             print("Attempted to seek past length of song. Ignoring timestamp.")
 
         ffmpeg_command = [
-            'ffmpeg',
-            '-hide_banner',
-            '-loglevel',
-            'error',
-            '-i',
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
             local_filepath,
-            '-ss',
+            "-ss",
             str(timestamp),
-            '-c:a',
-            'libopus',
-            '-b:a',
-            '128k',
-            '-y',
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-y",
             self.temp_audio_file
         ]
         subprocess.run(ffmpeg_command, check=True)
@@ -130,7 +130,9 @@ class BustController:
             self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
 
-    async def play(self, interaction: Interaction, skip_count: int = 0, start_time: str = "") -> None:
+    async def play(
+            self, interaction: Interaction, skip_count: int = 0, start_time: str = ""
+    ) -> None:
         """Begin playback.
 
         Args:
@@ -351,7 +353,9 @@ class BustController:
                 options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
             )
         else:
-            audio_to_play = FFmpegPCMAudio(local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}")
+            audio_to_play = FFmpegPCMAudio(
+                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
+            )
 
         self.voice_client.play(
             audio_to_play,
