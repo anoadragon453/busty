@@ -350,11 +350,12 @@ class BustController:
             self.seek_and_convert_to_opus(timestamp, local_filepath)
             audio_to_play = FFmpegOpusAudio(
                 self.temp_audio_file,
-                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
         else:
             audio_to_play = FFmpegPCMAudio(
-                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+                local_filepath,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
 
         self.voice_client.play(
