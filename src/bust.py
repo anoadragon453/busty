@@ -119,7 +119,7 @@ class BustController:
             "-b:a",
             "128k",
             "-y",
-            self.temp_audio_file
+            self.temp_audio_file,
         ]
         subprocess.run(ffmpeg_command, check=True)
 
@@ -131,7 +131,7 @@ class BustController:
             self.play_song_task.cancel()
 
     async def play(
-            self, interaction: Interaction, skip_count: int = 0, start_time: str = ""
+        self, interaction: Interaction, skip_count: int = 0, start_time: str = ""
     ) -> None:
         """Begin playback.
 
@@ -354,7 +354,7 @@ class BustController:
             )
         else:
             audio_to_play = FFmpegPCMAudio(
-                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
+                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
 
         self.voice_client.play(
