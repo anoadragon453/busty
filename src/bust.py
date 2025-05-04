@@ -249,7 +249,7 @@ class BustController:
         self.original_bot_nickname = None
         self._finished = True
 
-    async def play_song(self, index: int, timestamp: int) -> None:
+    async def play_song(self, index: int, timestamp: Optional[int]) -> None:
         # Send the chilling message
         embed_title = "Currently Chilling"
         embed_content = (
