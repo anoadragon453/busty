@@ -61,6 +61,8 @@ class BustController:
         self.bust_stopped: bool = False
         # Client object
         self.client: Client = client
+        # Whether or not a song seek is being executed
+        self.seeking: bool = False
 
         # Calculate total length of all songs in seconds
         self.total_song_len: float = 0.0
@@ -74,10 +76,17 @@ class BustController:
 
         self._finished: bool = False
         self._playing_index: Optional[int] = None
+
+        # Temp audio file to truncate seeks to
         self.temp_audio_file: str = ""
+
+        self._seek_to_seconds: Optional[int] = None
 
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
+
+    def is_seeking(self) -> bool:
+        return self.seeking
 
     def current_song(self) -> str:
         return self.now_playing_str
@@ -130,27 +139,29 @@ class BustController:
             self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
 
-    async def play(
-        self, interaction: Interaction, skip_count: int = 0, start_time: str = ""
-    ) -> None:
+    def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
+        # Get seek offset
+        self._seek_to_seconds = timestamp
+        self.temp_audio_file = discord_utils.build_filepath_for_media(
+            interaction.guild.id, "temp_audio.ogg"
+        )
+        submit_message, attachment, local_filepath = self.bust_content[
+            self.playing_index
+        ]
+        self.seeking = True
+        self.seek_and_convert_to_opus(timestamp, local_filepath)
+        self.skip_to_track(self.playing_index)
+        self.seeking = False
+
+    async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         """Begin playback.
 
         Args:
             interaction: An interaction which has not yet been responded to.
             skip_count: List index to start playback from.
-            start_time: String in the format of: ##:## specifying start time, or a numeric string in seconds.
         """
 
         await interaction.response.defer(ephemeral=True)
-
-        # Get first song offset
-        seek_to_seconds = song_utils.convert_timestamp_to_seconds(start_time)
-        if seek_to_seconds is None and len(start_time) > 0:
-            await interaction.send("Not a legit start time.", ephemeral=True)
-            return
-        self.temp_audio_file = discord_utils.build_filepath_for_media(
-            interaction.guild.id, "temp_audio.ogg"
-        )
 
         # Update message channel to where command was issued from
         # (in case `list` was called from a separate/private channel).
@@ -212,7 +223,7 @@ class BustController:
 
             # wrap play_song() in a coroutine so it is cancellable
             self.play_song_task = asyncio.create_task(
-                self.play_song(self.playing_index, seek_to_seconds)
+                self.play_song(self.playing_index)
             )
             try:
                 await self.play_song_task
@@ -220,8 +231,6 @@ class BustController:
                 # Voice client playback must be manually stopped
                 self.voice_client.stop()
 
-            if seek_to_seconds is not None:
-                seek_to_seconds = None
             self.playing_index += 1
 
         # tidy up
@@ -264,7 +273,7 @@ class BustController:
         self.original_bot_nickname = None
         self._finished = True
 
-    async def play_song(self, index: int, timestamp: Optional[int]) -> None:
+    async def play_song(self, index: int) -> None:
         # Send the chilling message
         embed_title = "Currently Chilling"
         embed_content = (
@@ -346,12 +355,12 @@ class BustController:
         await play_lock.acquire()
 
         audio_to_play = None
-        if timestamp is not None:
-            self.seek_and_convert_to_opus(timestamp, local_filepath)
+        if self._seek_to_seconds is not None:
             audio_to_play = FFmpegOpusAudio(
                 self.temp_audio_file,
                 options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
+            self._seek_to_seconds = None
         else:
             audio_to_play = FFmpegPCMAudio(
                 local_filepath,

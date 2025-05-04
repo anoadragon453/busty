@@ -234,7 +234,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-def convert_timestamp_to_seconds(time_str):
+def convert_timestamp_to_seconds(time_str: str):
     # Converts a time string into seconds. Returns 0 if format is invalid.
     # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
     if time_str is None:
