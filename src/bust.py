@@ -150,6 +150,9 @@ class BustController:
         ]
         self.seeking = True
         self.seek_and_convert_to_opus(timestamp, local_filepath)
+        if not os.path.exists(self.temp_audio_file):
+           print("Failed to convert file for seeking. Cancelling seek.")
+           self._seek_to_seconds = None
         self.skip_to_track(self.playing_index)
         self.seeking = False
 
@@ -272,6 +275,7 @@ class BustController:
         self.voice_client = None
         self.original_bot_nickname = None
         self._finished = True
+        self.delete_temp_audio()
 
     async def play_song(self, index: int) -> None:
         # Send the chilling message
@@ -340,7 +344,6 @@ class BustController:
 
         # Called when song finishes playing
         async def ffmpeg_post_hook(e: Exception = None):
-            self.delete_temp_audio()
             if e is not None:
                 print("Song playback quit with error:", e)
             # Unpin now playing message
