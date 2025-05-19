@@ -151,8 +151,8 @@ class BustController:
         self.seeking = True
         self.seek_and_convert_to_opus(timestamp, local_filepath)
         if not os.path.exists(self.temp_audio_file):
-           print("Failed to convert file for seeking. Cancelling seek.")
-           self._seek_to_seconds = None
+            print("Failed to convert file for seeking. Cancelling seek.")
+            self._seek_to_seconds = None
         self.skip_to_track(self.playing_index)
         self.seeking = False
 
