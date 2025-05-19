@@ -101,11 +101,6 @@ class BustController:
         self.bust_stopped = True
         if self.play_song_task:
             self.play_song_task.cancel()
-        self.delete_temp_audio()
-
-    def delete_temp_audio(self) -> None:
-        if os.path.exists(self.temp_audio_file):
-            os.remove(self.temp_audio_file)
 
     def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
 
@@ -275,7 +270,6 @@ class BustController:
         self.voice_client = None
         self.original_bot_nickname = None
         self._finished = True
-        self.delete_temp_audio()
 
     async def play_song(self, index: int) -> None:
         # Send the chilling message
