@@ -20,7 +20,8 @@ venv.bak/
 
 # IDEs
 .idea/
-
+.zed/
+.vscode/
 
 # mypy
 .mypy_cache/
