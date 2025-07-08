@@ -8,11 +8,11 @@ from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
-from nextcord import Attachment, Embed, File, User
-from nextcord.utils import escape_markdown
+from discord import Attachment, Embed, File, User
+from discord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 
-import config
+from busty import config
 
 
 def embed_song(

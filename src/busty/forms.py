@@ -4,7 +4,7 @@ import googleapiclient.discovery
 from googleapiclient.discovery import Resource
 from oauth2client.service_account import ServiceAccountCredentials
 
-import config
+from busty import config
 
 
 def get_google_services() -> Tuple[Optional[Resource], Optional[Resource]]:

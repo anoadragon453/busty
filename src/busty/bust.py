@@ -3,7 +3,8 @@ import random
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union
 
-from nextcord import (
+import requests
+from discord import (
     Attachment,
     ChannelType,
     Client,
@@ -18,11 +19,12 @@ from nextcord import (
     VoiceClient,
 )
 
-import config
-import discord_utils
-import forms
-import persistent_state
-import song_utils
+from busty import config
+from busty import discord_utils
+from busty import forms
+from busty import llm
+from busty import persistent_state
+from busty import song_utils
 
 
 class BustController:
@@ -151,7 +153,7 @@ class BustController:
         self.original_bot_nickname = bot_member.display_name
 
         await self.message_channel.send("Let's get **BUSTY**.")
-        await interaction.delete_original_message()
+        await interaction.delete_original_response()
 
         # Play songs
         self.playing_index = skip_count
@@ -393,7 +395,7 @@ async def create_controller(
     # Scrape all tracks in the target channel and list them
     channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
     if not channel_media_attachments:
-        await interaction.edit_original_message(
+        await interaction.edit_original_response(
             content=":warning: No valid media files found."
         )
         return None
@@ -484,7 +486,7 @@ async def create_controller(
             )
             await discord_utils.try_set_pin(form_message, True)
 
-    await interaction.delete_original_message()
+    await interaction.delete_original_response()
     # Return controller
     return bc
 
