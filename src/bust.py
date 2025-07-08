@@ -1,5 +1,7 @@
 import asyncio
+import os
 import random
+import subprocess
 import time
 from collections import defaultdict
 from io import BytesIO
@@ -12,6 +14,7 @@ from nextcord import (
     Client,
     ClientException,
     Embed,
+    FFmpegOpusAudio,
     FFmpegPCMAudio,
     File,
     Interaction,
@@ -58,6 +61,8 @@ class BustController:
         self.bust_stopped: bool = False
         # Client object
         self.client: Client = client
+        # Whether or not a song seek is being executed
+        self.seeking: bool = False
 
         # Calculate total length of all songs in seconds
         self.total_song_len: float = 0.0
@@ -72,8 +77,16 @@ class BustController:
         self._finished: bool = False
         self._playing_index: Optional[int] = None
 
+        # Temp audio file to truncate seeks to
+        self.temp_audio_file: str = ""
+
+        self._seek_to_seconds: Optional[int] = None
+
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
+
+    def is_seeking(self) -> bool:
+        return self.seeking
 
     def current_song(self) -> str:
         return self.now_playing_str
@@ -89,12 +102,54 @@ class BustController:
         if self.play_song_task:
             self.play_song_task.cancel()
 
+    def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
+
+        song_len = song_utils.get_song_length(local_filepath)
+        if timestamp >= song_len:
+            timestamp = 0
+            print("Attempted to seek past length of song. Ignoring timestamp.")
+
+        ffmpeg_command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            local_filepath,
+            "-ss",
+            str(timestamp),
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-y",
+            self.temp_audio_file,
+        ]
+        subprocess.run(ffmpeg_command, check=True)
+
     def skip_to_track(self, track_number: int) -> None:
         """Skip to track number (0-indexed)."""
         if self.play_song_task:
             # Reduce playing index so it stays the same after increment upon task cancel
             self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
+
+    def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
+        # Get seek offset
+        self._seek_to_seconds = timestamp
+        self.temp_audio_file = discord_utils.build_filepath_for_media(
+            interaction.guild.id, "temp_audio.ogg"
+        )
+        submit_message, attachment, local_filepath = self.bust_content[
+            self.playing_index
+        ]
+        self.seeking = True
+        self.seek_and_convert_to_opus(timestamp, local_filepath)
+        if not os.path.exists(self.temp_audio_file):
+            print("Failed to convert file for seeking. Cancelling seek.")
+            self._seek_to_seconds = None
+        self.skip_to_track(self.playing_index)
+        self.seeking = False
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         """Begin playback.
@@ -295,10 +350,22 @@ class BustController:
         play_lock = asyncio.Lock()
         # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
+
+        audio_to_play = None
+        if self._seek_to_seconds is not None:
+            audio_to_play = FFmpegOpusAudio(
+                self.temp_audio_file,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+            )
+            self._seek_to_seconds = None
+        else:
+            audio_to_play = FFmpegPCMAudio(
+                local_filepath,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+            )
+
         self.voice_client.play(
-            FFmpegPCMAudio(
-                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
-            ),
+            audio_to_play,
             after=ffmpeg_post_hook,
         )
 
@@ -389,7 +456,7 @@ class BustController:
             [(length, sub) for (sub, length) in submitter_to_len.items()], reverse=True
         )
         longest_submitters_formatted = [
-            f"{i+1}. {submitter.mention} - {song_utils.format_time(int(length))}"
+            f"{i + 1}. {submitter.mention} - {song_utils.format_time(int(length))}"
             for i, (length, submitter) in enumerate(
                 submitters_sorted_by_len[: config.num_longest_submitters]
             )

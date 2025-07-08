@@ -166,6 +166,38 @@ async def skip(interaction: Interaction) -> None:
     bc.skip_to_track(bc.playing_index + 1)
 
 
+# Seek command
+@client.slash_command(name="seek", contexts=[InteractionContextType.guild])
+@application_checks.has_role(config.dj_role_name)
+async def seek(
+    interaction: Interaction,
+    timestamp: str = SlashOption(
+        required=True,
+        default="",
+        description="Timestamp to seek song with.",
+    ),
+) -> None:
+    """Seek to time in currently playing song."""
+    # Get seek offset
+    seek_to_seconds = song_utils.convert_timestamp_to_seconds(timestamp)
+    if seek_to_seconds is None:
+        await interaction.send("Invalid seek time.", ephemeral=True)
+        return
+
+    bc = bust.controllers.get(interaction.guild_id)
+
+    if not bc or not bc.is_active():
+        await interaction.send("Nothing is playing.", ephemeral=True)
+        return
+
+    if bc.is_seeking():
+        await interaction.send("Still seeking, chill a sec.", ephemeral=True)
+        return
+
+    await interaction.send("Let's skip to the good part.")
+    bc.seek_current_track(interaction, seek_to_seconds)
+
+
 # Replay command
 @client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)

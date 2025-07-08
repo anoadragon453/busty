@@ -232,3 +232,41 @@ def get_cover_art(filename: str) -> Optional[File]:
 
     # Create a new discord file from the file pointer and name
     return File(image_bytes_fp, filename=cover_filename)
+
+
+def convert_timestamp_to_seconds(time_str: str):
+    # Converts a time string into seconds. Returns 0 if format is invalid.
+    # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
+    if time_str is None:
+        return None
+
+    if ":" not in time_str:
+        if not time_str.isdigit():
+            return None
+        return int(time_str)
+
+    # Split the time string by colons
+    parts = time_str.split(":")
+
+    if len(parts) > 3:
+        return None
+
+    # All parts must be digits
+    if not all(part.isdigit() for part in parts):
+        return None
+    parts = [int(part) for part in parts]
+
+    # Pad with zeros if needed (e.g., "1:23" becomes [0, 1, 23])
+    while len(parts) < 3:
+        parts.insert(0, 0)
+
+    # Calculate total seconds
+    hours, minutes, seconds = parts
+
+    # Validate ranges
+    if minutes >= 60 or seconds >= 60:
+        return None
+    if hours < 0 or minutes < 0 or seconds < 0:
+        return None
+
+    return (hours * 3600) + (minutes * 60) + seconds
