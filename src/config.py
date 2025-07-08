@@ -37,6 +37,8 @@ seconds_between_songs = int(os.environ.get("BUSTY_COOLDOWN_SECS", 10))
 attachment_directory_filepath = os.environ.get("BUSTY_ATTACHMENT_DIR", "attachments")
 # The Discord role needed to perform bot commands
 dj_role_name = os.environ.get("BUSTY_DJ_ROLE", "bangermeister")
+# Number of longest submitters to show on /info
+num_longest_submitters = int(os.environ.get("BUSTY_NUM_LONGEST_SUBMITTERS", 3))
 # The Discord bot token to use
 discord_token = os.environ.get("BUSTY_DISCORD_TOKEN")
 # The remote folder to move Google Forms to

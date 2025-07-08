@@ -1,6 +1,10 @@
 import asyncio
+import os
 import random
+import subprocess
+import time
 from collections import defaultdict
+from io import BytesIO
 from typing import Dict, List, Optional, Tuple, Union
 
 import requests
@@ -10,7 +14,9 @@ from discord import (
     Client,
     ClientException,
     Embed,
+    FFmpegOpusAudio,
     FFmpegPCMAudio,
+    File,
     Interaction,
     Message,
     StageChannel,
@@ -55,6 +61,8 @@ class BustController:
         self.bust_stopped: bool = False
         # Client object
         self.client: Client = client
+        # Whether or not a song seek is being executed
+        self.seeking: bool = False
 
         # Calculate total length of all songs in seconds
         self.total_song_len: float = 0.0
@@ -69,8 +77,16 @@ class BustController:
         self._finished: bool = False
         self._playing_index: Optional[int] = None
 
+        # Temp audio file to truncate seeks to
+        self.temp_audio_file: str = ""
+
+        self._seek_to_seconds: Optional[int] = None
+
     def is_active(self) -> bool:
         return self.voice_client and self.voice_client.is_connected()
+
+    def is_seeking(self) -> bool:
+        return self.seeking
 
     def current_song(self) -> str:
         return self.now_playing_str
@@ -86,12 +102,54 @@ class BustController:
         if self.play_song_task:
             self.play_song_task.cancel()
 
+    def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
+
+        song_len = song_utils.get_song_length(local_filepath)
+        if timestamp >= song_len:
+            timestamp = 0
+            print("Attempted to seek past length of song. Ignoring timestamp.")
+
+        ffmpeg_command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            local_filepath,
+            "-ss",
+            str(timestamp),
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-y",
+            self.temp_audio_file,
+        ]
+        subprocess.run(ffmpeg_command, check=True)
+
     def skip_to_track(self, track_number: int) -> None:
         """Skip to track number (0-indexed)."""
         if self.play_song_task:
             # Reduce playing index so it stays the same after increment upon task cancel
             self.playing_index = max(0, track_number) - 1
             self.play_song_task.cancel()
+
+    def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
+        # Get seek offset
+        self._seek_to_seconds = timestamp
+        self.temp_audio_file = discord_utils.build_filepath_for_media(
+            interaction.guild.id, "temp_audio.ogg"
+        )
+        submit_message, attachment, local_filepath = self.bust_content[
+            self.playing_index
+        ]
+        self.seeking = True
+        self.seek_and_convert_to_opus(timestamp, local_filepath)
+        if not os.path.exists(self.temp_audio_file):
+            print("Failed to convert file for seeking. Cancelling seek.")
+            self._seek_to_seconds = None
+        self.skip_to_track(self.playing_index)
+        self.seeking = False
 
     async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
         """Begin playback.
@@ -214,19 +272,46 @@ class BustController:
         self._finished = True
 
     async def play_song(self, index: int) -> None:
-        # Wait some time between songs
-        if config.seconds_between_songs:
-            embed_title = "Currently Chilling"
-            embed_content = "Waiting for {} second{}...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**".format(
-                config.seconds_between_songs,
-                "s" if config.seconds_between_songs != 1 else "",
-            )
-            embed = Embed(title=embed_title, description=embed_content)
-            await self.message_channel.send(embed=embed)
-            await asyncio.sleep(config.seconds_between_songs)
+        # Send the chilling message
+        embed_title = "Currently Chilling"
+        embed_content = (
+            "The track will start soon...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**"
+        )
+        embed = Embed(title=embed_title, description=embed_content)
+        await self.message_channel.send(embed=embed)
+        # Begin album art generation timer, so we know how long to wait afterwards
+        start_album_generation = time.time()
 
         # Pop a song off the front of the queue and play it
         submit_message, attachment, local_filepath = self.bust_content[index]
+
+        # Get cover art
+        cover_art = song_utils.get_cover_art(local_filepath)
+        if cover_art is None and config.openai_api_key:
+            # Use generative AI to create some album art for this song.
+            artist, title = song_utils.get_song_metadata(
+                local_filepath, attachment.filename, submit_message.author.display_name
+            )
+            try:
+                cover_art_url = await asyncio.wait_for(
+                    llm.generate_album_art(artist, title, submit_message.content),
+                    timeout=20.0,
+                )
+                if cover_art_url is not None:
+                    # Attaching the URL for the artwork directly to the embed doesn't appear to work,
+                    # so instead download the art and upload it to Discord.
+                    # This also ensures that the cover art is preserved on Discord's CDN, whereas
+                    # the original URL may not remain forever.
+                    image_data = requests.get(cover_art_url).content
+                    image_bytes_fp = BytesIO(image_data)
+                    cover_art = File(image_bytes_fp, "ai_cover.png")
+            except asyncio.TimeoutError:
+                print("Warning: cover art generation timed out")
+
+        # Wait any remaining time not taken by image generation
+        waited = time.time() - start_album_generation
+        time_to_sleep = max(0, config.seconds_between_songs - waited)
+        await asyncio.sleep(time_to_sleep)
 
         # Associate a random emoji with this song
         random_emoji = random.choice(config.emoji_list)
@@ -241,7 +326,6 @@ class BustController:
         )
 
         # Add cover art and send
-        cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is not None:
             embed.set_image(url=f"attachment://{cover_art.filename}")
             self.now_playing_msg = await self.message_channel.send(
@@ -266,10 +350,22 @@ class BustController:
         play_lock = asyncio.Lock()
         # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
+
+        audio_to_play = None
+        if self._seek_to_seconds is not None:
+            audio_to_play = FFmpegOpusAudio(
+                self.temp_audio_file,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+            )
+            self._seek_to_seconds = None
+        else:
+            audio_to_play = FFmpegPCMAudio(
+                local_filepath,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+            )
+
         self.voice_client.play(
-            FFmpegPCMAudio(
-                local_filepath, options=f"-filter:a volume={config.VOLUME_MULTIPLIER}"
-            ),
+            audio_to_play,
             after=ffmpeg_post_hook,
         )
 
@@ -355,9 +451,16 @@ class BustController:
                 song_len = 0.0
             submitter_to_len[submit_message.author] += song_len
 
-        # User with longest total submission length
-        longest_submitter = max(submitter_to_len, key=submitter_to_len.get)
-        longest_submitter_time = int(submitter_to_len[longest_submitter])
+        # Format list of users with longest total submission length
+        submitters_sorted_by_len = sorted(
+            [(length, sub) for (sub, length) in submitter_to_len.items()], reverse=True
+        )
+        longest_submitters_formatted = [
+            f"{i + 1}. {submitter.mention} - {song_utils.format_time(int(length))}"
+            for i, (length, submitter) in enumerate(
+                submitters_sorted_by_len[: config.num_longest_submitters]
+            )
+        ]
 
         embed_text = "\n".join(
             [
@@ -365,9 +468,9 @@ class BustController:
                 f"*Total track length:* {song_utils.format_time(songs_len)}",
                 f"*Total bust length:* {song_utils.format_time(bust_len)}",
                 f"*Unique submitters:* {len(submitter_to_len)}",
-                f"*Longest submitter:* {longest_submitter.mention} - "
-                + f"{song_utils.format_time(longest_submitter_time)}",
+                "*Longest submitters:*",
             ]
+            + longest_submitters_formatted
         )
         if errors:
             embed_text += (

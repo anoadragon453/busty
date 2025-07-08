@@ -9,6 +9,7 @@ from discord import (
     HTTPException,
     Message,
     NotFound,
+    Object,
     TextChannel,
 )
 from discord.utils import DISCORD_EPOCH
@@ -45,6 +46,19 @@ def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:
     )
 
 
+def build_filepath_for_media(guild_id: int, media_filename: str) -> str:
+    """Generate a unique, absolute filepath for a given attachment located in the configured attachment directory."""
+
+    # Generate and return a filepath in the following format:
+    #     <attachment_directory>/<Discord guild ID>/<media filename>
+    # For example:
+    #     /home/user/busty/attachments/922994022916698154/temp_audio.ogg
+
+    return path.join(
+        config.attachment_directory_filepath, str(guild_id), media_filename
+    )
+
+
 def is_valid_media(attachment_content_type: Optional[str]) -> bool:
     """Returns whether an attachment's content type is considered "media"."""
     return attachment_content_type is not None and (
@@ -68,8 +82,11 @@ async def scrape_channel_media(
         os.makedirs(attachment_dir)
 
     # Iterate through each message in the channel
+    # We pass `after` explicitly to work around this nextcord
+    # bug: https://github.com/nextcord/nextcord/issues/1238
+    after = Object(id=DISCORD_EPOCH)
     async for message in channel.history(
-        limit=config.MAXIMUM_MESSAGES_TO_SCAN, oldest_first=True
+        limit=config.MAXIMUM_MESSAGES_TO_SCAN, after=after, oldest_first=True
     ):
         if not message.attachments:
             # This message has no attached media

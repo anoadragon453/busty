@@ -1,7 +1,7 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Tuple
 
 from mutagen import File as MutagenFile, MutagenError
 from mutagen.flac import FLAC, Picture
@@ -47,6 +47,55 @@ def embed_song(
     return embed
 
 
+def get_song_metadata(
+    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
+) -> Tuple[Optional[str], str]:
+    """
+    Return nice artist and title names in a tuple (artist, title)
+
+    If no artist name is read from the file and no fallback is given,
+    artist will be None. The fallback song title if no title tag is
+    present is a beautified version of its filename.
+
+    Args:
+        local_filepath: the actual path on disc
+        filename: the filename on Discord
+        artist_fallback: the fallback author value (no fallback if not passed)
+
+    Returns:
+        A tuple (artist, title). Artist may be None.
+    """
+    artist = None
+    title = None
+
+    # load tags
+    try:
+        tags = MutagenFile(local_filepath, easy=True)
+        if tags is None:
+            raise MutagenError()
+        artist = tags.get("artist", [None])[0]
+        title = tags.get("title", [None])[0]
+    except MutagenError:
+        # Ignore file and move on
+        print(f"Error reading tags from file: {local_filepath}")
+
+    # Sanitize tag contents.
+    # We explicitly check for None here, as anything else means that the data was
+    # pulled from the audio.
+    if not artist:
+        artist = artist_fallback
+    if artist:
+        artist = sanitize_tag(artist)
+
+    # Always display either title or beautified filename
+    if not title:
+        filename = os.path.splitext(filename)[0]
+        title = filename.replace("_", " ")
+    title = sanitize_tag(title)
+
+    return artist, title
+
+
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None
 ) -> str:
@@ -66,44 +115,11 @@ def song_format(
     Returns:
         A string presenting the given song information in a human-readable way.
     """
-    content = ""
-    artist = None
-    title = None
 
-    # load tags
-    try:
-        tags = MutagenFile(local_filepath, easy=True)
-        if tags is None:
-            raise MutagenError()
-        artist = tags.get("artist", [None])[0]
-        title = tags.get("title", [None])[0]
-    except MutagenError:
-        # Ignore file and move on
-        print(f"Error reading tags from file: {local_filepath}")
-
-    # Sanitize tag contents.
-    # We explicitly check for None here, as anything else means that the data was
-    # pulled from the audio.
-    if artist is not None:
-        artist = sanitize_tag(artist)
-    if title is not None:
-        title = sanitize_tag(title)
-
-    # Display in the format <Artist-tag> - <Title-tag>
-    # If no artist tag use fallback if valid. Otherwise, skip artist
-    if artist:
-        content += artist + " - "
-    elif artist_fallback:
-        content += artist_fallback + " - "
-
-    # Always display either title or beautified filename
-    if title:
-        content += title
-    else:
-        filename = os.path.splitext(filename)[0]
-        content += filename.replace("_", " ")
-
-    return content
+    artist, title = get_song_metadata(local_filepath, filename, artist_fallback)
+    if not artist:
+        return title
+    return f"{artist} - {title}"
 
 
 def sanitize_tag(tag_value: str) -> str:
@@ -216,3 +232,41 @@ def get_cover_art(filename: str) -> Optional[File]:
 
     # Create a new discord file from the file pointer and name
     return File(image_bytes_fp, filename=cover_filename)
+
+
+def convert_timestamp_to_seconds(time_str: str):
+    # Converts a time string into seconds. Returns 0 if format is invalid.
+    # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
+    if time_str is None:
+        return None
+
+    if ":" not in time_str:
+        if not time_str.isdigit():
+            return None
+        return int(time_str)
+
+    # Split the time string by colons
+    parts = time_str.split(":")
+
+    if len(parts) > 3:
+        return None
+
+    # All parts must be digits
+    if not all(part.isdigit() for part in parts):
+        return None
+    parts = [int(part) for part in parts]
+
+    # Pad with zeros if needed (e.g., "1:23" becomes [0, 1, 23])
+    while len(parts) < 3:
+        parts.insert(0, 0)
+
+    # Calculate total seconds
+    hours, minutes, seconds = parts
+
+    # Validate ranges
+    if minutes >= 60 or seconds >= 60:
+        return None
+    if hours < 0 or minutes < 0 or seconds < 0:
+        return None
+
+    return (hours * 3600) + (minutes * 60) + seconds

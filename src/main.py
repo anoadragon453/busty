@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import os
 import random
+import sys
 from typing import Optional
 
 from nextcord import (
@@ -8,6 +10,7 @@ from nextcord import (
     Embed,
     Intents,
     Interaction,
+    InteractionContextType,
     Message,
     SlashOption,
     TextChannel,
@@ -20,6 +23,19 @@ import discord_utils
 import llm
 import persistent_state
 import song_utils
+
+
+def setup_logging(log_level):
+    logger = logging.getLogger("nextcord")
+    logger.setLevel(log_level)
+    handler = logging.StreamHandler(stream=sys.stderr)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s")
+    )
+    logger.addHandler(handler)
+
+
+setup_logging(logging.INFO)
 
 # This is necessary to query guild members
 intents = Intents.default()
@@ -77,7 +93,7 @@ list_task_control_lock = asyncio.Lock()
 
 
 # List command
-@client.slash_command(name="list", dm_permission=False)
+@client.slash_command(name="list", contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def on_list(
     interaction: Interaction,
@@ -106,7 +122,7 @@ async def on_list(
 
 
 # Bust command
-@client.slash_command(name="bust", dm_permission=False)
+@client.slash_command(name="bust", contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def on_bust(
     interaction: Interaction,
@@ -136,7 +152,7 @@ async def on_bust(
 
 
 # Skip command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
@@ -150,8 +166,40 @@ async def skip(interaction: Interaction) -> None:
     bc.skip_to_track(bc.playing_index + 1)
 
 
+# Seek command
+@client.slash_command(name="seek", contexts=[InteractionContextType.guild])
+@application_checks.has_role(config.dj_role_name)
+async def seek(
+    interaction: Interaction,
+    timestamp: str = SlashOption(
+        required=True,
+        default="",
+        description="Timestamp to seek song with.",
+    ),
+) -> None:
+    """Seek to time in currently playing song."""
+    # Get seek offset
+    seek_to_seconds = song_utils.convert_timestamp_to_seconds(timestamp)
+    if seek_to_seconds is None:
+        await interaction.send("Invalid seek time.", ephemeral=True)
+        return
+
+    bc = bust.controllers.get(interaction.guild_id)
+
+    if not bc or not bc.is_active():
+        await interaction.send("Nothing is playing.", ephemeral=True)
+        return
+
+    if bc.is_seeking():
+        await interaction.send("Still seeking, chill a sec.", ephemeral=True)
+        return
+
+    await interaction.send("Let's skip to the good part.")
+    bc.seek_current_track(interaction, seek_to_seconds)
+
+
 # Replay command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
@@ -166,7 +214,7 @@ async def replay(interaction: Interaction) -> None:
 
 
 # Stop command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
@@ -181,7 +229,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 # Image command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def image(interaction: Interaction) -> None:
     """Manage saved Google Forms image."""
@@ -240,7 +288,7 @@ async def image_view(interaction: Interaction) -> None:
 
 
 # Info command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
@@ -254,7 +302,7 @@ async def info(interaction: Interaction) -> None:
 
 
 # Preview command
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment = SlashOption(description="The song to submit."),
@@ -302,7 +350,7 @@ async def preview(
     os.remove(attachment_filepath)
 
 
-@client.slash_command(dm_permission=False)
+@client.slash_command(contexts=[InteractionContextType.guild])
 @application_checks.has_role(config.dj_role_name)
 async def announce(
     interaction: Interaction,

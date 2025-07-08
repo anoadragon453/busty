@@ -20,7 +20,7 @@ def load_state_from_disk() -> None:
             bot_state_str = f.read()
     except FileNotFoundError:
         # Expected on first run or after setting a new custom bot state filepath.
-        pass
+        bot_state_str = None
     except IOError:
         print(f"Could not read state from {bot_state_file}")
         raise
