@@ -6,10 +6,10 @@ from typing import Dict, List, Optional, Tuple
 
 import openai
 import tiktoken
-from nextcord import Client, Member, Message
+from discord import Client, Member, Message
 
-import bust
-import config
+from busty import bust
+from busty import config
 
 
 # Initialize globals

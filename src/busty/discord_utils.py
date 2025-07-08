@@ -3,7 +3,7 @@ import os
 from os import path
 from typing import List, Optional, Tuple
 
-from nextcord import (
+from discord import (
     Attachment,
     Forbidden,
     HTTPException,
@@ -12,9 +12,9 @@ from nextcord import (
     Object,
     TextChannel,
 )
-from nextcord.utils import DISCORD_EPOCH
+from discord.utils import DISCORD_EPOCH
 
-import config
+from busty import config
 
 
 async def try_set_pin(message: Message, pin_state: bool) -> None:

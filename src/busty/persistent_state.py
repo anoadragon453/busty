@@ -2,9 +2,9 @@ import copy
 import json
 from typing import Iterable, Optional
 
-from nextcord import Interaction
+from discord import Interaction
 
-from config import JSON_DATA_TYPE, bot_state_file
+from busty.config import JSON_DATA_TYPE, bot_state_file
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
