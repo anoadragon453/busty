@@ -16,15 +16,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.12
+    - name: Set up Python 3.13
       uses: actions/setup-python@v4
       with:
-        python-version: "3.12"
+        python-version: "3.13"
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v1
+      uses: astral-sh/setup-uv@v6
       with:
-        version: "latest"
+        version: "0.7.22"
 
     - name: Install dependencies
       run: |
@@ -38,6 +38,6 @@ jobs:
       run: |
         uv run ruff format --check .
 
-    - name: Type check with mypy
+    - name: Type check with pyright
       run: |
-        uv run mypy src/
+        uv run pyright src/

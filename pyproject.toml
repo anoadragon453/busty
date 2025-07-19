@@ -43,6 +43,6 @@ busty = "busty.main:run_bot"
 select = ["E", "F", "I"]
 ignore = ["E501"]
 
-[tool.mypy]
-python_version = "3.13"
-disallow_untyped_defs = true
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"

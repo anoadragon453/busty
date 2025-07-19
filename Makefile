@@ -8,7 +8,7 @@ run: ## Run the bot
 	uv run python -m busty.main
 
 lint: ## Lint the code with ruff
-	uv run ruff check .
+	uv run ruff check --fix .
 
 format: ## Format the code with ruff
 	uv run ruff format .
