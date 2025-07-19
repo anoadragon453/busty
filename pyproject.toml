@@ -14,7 +14,8 @@ version = "0.1.0"
 description = "A Discord bot for playing music and managing media"
 readme = "README.md"
 requires-python = ">=3.13"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 keywords = ["discord", "bot", "music", "media"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -37,10 +38,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "ruff>=0.1.0",
-    "pyright>=1.1.0",
-]
+dev = ["ruff>=0.1.0", "pyright>=1.1.0"]
 
 [project.scripts]
 busty = "busty.main:run_bot"
