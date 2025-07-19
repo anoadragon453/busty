@@ -25,12 +25,7 @@ from discord import (
     VoiceClient,
 )
 
-from busty import config
-from busty import discord_utils
-from busty import forms
-from busty import llm
-from busty import persistent_state
-from busty import song_utils
+from busty import config, discord_utils, forms, llm, persistent_state, song_utils
 
 
 class BustController:

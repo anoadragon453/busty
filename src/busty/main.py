@@ -13,17 +13,12 @@ from discord import (
     Interaction,
     Message,
     TextChannel,
+    app_commands,
 )
 from discord.ext import commands
 from discord.ext.commands import has_role
-from discord import app_commands
 
-from busty import bust
-from busty import config
-from busty import discord_utils
-from busty import llm
-from busty import persistent_state
-from busty import song_utils
+from busty import bust, config, discord_utils, llm, persistent_state, song_utils
 
 
 def setup_logging(log_level):

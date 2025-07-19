@@ -3,13 +3,14 @@ import os
 from io import BytesIO
 from typing import Optional, Tuple
 
-from mutagen import File as MutagenFile, MutagenError
+from discord import Attachment, Embed, File, User
+from discord.utils import escape_markdown
+from mutagen import File as MutagenFile
+from mutagen import MutagenError
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3FileType, PictureType
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
-from discord import Attachment, Embed, File, User
-from discord.utils import escape_markdown
 from PIL import Image, UnidentifiedImageError
 
 from busty import config

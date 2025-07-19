@@ -45,7 +45,7 @@ dev = [
 [project.scripts]
 busty = "busty.main:run_bot"
 
-[tool.ruff]
+[tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]
 

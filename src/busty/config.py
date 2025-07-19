@@ -1,5 +1,5 @@
 import os
-from typing import Iterable, Mapping, Union, Any
+from typing import Any, Iterable, Mapping, Union
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values

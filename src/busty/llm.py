@@ -8,8 +8,7 @@ import openai
 import tiktoken
 from discord import Client, Member, Message
 
-from busty import bust
-from busty import config
+from busty import bust, config
 
 
 # Initialize globals
