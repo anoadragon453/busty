@@ -42,7 +42,6 @@ result
 result-*
 
 # Discord bot specific
-config.py
 *.db
 *.sqlite
 

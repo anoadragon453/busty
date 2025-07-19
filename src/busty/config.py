@@ -29,6 +29,8 @@ VOLUME_MULTIPLIER = 0.5
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 # The URL that the '↲jump' link will lead to when using the /preview command.
 PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
+# The probability that an arbitrary message will be responded to by the bot
+RESPOND_TO_MESSAGE_PROBABILITY = 1 / 150
 
 # SETTINGS
 # How many seconds to wait in-between songs
