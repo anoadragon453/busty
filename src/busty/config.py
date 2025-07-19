@@ -81,5 +81,5 @@ if openai_api_key is None:
 # The default list is expected to be stored at `./emoji_list.py`.
 emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "busty.emoji_list")
 # List of emoji for pulling random emoji
-emoji_module = __import__(emoji_filepath, fromlist=['DISCORD_TO_UNICODE'])
+emoji_module = __import__(emoji_filepath, fromlist=["DISCORD_TO_UNICODE"])
 emoji_list = list(emoji_module.DISCORD_TO_UNICODE.values())

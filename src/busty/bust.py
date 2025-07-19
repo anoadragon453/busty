@@ -98,7 +98,6 @@ class BustController:
             self.play_song_task.cancel()
 
     def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
-
         song_len = song_utils.get_song_length(local_filepath)
         if timestamp >= song_len:
             timestamp = 0
