@@ -14,4 +14,4 @@ format: ## Format the code with ruff
 	uv run ruff format .
 
 type-check: ## Type check the code with mypy
-	uv run mypy src/ 
+	uv run mypy src/
