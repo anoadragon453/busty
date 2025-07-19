@@ -31,7 +31,7 @@
               echo "Run: uv run python -m busty.main"
             '';
 
-            LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [ ffmpeg libopus ];
+            LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [ ffmpeg.lib libopus.dev ];
           };
         }
       );
