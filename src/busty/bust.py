@@ -42,7 +42,7 @@ class BustController:
         # Keep track of the coroutine used to play the next track, which is active while
         # waiting in the intermission between songs. This task should be interrupted if
         # stopping playback is requested.
-        self.play_song_task: Optional[asyncio.Task] = None
+        self.play_song_task: Optional[asyncio.Task[None]] = None
 
         # The nickname of the bot. We need to store it as it will be
         # changed while songs are being played.
@@ -78,12 +78,12 @@ class BustController:
         self._seek_to_seconds: Optional[int] = None
 
     def is_active(self) -> bool:
-        return self.voice_client and self.voice_client.is_connected()
+        return bool(self.voice_client and self.voice_client.is_connected())
 
     def is_seeking(self) -> bool:
         return self.seeking
 
-    def current_song(self) -> str:
+    def current_song(self) -> Optional[str]:
         return self.now_playing_str
 
     def finished(self) -> bool:
@@ -330,20 +330,19 @@ class BustController:
 
         await discord_utils.try_set_pin(self.now_playing_msg, True)
 
-        # Called when song finishes playing
-        async def ffmpeg_post_hook(e: Exception = None):
-            if e is not None:
-                print("Song playback quit with error:", e)
-            # Unpin now playing message
-            if self.now_playing_msg:
-                await discord_utils.try_set_pin(self.now_playing_msg, False)
-                self.now_playing_msg = None
-            await play_lock.release()
-
         # Play song
         play_lock = asyncio.Lock()
         # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
+
+        # Called when song finishes playing
+        def ffmpeg_post_hook(e: Optional[Exception] = None):
+            if e is not None:
+                print("Song playback quit with error:", e)
+            # Release the lock to allow play_song to continue
+            # Note: We can't do async operations here since this runs in a different thread
+            # The async cleanup will be handled in the main play_song method
+            play_lock.release()
 
         audio_to_play = None
         if self._seek_to_seconds is not None:
@@ -383,7 +382,15 @@ class BustController:
 
         # Wait for song to finish playing
         await play_lock.acquire()
+        
+        # Handle async cleanup after song finishes
+        if self.now_playing_msg:
+            await discord_utils.try_set_pin(self.now_playing_msg, False)
+            self.now_playing_msg = None
+            
         self.now_playing_str = None
+
+
 
     def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
         """Create a Google form for voting on this bust
