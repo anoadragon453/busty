@@ -6,12 +6,18 @@
     systems.url = "github:nix-systems/default";
   };
 
-  outputs = { self, nixpkgs, systems }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      systems,
+    }:
     let
       forEachSystem = nixpkgs.lib.genAttrs (import systems);
     in
     {
-      devShells = forEachSystem (system:
+      devShells = forEachSystem (
+        system:
         let
           pkgs = import nixpkgs { inherit system; };
         in
@@ -31,7 +37,12 @@
               echo "Run: uv run python -m busty.main"
             '';
 
-            LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [ ffmpeg.lib libopus.dev ];
+            LD_LIBRARY_PATH =
+              with pkgs;
+              lib.makeLibraryPath [
+                ffmpeg.lib
+                libopus
+              ];
           };
         }
       );
