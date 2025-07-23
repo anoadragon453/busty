@@ -382,15 +382,13 @@ class BustController:
 
         # Wait for song to finish playing
         await play_lock.acquire()
-        
+
         # Handle async cleanup after song finishes
         if self.now_playing_msg:
             await discord_utils.try_set_pin(self.now_playing_msg, False)
             self.now_playing_msg = None
-            
+
         self.now_playing_str = None
-
-
 
     def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
         """Create a Google form for voting on this bust
