@@ -1,5 +1,5 @@
 import os
-from typing import Iterable, Mapping, Union
+from typing import Any, Iterable, Mapping, Union
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -29,6 +29,8 @@ VOLUME_MULTIPLIER = 0.5
 MAXIMUM_CONCURRENT_DOWNLOADS = 8
 # The URL that the '↲jump' link will lead to when using the /preview command.
 PREVIEW_JUMP_URL = "https://youtu.be/J45GvH2_Ato"
+# The probability that an arbitrary message will be responded to by the bot
+RESPOND_TO_MESSAGE_PROBABILITY = 1 / 150
 
 # SETTINGS
 # How many seconds to wait in-between songs
@@ -58,7 +60,7 @@ openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo")
 
 # TYPES
 # Acceptable data types to store in a JSON representation.
-JSON_DATA_TYPE = Union[str, int, float, bool, Mapping, Iterable, None]
+JSON_DATA_TYPE = Union[str, int, float, bool, Mapping[str, Any], Iterable[Any], None]
 
 # Warn about disabled Google Forms generation
 if google_form_folder is None:
@@ -77,6 +79,7 @@ if openai_api_key is None:
 
 # Import list of emojis from either a custom or the default list.
 # The default list is expected to be stored at `./emoji_list.py`.
-emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "emoji_list")
+emoji_filepath = os.environ.get("BUSTY_CUSTOM_EMOJI_FILEPATH", "busty.emoji_list")
 # List of emoji for pulling random emoji
-emoji_list = list(__import__(emoji_filepath).DISCORD_TO_UNICODE.values())
+emoji_module = __import__(emoji_filepath, fromlist=["DISCORD_TO_UNICODE"])
+emoji_list = list(emoji_module.DISCORD_TO_UNICODE.values())

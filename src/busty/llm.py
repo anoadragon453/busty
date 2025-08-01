@@ -6,10 +6,9 @@ from typing import Dict, List, Optional, Tuple
 
 import openai
 import tiktoken
-from nextcord import Client, Member, Message
+from discord import Client, Member, Message
 
-import bust
-import config
+from busty import bust, config
 
 
 # Initialize globals
@@ -295,7 +294,7 @@ async def get_response_text(message: Message) -> Optional[str]:
 async def respond(message: Message) -> None:
     # React with a "stop" hand, we're responding to someone else
     if gpt_lock.locked() or not context_data:
-        raised_hand_emoji = "\N{RAISED HAND}\U0001F3FF"
+        raised_hand_emoji = "\N{RAISED HAND}\U0001f3ff"
         await message.add_reaction(raised_hand_emoji)
         return
 

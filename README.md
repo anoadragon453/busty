@@ -26,23 +26,30 @@ features, or to suggest your own.
 
 ## Install
 
-You'll need at least Python 3.6 and [ffmpeg](https://ffmpeg.org/) installed.
+You'll need at least Python 3.13 and [ffmpeg](https://ffmpeg.org/) (with opus support) installed.
 
-Create a python virtual environment to install python dependencies in.
+### Using Nix (Recommended)
 
-```
-python3 -m venv env
-source env/bin/activate
-```
+If you have Nix installed, you can use the provided flake to get a development environment with all dependencies:
 
-And install the dependencies:
-
-```
-pip install -r requirements.txt
+```bash
+nix develop
 ```
 
-To install an additional set of python dependencies for speeding up the bot, install the
-`nextcord[speed]` package as well.You may need to install additional system packages.
+This will provide you with Python 3.13, uv (for package management), ruff (for linting/formatting), and all necessary system dependencies.
+
+### Manual Installation
+
+Alternatively, you can install dependencies manually:
+
+1. Install [uv](https://docs.astral.sh/uv/) for Python package management
+2. Install [ffmpeg](https://ffmpeg.org/) for audio processing
+
+Then install the dependencies:
+
+```bash
+uv sync
+```
 
 ## Configure
 
@@ -94,8 +101,12 @@ the import path (often simply the filename without an extension) of the new modu
 
 With the proper environment variables set, start the bot with:
 
-```
-python src/main.py
+```bash
+# Using uv
+uv run busty
+
+# Or using make
+make run
 ```
 
 It should connect to Discord and display the currently logged-in application name.
@@ -139,16 +150,7 @@ please double-check that a pull request for the issue
 
 ### Installing the development dependencies
 
-Some extra Python modules are necessary when developing for Busty. These are
-contained in the `dev-requirements.txt` file. To install them, run:
-
-```shell
-# Activate the virtualenv if not already done so
-source env/bin/activate
-
-# Install development dependencies
-pip install -r dev-requirements.txt
-```
+Development dependencies are automatically installed when you run `uv sync`. The project uses `pyproject.toml` to manage all dependencies, including development tools like ruff and mypy.
 
 ### Testing your changes
 
@@ -159,13 +161,30 @@ Once you have implemented your change, please ensure that [known commands](#comm
 listing tracks and playing songs all work with your change. Pull requests are
 additionally tested by reviewers before merging them, but we're only human.
 
-### Linting
+### Linting and Formatting
 
-Once you have implemented your feature and tested that it works, you'll need to
-ensure your code is properly formatted. Running `./scripts-dev/lint.sh` will
-check this for you and - in most cases - fix any style issues automatically.
+This project uses [ruff](https://docs.astral.sh/ruff/) for both linting and code formatting. To check your code:
 
-Otherwise, some issues may need to be fixed manually. These will be printed when
-`lint.sh` is run. They must be fixed before your PR will be accepted. If you
+```bash
+# Lint the code
+uv run ruff check .
+
+# Format the code
+uv run ruff format .
+
+# Or use make
+make lint
+make format
+```
+
+The project also uses mypy for type checking:
+
+```bash
+uv run mypy src/
+# Or
+make type-check
+```
+
+All linting and formatting issues must be fixed before your PR will be accepted. If you
 are unable to figure out how to appease the linter, simply post and mark your
 pull request as a draft and ask for help in a comment.

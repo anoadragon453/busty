@@ -1,10 +1,54 @@
-auth/
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Environments
+.env
+.venv
+.envrc
 env/
-attachments/
-.idea/
-.image_state
 venv/
-src/__pycache__/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.idea/
+.zed/
+.vscode/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# UV
+.uv/
+uv.lock
+
+# Ruff
+.ruff_cache/
+
+# Nix
+.direnv/
+.devenv/
+result
+result-*
+
+# Discord bot specific
+*.db
+*.sqlite
+
+# Busty specific
+attachments/
+.image_state
+auth/
 
 # Bot state, google service keys, llm context
 *.json
