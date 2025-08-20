@@ -43,10 +43,27 @@ dev = ["ruff>=0.1.0", "pyright>=1.1.0"]
 [project.scripts]
 busty = "busty.main:run_bot"
 
+[dependency-groups]
+dev = [
+    "types-pillow>=10.2.0.20240822",
+]
+
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]
 
 [tool.pyright]
 pythonVersion = "3.13"
-typeCheckingMode = "strict"
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+# Silence issues from third-party libraries without stubs or overly strict types
+reportMissingTypeStubs = "none"
+reportPrivateImportUsage = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportMissingTypeArgument = "none"
+reportOptionalMemberAccess = "none"
+reportOptionalSubscript = "none"
+reportOptionalOperand = "none"

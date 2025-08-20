@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Iterable, Optional
+from typing import Iterable, Optional, cast
 
 from discord import Interaction
 
@@ -199,7 +199,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     except Exception as e:
         print("Unable to set form image:", e)
 
-        await interaction.send(
+        await interaction.response.send_message(
             f"Failed to upload image ({type(e)}). See the logs for more details.",
             ephemeral=True,
         )
@@ -218,7 +218,10 @@ def get_form_image_url(interaction: Interaction) -> Optional[str]:
     Returns:
         The image form URL if it was found, otherwise None.
     """
-    return get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    value = get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    if isinstance(value, str) or value is None:
+        return cast(Optional[str], value)
+    return None
 
 
 def clear_form_image_url(interaction: Interaction) -> bool:

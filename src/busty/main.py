@@ -4,6 +4,7 @@ import os
 import random
 import sys
 from typing import Optional
+from pathlib import Path
 
 import discord
 from discord import (
@@ -84,7 +85,11 @@ async def on_list(
     interaction: Interaction, list_channel: Optional[TextChannel] = None
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
     if bc and bc.is_active():
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
         return
@@ -94,10 +99,15 @@ async def on_list(
         )
         return
     if list_channel is None:
-        list_channel = interaction.channel
+        if isinstance(interaction.channel, TextChannel):
+            list_channel = interaction.channel
+        else:
+            await interaction.response.send_message("This command must be used in a text channel.", ephemeral=True)
+            return
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
-        bust.controllers[interaction.guild_id] = bc
+        if bc is not None:
+            bust.controllers[guild_id] = bc
 
 
 # Bust command
@@ -105,7 +115,11 @@ async def on_list(
 @has_role(config.dj_role_name)
 async def on_bust(interaction: Interaction, index: int = 1) -> None:
     """Begin a bust."""
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
     if bc is None:
         await interaction.response.send_message(
             "You need to use `/list` first.", ephemeral=True
@@ -122,7 +136,7 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
         )
         return
     await bc.play(interaction, index - 1)
-    del bust.controllers[interaction.guild_id]
+    del bust.controllers[guild_id]
 
 
 # Skip command
@@ -130,14 +144,19 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
 @has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
 
     if not bc or not bc.is_active():
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
     await interaction.response.send_message("I didn't like that track anyways.")
-    bc.skip_to_track(bc.playing_index + 1)
+    if bc.playing_index is not None:
+        bc.skip_to_track(bc.playing_index + 1)
 
 
 # Seek command
@@ -145,7 +164,7 @@ async def skip(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def seek(
     interaction: Interaction,
-    timestamp: str = None,
+    timestamp: Optional[str] = None,
 ) -> None:
     """Seek to time in the currently playing song."""
     # Get seek offset
@@ -154,7 +173,11 @@ async def seek(
         await interaction.response.send_message("Invalid seek time.", ephemeral=True)
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
 
     if not bc or not bc.is_active():
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
@@ -175,14 +198,19 @@ async def seek(
 @has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
 
     if not bc or not bc.is_active():
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
     await interaction.response.send_message("Replaying this track.")
-    bc.skip_to_track(bc.playing_index)
+    if bc.playing_index is not None:
+        bc.skip_to_track(bc.playing_index)
 
 
 # Stop command
@@ -190,7 +218,11 @@ async def replay(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
 
     if not bc or not bc.is_active():
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
@@ -272,7 +304,11 @@ client.tree.add_command(ImageGroup())
 @has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
-    bc = bust.controllers.get(interaction.guild_id)
+    guild_id = interaction.guild_id
+    if guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
+    bc = bust.controllers.get(guild_id)
 
     if bc is None:
         await interaction.response.send_message(
@@ -300,12 +336,15 @@ async def preview(
         )
         return
 
+    if interaction.guild_id is None:
+        await interaction.response.send_message("This command must be used in a guild.", ephemeral=True)
+        return
     attachment_filepath = discord_utils.build_filepath_for_attachment(
         interaction.guild_id, uploaded_file
     )
 
     # Save attachment to disk for processing
-    await uploaded_file.save(fp=attachment_filepath)
+    await uploaded_file.save(fp=Path(attachment_filepath))
     random_emoji = random.choice(config.emoji_list)
 
     embed = song_utils.embed_song(
@@ -343,7 +382,11 @@ async def announce(
     """Send a message as the bot into a channel wrapped in an embed."""
     await interaction.response.defer(ephemeral=True)
     if channel is None:
-        channel = interaction.channel
+        if isinstance(interaction.channel, TextChannel):
+            channel = interaction.channel
+        else:
+            await interaction.response.send_message("This command must be used in a text channel.", ephemeral=True)
+            return
 
     # Build the announcement embed
     embed = Embed(

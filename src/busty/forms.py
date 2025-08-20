@@ -93,7 +93,7 @@ def create_remote_form(
         return None
 
     # Creates the initial form
-    forms = form_service.forms()
+    forms = form_service.forms()  # type: ignore[reportAttributeAccessIssue]
     form_info = forms.create(body=form_info).execute()
     form_id = form_info["formId"]
     form_url = form_info["responderUri"]
@@ -126,7 +126,7 @@ def create_remote_form(
             print("Error adding image to form: ", e)
 
     # Move form to correct folder + rename
-    files = drive_service.files()
+    files = drive_service.files()  # type: ignore[reportAttributeAccessIssue]
     file = files.get(
         fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents"
     ).execute()

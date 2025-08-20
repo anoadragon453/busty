@@ -2,11 +2,11 @@ import asyncio
 import datetime
 import json
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openai
 import tiktoken
-from discord import Client, Member, Message
+from discord import Client, Member, Message, User, ClientUser
 
 from busty import bust, config
 
@@ -79,11 +79,11 @@ def disallowed_message(message: Message) -> bool:
 
 
 # Get the name we should call the user
-def get_name(user: Member) -> str:
+def get_name(user: Union[User, Member, ClientUser]) -> str:
     user_info = context_data["user_info"]
-    id = str(user.id)
-    if id in user_info and "name" in user_info[id]:
-        return user_info[id]["name"]
+    id_str = str(user.id)
+    if id_str in user_info and "name" in user_info[id_str]:
+        return user_info[id_str]["name"]
     return user.name
 
 
@@ -217,11 +217,11 @@ async def get_message_context(message: Message) -> List[str]:
 
 
 # Query the OpenAI API and return response
-async def query_api(data: Dict) -> Optional[str]:
+async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
     try:
         response = await openai_async_client.chat.completions.create(
             model=config.openai_model,
-            messages=data,
+            messages=data,  # type: ignore[arg-type]
             timeout=10.0,
         )
         return response.choices[0].message.content
@@ -271,7 +271,7 @@ async def get_response_text(message: Message) -> Optional[str]:
         context += get_history_context(history)
 
     # Send data to API
-    data = []
+    data: List[Dict[str, str]] = []
     data.append({"role": "system", "content": "\n".join(context)})
 
     for msg, is_self in reversed(history):
@@ -281,7 +281,8 @@ async def get_response_text(message: Message) -> Optional[str]:
     response = await query_api(data)
     if response:
         # Remove "Busty: " prefix
-        prefix = f"{get_name(self_user)}: "
+        bot_name = get_name(self_user) if self_user is not None else "Busty"
+        prefix = f"{bot_name}: "
         if response.startswith(prefix):
             response = response[len(prefix) :]
 
@@ -319,12 +320,13 @@ async def respond(message: Message) -> None:
 
 
 async def generate_album_art(
-    artist: str, title: str, description: Optional[str]
+    artist: Optional[str], title: str, description: Optional[str]
 ) -> Optional[str]:
     """Generate album art given song metadata"""
+    safe_artist = artist if artist else "Unknown Artist"
     prompt = [
         "Generate bizarre photorealistic album art for the following song.",
-        f"{artist} - {title}\n",
+        f"{safe_artist} - {title}\n",
     ]
     if description:
         prompt.append(

@@ -1,14 +1,15 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any, cast
 
-from discord import Attachment, Embed, File, User
+from discord import Attachment, Embed, File, User, Member
 from discord.utils import escape_markdown
-from mutagen import File as MutagenFile
-from mutagen import MutagenError
+from mutagen._file import File as MutagenFile
+from mutagen._util import MutagenError
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import ID3FileType, PictureType
+from mutagen.id3 import ID3FileType
+from mutagen.id3._specs import PictureType
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
 from PIL import Image, UnidentifiedImageError
@@ -17,10 +18,10 @@ from busty import config
 
 
 def embed_song(
-    message_content: str,
+    message_content: Optional[str],
     attachment_filepath: str,
     attachment: Attachment,
-    user: User,
+    user: User | Member,
     emoji: str,
     jump_url: str,
 ) -> Embed:
@@ -71,11 +72,11 @@ def get_song_metadata(
 
     # load tags
     try:
-        tags = MutagenFile(local_filepath, easy=True)
-        if tags is None:
+        tags_any = cast(Any, MutagenFile(local_filepath, easy=True))
+        if tags_any is None:
             raise MutagenError()
-        artist = tags.get("artist", [None])[0]
-        title = tags.get("title", [None])[0]
+        artist = cast(Any, tags_any).get("artist", [None])[0]
+        title = cast(Any, tags_any).get("title", [None])[0]
     except MutagenError:
         # Ignore file and move on
         print(f"Error reading tags from file: {local_filepath}")
@@ -193,8 +194,9 @@ def get_cover_art(filename: str) -> Optional[File]:
                     ):
                         image_data = tag_value.data
         elif isinstance(audio, OggFileType):
-            if audio.tags:
-                artwork_tags = audio.tags.get("metadata_block_picture", [])
+            tags = getattr(audio, "tags", None)
+            if isinstance(tags, dict):
+                artwork_tags = tags.get("metadata_block_picture", [])
                 if artwork_tags:
                     # artwork_tags[0] is the base64-encoded data
                     raw_data = base64.b64decode(artwork_tags[0])
@@ -235,7 +237,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-def convert_timestamp_to_seconds(time_str: str):
+def convert_timestamp_to_seconds(time_str: Optional[str]) -> Optional[int]:
     # Converts a time string into seconds. Returns 0 if format is invalid.
     # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
     if time_str is None:
