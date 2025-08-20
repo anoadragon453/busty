@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Iterable, Optional, cast
+from typing import Iterable, cast
 
 from discord import Interaction
 
@@ -208,7 +208,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     return True
 
 
-def get_form_image_url(interaction: Interaction) -> Optional[str]:
+def get_form_image_url(interaction: Interaction) -> str | None:
     """
     Retrieve a saved google form image url given an interaction in a guild.
 
@@ -220,7 +220,7 @@ def get_form_image_url(interaction: Interaction) -> Optional[str]:
     """
     value = get_state(["guilds", str(interaction.guild_id), "form_image_url"])
     if isinstance(value, str) or value is None:
-        return cast(Optional[str], value)
+        return cast(str | None, value)
     return None
 
 

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Iterable, Mapping, Union
+from typing import Any, Iterable, Mapping
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -60,7 +60,7 @@ openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo")
 
 # TYPES
 # Acceptable data types to store in a JSON representation.
-JSON_DATA_TYPE = Union[str, int, float, bool, Mapping[str, Any], Iterable[Any], None]
+JSON_DATA_TYPE = str | int | float | bool | Mapping[str, Any] | Iterable[Any] | None
 
 # Warn about disabled Google Forms generation
 if google_form_folder is None:

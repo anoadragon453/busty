@@ -1,7 +1,7 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional, Tuple, Any, cast
+from typing import Any, cast
 
 from discord import Attachment, Embed, File, User, Member
 from discord.utils import escape_markdown
@@ -18,7 +18,7 @@ from busty import config
 
 
 def embed_song(
-    message_content: Optional[str],
+    message_content: str | None,
     attachment_filepath: str,
     attachment: Attachment,
     user: User | Member,
@@ -50,8 +50,8 @@ def embed_song(
 
 
 def get_song_metadata(
-    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
-) -> Tuple[Optional[str], str]:
+    local_filepath: str, filename: str, artist_fallback: str | None = None
+) -> tuple[str | None, str]:
     """
     Return nice artist and title names in a tuple (artist, title)
 
@@ -99,7 +99,7 @@ def get_song_metadata(
 
 
 def song_format(
-    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
+    local_filepath: str, filename: str, artist_fallback: str | None = None
 ) -> str:
     """
     Format a song as text nicely using artist/title tags if available
@@ -164,7 +164,7 @@ def format_time(seconds: int) -> str:
 
 
 # Get length of a song
-def get_song_length(filename: str) -> Optional[float]:
+def get_song_length(filename: str) -> float | None:
     try:
         audio = MutagenFile(filename)
         if audio is not None:
@@ -176,7 +176,7 @@ def get_song_length(filename: str) -> Optional[float]:
     return None
 
 
-def get_cover_art(filename: str) -> Optional[File]:
+def get_cover_art(filename: str) -> File | None:
     # Get image data as bytes
     try:
         image_data = None
@@ -237,7 +237,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-def convert_timestamp_to_seconds(time_str: Optional[str]) -> Optional[int]:
+def convert_timestamp_to_seconds(time_str: str | None) -> int | None:
     # Converts a time string into seconds. Returns 0 if format is invalid.
     # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
     if time_str is None:

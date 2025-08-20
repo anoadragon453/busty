@@ -3,7 +3,6 @@ import logging
 import os
 import random
 import sys
-from typing import Optional
 from pathlib import Path
 
 import discord
@@ -82,7 +81,7 @@ list_task_control_lock = asyncio.Lock()
 @client.tree.command(name="list")
 @has_role(config.dj_role_name)
 async def on_list(
-    interaction: Interaction, list_channel: Optional[TextChannel] = None
+    interaction: Interaction, list_channel: TextChannel | None = None
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
     guild_id = interaction.guild_id
@@ -164,7 +163,7 @@ async def skip(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def seek(
     interaction: Interaction,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
 ) -> None:
     """Seek to time in the currently playing song."""
     # Get seek offset
@@ -324,7 +323,7 @@ async def info(interaction: Interaction) -> None:
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment,
-    submit_message: Optional[str] = None,
+    submit_message: str | None = None,
 ) -> None:
     """Show a preview of a submission's 'Now Playing' embed."""
     await interaction.response.defer(ephemeral=True)
@@ -377,7 +376,7 @@ async def announce(
     interaction: Interaction,
     title: str,
     body: str,
-    channel: Optional[TextChannel] = None,
+    channel: TextChannel | None = None,
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
     await interaction.response.defer(ephemeral=True)

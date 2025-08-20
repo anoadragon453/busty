@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import openai
 import tiktoken
@@ -79,7 +79,9 @@ def disallowed_message(message: Message) -> bool:
 
 
 # Get the name we should call the user
-def get_name(user: Union[User, Member, ClientUser]) -> str:
+def get_name(user: User | Member | ClientUser) -> str:
+    if context_data is None:
+        return user.name
     user_info = context_data["user_info"]
     id_str = str(user.id)
     if id_str in user_info and "name" in user_info[id_str]:
@@ -88,7 +90,7 @@ def get_name(user: Union[User, Member, ClientUser]) -> str:
 
 
 # Get context about the server
-async def get_server_context(message: Message) -> List[str]:
+async def get_server_context(message: Message) -> list[str]:
     result = []
 
     # Detect if song is currently playing
@@ -159,7 +161,7 @@ def substitute_mentions(message: Message) -> str:
 # Fetch message content from history up to a certain token allowance
 async def fetch_history(
     token_limit: int, speaking_turn_limit: int, message: Message
-) -> List[Tuple[str, bool]]:
+) -> list[tuple[str, bool]]:
     total_tokens = 0
     # A list of (str, bool) tuples containing:
     #     - "{message author}: {message content}"
@@ -209,7 +211,9 @@ async def fetch_history(
 
 
 # Build context around a message
-async def get_message_context(message: Message) -> List[str]:
+async def get_message_context(message: Message) -> list[str]:
+    if context_data is None:
+        return []
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
@@ -217,7 +221,7 @@ async def get_message_context(message: Message) -> List[str]:
 
 
 # Query the OpenAI API and return response
-async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
+async def query_api(data: list[dict[str, str]]) -> str | None:
     try:
         response = await openai_async_client.chat.completions.create(
             model=config.openai_model,
@@ -231,7 +235,9 @@ async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
         return None
 
 
-def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
+def get_history_context(history: list[tuple[str, bool]]) -> list[str]:
+    if context_data is None:
+        return []
     # Load additional context from history
     word_triggers = set()
     user_triggers = set()
@@ -247,7 +253,9 @@ def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
 
 
 # Make an api query
-async def get_response_text(message: Message) -> Optional[str]:
+async def get_response_text(message: Message) -> str | None:
+    if context_data is None:
+        return None
     context = await get_message_context(message)
     if disallowed_message(message):
         # If message is disallowed (or the user is unlucky), pass a special instruction
@@ -271,7 +279,7 @@ async def get_response_text(message: Message) -> Optional[str]:
         context += get_history_context(history)
 
     # Send data to API
-    data: List[Dict[str, str]] = []
+    data: list[dict[str, str]] = []
     data.append({"role": "system", "content": "\n".join(context)})
 
     for msg, is_self in reversed(history):
@@ -320,8 +328,8 @@ async def respond(message: Message) -> None:
 
 
 async def generate_album_art(
-    artist: Optional[str], title: str, description: Optional[str]
-) -> Optional[str]:
+    artist: str | None, title: str, description: str | None
+) -> str | None:
     """Generate album art given song metadata"""
     safe_artist = artist if artist else "Unknown Artist"
     prompt = [
@@ -337,7 +345,7 @@ async def generate_album_art(
 
 
 # Generate any image with DALL-E 3 given a text prompt
-async def generate_image(prompt: str) -> Optional[str]:
+async def generate_image(prompt: str) -> str | None:
     """Generate any image with DALL-E 3 given a text prompt"""
     try:
         response = await openai_async_client.images.generate(
@@ -349,5 +357,8 @@ async def generate_image(prompt: str) -> Optional[str]:
         )
     except Exception as e:
         print("OpenAI API exception:", e)
+        return None
+    
+    if response is None or not response.data:
         return None
     return response.data[0].url
