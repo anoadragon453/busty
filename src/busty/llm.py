@@ -39,7 +39,7 @@ def initialize(client: Client) -> None:
     openai_async_client = openai.AsyncOpenAI(api_key=config.openai_api_key)
 
     # Preload tokenizer
-    encoding = tiktoken.encoding_for_model(config.openai_model)
+    encoding = tiktoken.encoding_for_model(config.openai_tokenizer_model)
     # Store bot user
     self_user = client.user
     # Cache regex for banned words
