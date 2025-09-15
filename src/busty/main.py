@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import sys
+from pathlib import Path
 from typing import Optional
 
 import discord
@@ -21,7 +22,7 @@ from discord.ext.commands import has_role
 from busty import bust, config, discord_utils, llm, persistent_state, song_utils
 
 
-def setup_logging(log_level):
+def setup_logging(log_level: int) -> None:
     logger = logging.getLogger("discord")
     logger.setLevel(log_level)
     handler = logging.StreamHandler(stream=sys.stderr)
@@ -80,10 +81,16 @@ list_task_control_lock = asyncio.Lock()
 # List command
 @client.tree.command(name="list")
 @has_role(config.dj_role_name)
-async def on_list(
+async def list_bust(
     interaction: Interaction, list_channel: Optional[TextChannel] = None
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command must be used in a guild.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
     if bc and bc.is_active():
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
@@ -94,50 +101,61 @@ async def on_list(
         )
         return
     if list_channel is None:
-        list_channel = interaction.channel
+        if interaction.channel is not None and isinstance(
+            interaction.channel, TextChannel
+        ):
+            list_channel = interaction.channel
+        else:
+            await interaction.response.send_message(
+                "Cannot determine list channel.", ephemeral=True
+            )
+            return
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
-        bust.controllers[interaction.guild_id] = bc
+        if bc is not None:
+            bust.controllers[interaction.guild_id] = bc
 
 
 # Bust command
 @client.tree.command(name="bust")
 @has_role(config.dj_role_name)
-async def on_bust(interaction: Interaction, index: int = 1) -> None:
-    """Begin a bust."""
+async def on_bust(interaction: Interaction, skip_count: int = 0) -> None:
+    """Begin playback. Skips to the 'skip_count + 1'th song in the list."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command must be used in a guild.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
     if bc is None:
-        await interaction.response.send_message(
-            "You need to use `/list` first.", ephemeral=True
-        )
+        await interaction.response.send_message("No bust found.", ephemeral=True)
         return
-    elif bc.is_active():
-        await interaction.response.send_message(
-            "We're already busting.", ephemeral=True
-        )
-        return
-    if index > len(bc.bust_content):
-        await interaction.response.send_message(
-            "There aren't that many tracks.", ephemeral=True
-        )
-        return
-    await bc.play(interaction, index - 1)
-    del bust.controllers[interaction.guild_id]
+    await bc.play(interaction, skip_count)
 
 
 # Skip command
 @client.tree.command(name="skip")
 @has_role(config.dj_role_name)
-async def skip(interaction: Interaction) -> None:
-    """Skip currently playing song."""
-    bc = bust.controllers.get(interaction.guild_id)
-
-    if not bc or not bc.is_active():
-        await interaction.response.send_message("Nothing is playing.", ephemeral=True)
+async def on_skip(interaction: Interaction, count: int = 1) -> None:
+    """Skip songs in the queue."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command must be used in a guild.", ephemeral=True
+        )
         return
 
-    await interaction.response.send_message("I didn't like that track anyways.")
-    bc.skip_to_track(bc.playing_index + 1)
+    bc = bust.controllers.get(interaction.guild_id)
+    if bc is None:
+        await interaction.response.send_message("No active bust.", ephemeral=True)
+        return
+    if bc.playing_index is None:
+        await interaction.response.send_message(
+            "No track is currently playing.", ephemeral=True
+        )
+        return
+    bc.skip_to_track(bc.playing_index + count)
+    await interaction.response.send_message("⏭️", ephemeral=True)
 
 
 # Seek command
@@ -198,6 +216,22 @@ async def stop(interaction: Interaction) -> None:
 
     await interaction.response.send_message("Alright I'll shut up.")
     bc.stop()
+
+
+# Leave command
+@client.tree.command(name="leave")
+@has_role(config.dj_role_name)
+async def on_leave(interaction: Interaction) -> None:
+    """Leave the voice channel and stop bust."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command must be used in a guild.", ephemeral=True
+        )
+        return
+
+    if interaction.guild_id in bust.controllers:
+        del bust.controllers[interaction.guild_id]
+    await interaction.response.send_message("��", ephemeral=True)
 
 
 class ImageGroup(app_commands.Group):
@@ -293,8 +327,14 @@ async def preview(
     """Show a preview of a submission's 'Now Playing' embed."""
     await interaction.response.defer(ephemeral=True)
 
+    if interaction.guild_id is None:
+        await interaction.followup.send(
+            "This command must be used in a guild.", ephemeral=True
+        )
+        return
+
     if not discord_utils.is_valid_media(uploaded_file.content_type):
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "You uploaded an invalid media file, please try again.",
             ephemeral=True,
         )
@@ -305,11 +345,11 @@ async def preview(
     )
 
     # Save attachment to disk for processing
-    await uploaded_file.save(fp=attachment_filepath)
+    await uploaded_file.save(fp=Path(attachment_filepath))
     random_emoji = random.choice(config.emoji_list)
 
     embed = song_utils.embed_song(
-        submit_message,
+        submit_message or "",
         attachment_filepath,
         uploaded_file,
         interaction.user,

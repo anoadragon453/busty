@@ -1,6 +1,6 @@
 import asyncio
 import os
-from os import path
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from discord import (
@@ -41,7 +41,7 @@ def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:
     # For example:
     #     /home/user/busty/attachments/922994022916698154/625891304081063986
 
-    return path.join(
+    return os.path.join(
         config.attachment_directory_filepath, str(guild_id), str(attachment.id)
     )
 
@@ -54,7 +54,7 @@ def build_filepath_for_media(guild_id: int, media_filename: str) -> str:
     # For example:
     #     /home/user/busty/attachments/922994022916698154/temp_audio.ogg
 
-    return path.join(
+    return os.path.join(
         config.attachment_directory_filepath, str(guild_id), media_filename
     )
 
@@ -73,7 +73,7 @@ async def scrape_channel_media(
     # A list of (original message, message attachment, local filepath)
     channel_media_attachments: List[Tuple[Message, Attachment, str]] = []
 
-    attachment_dir = path.join(
+    attachment_dir = os.path.join(
         config.attachment_directory_filepath, str(channel.guild.id)
     )
 
@@ -112,7 +112,7 @@ async def scrape_channel_media(
     # Clear unused files in this guild's attachment directory
     used_files = {path for (_, _, path) in channel_media_attachments}
     for filename in os.listdir(attachment_dir):
-        filepath = path.join(attachment_dir, filename)
+        filepath = os.path.join(attachment_dir, filename)
         if filepath not in used_files:
             if os.path.isfile(filepath):
                 os.remove(filepath)
@@ -127,7 +127,7 @@ async def scrape_channel_media(
 
         # Limit concurrent downloads
         async with download_semaphore:
-            await attachment.save(attachment_filepath)
+            await attachment.save(Path(attachment_filepath))
 
     if channel_media_attachments:
         tasks = [

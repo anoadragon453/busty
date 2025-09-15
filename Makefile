@@ -13,5 +13,5 @@ lint: ## Lint the code with ruff
 format: ## Format the code with ruff
 	uv run ruff format .
 
-type-check: ## Type check the code with mypy
-	uv run mypy src/
+type-check: ## Type check the code with pyright
+	uv run pyright src/

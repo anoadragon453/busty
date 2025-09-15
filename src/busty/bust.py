@@ -99,7 +99,7 @@ class BustController:
 
     def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
         song_len = song_utils.get_song_length(local_filepath)
-        if timestamp >= song_len:
+        if song_len is not None and timestamp >= song_len:
             timestamp = 0
             print("Attempted to seek past length of song. Ignoring timestamp.")
 
@@ -131,9 +131,15 @@ class BustController:
     def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
         # Get seek offset
         self._seek_to_seconds = timestamp
+        if interaction.guild is None:
+            print("Cannot seek: interaction has no guild")
+            return
         self.temp_audio_file = discord_utils.build_filepath_for_media(
             interaction.guild.id, "temp_audio.ogg"
         )
+        if self.playing_index is None:
+            print("Cannot seek: no track is currently playing")
+            return
         submit_message, attachment, local_filepath = self.bust_content[
             self.playing_index
         ]
@@ -157,7 +163,16 @@ class BustController:
 
         # Update message channel to where command was issued from
         # (in case `list` was called from a separate/private channel).
-        self.message_channel = interaction.channel
+        if interaction.channel is not None and isinstance(
+            interaction.channel, TextChannel
+        ):
+            self.message_channel = interaction.channel
+
+        if interaction.guild is None:
+            await interaction.followup.send(
+                "Error: This command must be used in a guild.", ephemeral=True
+            )
+            return
 
         # Join active voice call
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
@@ -166,13 +181,23 @@ class BustController:
         voice_channels.extend(interaction.guild.stage_channels)
 
         if not voice_channels:
-            await interaction.send(
+            await interaction.followup.send(
                 "You need to be in an active voice or stage channel.", ephemeral=True
             )
             return
 
         # Get a reference to the bot's Member object
-        bot_member = interaction.guild.get_member(self.client.user.id)
+        if interaction.client.user is None:
+            await interaction.followup.send(
+                "Error: Bot user is not available.", ephemeral=True
+            )
+            return
+        bot_member = interaction.guild.get_member(interaction.client.user.id)
+        if bot_member is None:
+            await interaction.followup.send(
+                "Error: Cannot find bot member in guild.", ephemeral=True
+            )
+            return
 
         for voice_channel in voice_channels:
             if interaction.user not in voice_channel.members:
@@ -195,7 +220,7 @@ class BustController:
                 return
         else:
             # No voice channel was found
-            await interaction.send(
+            await interaction.followup.send(
                 "You need to be in an active voice channel.", ephemeral=True
             )
             return
@@ -242,9 +267,10 @@ class BustController:
             await self.voice_client.disconnect()
 
         # Restore the bot's original guild nickname (if it had one)
-        if self.original_bot_nickname and self.message_channel:
+        if self.original_bot_nickname and self.message_channel and self.client.user:
             bot_member = self.message_channel.guild.get_member(self.client.user.id)
-            await bot_member.edit(nick=self.original_bot_nickname)
+            if bot_member:
+                await bot_member.edit(nick=self.original_bot_nickname)
 
         if say_goodbye:
             goodbye_emoji = ":heart_on_fire:"
@@ -288,7 +314,9 @@ class BustController:
             )
             try:
                 cover_art_url = await asyncio.wait_for(
-                    llm.generate_album_art(artist, title, submit_message.content),
+                    llm.generate_album_art(
+                        artist or "Unknown Artist", title, submit_message.content
+                    ),
                     timeout=20.0,
                 )
                 if cover_art_url is not None:
@@ -356,6 +384,10 @@ class BustController:
                 local_filepath,
                 options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
+
+        if self.voice_client is None:
+            print("Error: Voice client is not available")
+            return
 
         self.voice_client.play(
             audio_to_play,
