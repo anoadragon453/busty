@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from discord import Interaction
 
@@ -8,7 +8,7 @@ from busty.config import JSON_DATA_TYPE, bot_state_file
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
-_bot_state = {}
+_bot_state: Dict[str, Any] = {}
 
 
 def load_state_from_disk() -> None:
@@ -114,11 +114,13 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
     # be used as the field name in the JSON dict.
     key = path.pop()
     for pathname in path:
-        current_path = current_path.get(pathname)
+        next_path = current_path.get(pathname)
 
-        if current_path is None:
+        if next_path is None or not isinstance(next_path, dict):
             # Oops, we hit a dead end.
             return None
+        
+        current_path = next_path
 
     # Return the value under the field at the end of the given path.
     value = current_path.get(key)
@@ -218,7 +220,10 @@ def get_form_image_url(interaction: Interaction) -> Optional[str]:
     Returns:
         The image form URL if it was found, otherwise None.
     """
-    return get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    result = get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    if isinstance(result, str):
+        return result
+    return None
 
 
 def clear_form_image_url(interaction: Interaction) -> bool:

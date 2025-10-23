@@ -96,7 +96,7 @@ def create_remote_form(
     forms = form_service.forms()
     form_info = forms.create(body=form_info).execute()
     form_id = form_info["formId"]
-    form_url = form_info["responderUri"]
+    form_url = str(form_info["responderUri"])
 
     # Add content to the form
     forms.batchUpdate(formId=form_id, body=form_update).execute()

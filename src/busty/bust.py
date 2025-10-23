@@ -67,10 +67,10 @@ class BustController:
                 self.total_song_len += song_len
 
         # None if no song is playing, otherwise formatted str "artist - title"
-        self.now_playing_str = None
+        self.now_playing_str: Optional[str] = None
 
         self._finished: bool = False
-        self._playing_index: Optional[int] = None
+        self.playing_index: Optional[int] = None
 
         # Temp audio file to truncate seeks to
         self.temp_audio_file: str = ""
@@ -99,7 +99,7 @@ class BustController:
 
     def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
         song_len = song_utils.get_song_length(local_filepath)
-        if timestamp >= song_len:
+        if song_len is None or timestamp >= song_len:
             timestamp = 0
             print("Attempted to seek past length of song. Ignoring timestamp.")
 
@@ -130,6 +130,9 @@ class BustController:
 
     def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
         # Get seek offset
+        if self.playing_index is None:
+            print("No track is currently playing. Ignoring seek.")
+            return
         self._seek_to_seconds = timestamp
         self.temp_audio_file = discord_utils.build_filepath_for_media(
             interaction.guild.id, "temp_audio.ogg"
@@ -283,12 +286,14 @@ class BustController:
         cover_art = song_utils.get_cover_art(local_filepath)
         if cover_art is None and config.openai_api_key:
             # Use generative AI to create some album art for this song.
-            artist, title = song_utils.get_song_metadata(
+            artist, title = song_utils.get_song_metadata_with_fallback(
                 local_filepath, attachment.filename, submit_message.author.display_name
             )
             try:
                 cover_art_url = await asyncio.wait_for(
-                    llm.generate_album_art(artist, title, submit_message.content),
+                    llm.generate_album_art(
+                        artist or "Unknown Artist", title, submit_message.content or ""
+                    ),
                     timeout=20.0,
                 )
                 if cover_art_url is not None:
@@ -357,10 +362,11 @@ class BustController:
                 options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
 
-        self.voice_client.play(
-            audio_to_play,
-            after=ffmpeg_post_hook,
-        )
+        if self.voice_client is not None:
+            self.voice_client.play(
+                audio_to_play,
+                after=ffmpeg_post_hook,
+            )
 
         # Set now playing title
         self.now_playing_str = song_utils.song_format(
@@ -438,7 +444,8 @@ class BustController:
         bust_len = songs_len + config.seconds_between_songs * num_songs
 
         # Compute map of submitter --> total length of all submissions
-        submitter_to_len = defaultdict(lambda: 0.0)
+        submitter_to_len: Dict[int, float] = defaultdict(lambda: 0.0)
+        submitter_map: Dict[int, "discord.User"] = {}
 
         errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
@@ -448,15 +455,17 @@ class BustController:
                 # Even if song length is an error, we still add 0 to submitter_to_len
                 # to ensure len(submitter_to_len) equals the number of submitters
                 song_len = 0.0
-            submitter_to_len[submit_message.author] += song_len
+            submitter_to_len[submit_message.author.id] += song_len
+            submitter_map[submit_message.author.id] = submit_message.author
 
         # Format list of users with longest total submission length
         submitters_sorted_by_len = sorted(
-            [(length, sub) for (sub, length) in submitter_to_len.items()], reverse=True
+            [(length, user_id) for (user_id, length) in submitter_to_len.items()],
+            reverse=True,
         )
         longest_submitters_formatted = [
-            f"{i + 1}. {submitter.mention} - {song_utils.format_time(int(length))}"
-            for i, (length, submitter) in enumerate(
+            f"{i + 1}. {submitter_map[user_id].mention} - {song_utils.format_time(int(length))}"
+            for i, (length, user_id) in enumerate(
                 submitters_sorted_by_len[: config.num_longest_submitters]
             )
         ]

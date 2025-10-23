@@ -48,9 +48,7 @@ def embed_song(
     return embed
 
 
-def get_song_metadata(
-    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
-) -> Tuple[Optional[str], str]:
+def get_song_metadata(local_filepath: str, filename: str) -> Tuple[Optional[str], str]:
     """
     Return nice artist and title names in a tuple (artist, title)
 
@@ -83,8 +81,6 @@ def get_song_metadata(
     # Sanitize tag contents.
     # We explicitly check for None here, as anything else means that the data was
     # pulled from the audio.
-    if not artist:
-        artist = artist_fallback
     if artist:
         artist = sanitize_tag(artist)
 
@@ -96,6 +92,21 @@ def get_song_metadata(
 
     return artist, title
 
+def get_song_metadata_with_fallback(local_filepath: str, filename: str, artist_fallback: str) -> Tuple[str, str]:
+    """Get song metadata with a fallback artist name.
+
+    Args:
+        local_filepath: the actual path on disc
+        filename: the filename on Discord
+        artist_fallback: the fallback artist name
+
+    Returns:
+        A tuple (artist, title).
+    """
+    artist, title = get_song_metadata(local_filepath, filename)
+    if not artist:
+        artist = artist_fallback
+    return artist, title
 
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None
@@ -117,9 +128,11 @@ def song_format(
         A string presenting the given song information in a human-readable way.
     """
 
-    artist, title = get_song_metadata(local_filepath, filename, artist_fallback)
+    artist, title = get_song_metadata(local_filepath, filename)
     if not artist:
-        return title
+        if not artist_fallback:
+            return title
+        artist = artist_fallback
     return f"{artist} - {title}"
 
 
@@ -235,7 +248,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-def convert_timestamp_to_seconds(time_str: str):
+def convert_timestamp_to_seconds(time_str: Optional[str]) -> Optional[int]:
     # Converts a time string into seconds. Returns 0 if format is invalid.
     # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
     if time_str is None:
@@ -255,14 +268,14 @@ def convert_timestamp_to_seconds(time_str: str):
     # All parts must be digits
     if not all(part.isdigit() for part in parts):
         return None
-    parts = [int(part) for part in parts]
+    int_parts = [int(part) for part in parts]
 
     # Pad with zeros if needed (e.g., "1:23" becomes [0, 1, 23])
-    while len(parts) < 3:
-        parts.insert(0, 0)
+    while len(int_parts) < 3:
+        int_parts.insert(0, 0)
 
     # Calculate total seconds
-    hours, minutes, seconds = parts
+    hours, minutes, seconds = int_parts
 
     # Validate ranges
     if minutes >= 60 or seconds >= 60:

@@ -97,7 +97,8 @@ async def on_list(
         list_channel = interaction.channel
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
-        bust.controllers[interaction.guild_id] = bc
+        if bc is not None:
+            bust.controllers[interaction.guild_id] = bc
 
 
 # Bust command
@@ -137,7 +138,8 @@ async def skip(interaction: Interaction) -> None:
         return
 
     await interaction.response.send_message("I didn't like that track anyways.")
-    bc.skip_to_track(bc.playing_index + 1)
+    if bc._playing_index is not None:
+        bc.skip_to_track(bc._playing_index + 1)
 
 
 # Seek command
@@ -145,7 +147,7 @@ async def skip(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def seek(
     interaction: Interaction,
-    timestamp: str = None,
+    timestamp: Optional[str] = None,
 ) -> None:
     """Seek to time in the currently playing song."""
     # Get seek offset
@@ -182,7 +184,8 @@ async def replay(interaction: Interaction) -> None:
         return
 
     await interaction.response.send_message("Replaying this track.")
-    bc.skip_to_track(bc.playing_index)
+    if bc._playing_index is not None:
+        bc.skip_to_track(bc._playing_index)
 
 
 # Stop command
@@ -309,7 +312,7 @@ async def preview(
     random_emoji = random.choice(config.emoji_list)
 
     embed = song_utils.embed_song(
-        submit_message,
+        submit_message or "",
         attachment_filepath,
         uploaded_file,
         interaction.user,
