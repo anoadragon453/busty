@@ -10,7 +10,6 @@ from discord import Client, Member, Message, User
 
 from busty import bust, config
 
-
 # Global variables
 gpt_lock: Optional[asyncio.Lock] = None
 context_data: Optional[Dict] = None

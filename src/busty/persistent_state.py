@@ -119,7 +119,7 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
         if next_path is None or not isinstance(next_path, dict):
             # Oops, we hit a dead end.
             return None
-        
+
         current_path = next_path
 
     # Return the value under the field at the end of the given path.

@@ -92,7 +92,10 @@ def get_song_metadata(local_filepath: str, filename: str) -> Tuple[Optional[str]
 
     return artist, title
 
-def get_song_metadata_with_fallback(local_filepath: str, filename: str, artist_fallback: str) -> Tuple[str, str]:
+
+def get_song_metadata_with_fallback(
+    local_filepath: str, filename: str, artist_fallback: str
+) -> Tuple[str, str]:
     """Get song metadata with a fallback artist name.
 
     Args:
@@ -107,6 +110,7 @@ def get_song_metadata_with_fallback(local_filepath: str, filename: str, artist_f
     if not artist:
         artist = artist_fallback
     return artist, title
+
 
 def song_format(
     local_filepath: str, filename: str, artist_fallback: Optional[str] = None
