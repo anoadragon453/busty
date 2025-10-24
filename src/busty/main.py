@@ -164,8 +164,8 @@ async def skip(interaction: Interaction) -> None:
         return
 
     await interaction.response.send_message("I didn't like that track anyways.")
-    if bc._playing_index is not None:
-        bc.skip_to_track(bc._playing_index + 1)
+    if bc.playing_index is not None:
+        bc.skip_to_track(bc.playing_index + 1)
 
 
 # Seek command
@@ -222,8 +222,8 @@ async def replay(interaction: Interaction) -> None:
         return
 
     await interaction.response.send_message("Replaying this track.")
-    if bc._playing_index is not None:
-        bc.skip_to_track(bc._playing_index)
+    if bc.playing_index is not None:
+        bc.skip_to_track(bc.playing_index)
 
 
 # Stop command
