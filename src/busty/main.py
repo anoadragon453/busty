@@ -21,7 +21,7 @@ from discord.ext.commands import has_role
 from busty import bust, config, discord_utils, llm, persistent_state, song_utils
 
 
-def setup_logging(log_level):
+def setup_logging(log_level: int) -> None:
     logger = logging.getLogger("discord")
     logger.setLevel(log_level)
     handler = logging.StreamHandler(stream=sys.stderr)
@@ -204,7 +204,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 class ImageGroup(app_commands.Group):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="image", description="Manage saved Google Forms image.")
 
     @app_commands.command(
@@ -212,7 +212,7 @@ class ImageGroup(app_commands.Group):
     )
     async def upload(
         self, interaction: discord.Interaction, image_file: discord.Attachment
-    ):
+    ) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
         if not await persistent_state.save_form_image_url(interaction, image_file.url):
@@ -226,7 +226,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="url", description="Set a Google Forms image by pasting a URL."
     )
-    async def url(self, interaction: discord.Interaction, image_url: str):
+    async def url(self, interaction: discord.Interaction, image_url: str) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
         if not await persistent_state.save_form_image_url(interaction, image_url):
@@ -240,7 +240,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="clear", description="Clear the loaded Google Forms image."
     )
-    async def clear(self, interaction: discord.Interaction):
+    async def clear(self, interaction: discord.Interaction) -> None:
         image_existed = persistent_state.clear_form_image_url(interaction)
         if not image_existed:
             await interaction.response.send_message(
@@ -253,7 +253,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="view", description="View the loaded Google Forms image."
     )
-    async def view(self, interaction: discord.Interaction):
+    async def view(self, interaction: discord.Interaction) -> None:
         loaded_image_url = persistent_state.get_form_image_url(interaction)
         if loaded_image_url is None:
             await interaction.response.send_message(
@@ -385,7 +385,7 @@ async def on_application_command_error(
         logger.error(error)
 
 
-def run_bot():
+def run_bot() -> None:
     """Entry point for the busty script."""
     # Load the bot state.
     persistent_state.load_state_from_disk()

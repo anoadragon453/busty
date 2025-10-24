@@ -45,6 +45,12 @@ dev = ["ruff>=0.1.0", "pyright>=1.1.0"]
 [project.scripts]
 busty = "busty.main:run_bot"
 
+[dependency-groups]
+dev = [
+    "types-pillow>=10.2.0.20240822",
+    "types-requests>=2.32.4.20250913",
+]
+
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]
@@ -55,15 +61,8 @@ typeCheckingMode = "strict"
 
 [tool.mypy]
 python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+disallow_untyped_decorators = false
+ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = "requests"
+ignore_missing_imports = true

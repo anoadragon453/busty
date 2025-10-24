@@ -2,11 +2,11 @@ import asyncio
 import datetime
 import json
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import openai
 import tiktoken
-from discord import Client, Member, Message
+from discord import Client, Member, Message, User
 
 from busty import bust, config
 
@@ -15,7 +15,7 @@ from busty import bust, config
 gpt_lock: Optional[asyncio.Lock] = None
 context_data: Optional[Dict] = None
 encoding: Optional[tiktoken.Encoding] = None
-self_user: Optional["discord.User"] = None
+self_user: Optional[User] = None
 banned_word_pattern: Optional[re.Pattern] = None
 word_trigger_pattern: Optional[re.Pattern] = None
 user_trigger_pattern: Optional[re.Pattern] = None
@@ -101,12 +101,12 @@ def disallowed_message(message: Message) -> bool:
 # Get the name we should call the user
 def get_name(user: Member) -> str:
     if context_data is None:
-        return user.name
+        return cast(str, user.name)
     user_info = context_data["user_info"]
     id = str(user.id)
     if id in user_info and "name" in user_info[id]:
-        return user_info[id]["name"]
-    return user.name
+        return cast(str, user_info[id]["name"])
+    return cast(str, user.name)
 
 
 # Get context about the server
@@ -177,7 +177,7 @@ def substitute_mentions(message: Message) -> str:
         content = content.replace(channel.mention, channel.name)
     for role in message.role_mentions:
         content = content.replace(role.mention, role.name)
-    return content
+    return cast(str, content)
 
 
 # Fetch message content from history up to a certain token allowance
@@ -239,7 +239,7 @@ async def get_message_context(message: Message) -> List[str]:
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
-    return static_context + author_context
+    return cast(List[str], static_context + author_context)
 
 
 # Query the OpenAI API and return response
@@ -252,7 +252,7 @@ async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
             messages=data,
             timeout=10.0,
         )
-        return response.choices[0].message.content
+        return cast(str, response.choices[0].message.content)
 
     except Exception as e:
         print("OpenAI API exception:", e)
@@ -387,4 +387,4 @@ async def generate_image(prompt: str) -> Optional[str]:
     except Exception as e:
         print("OpenAI API exception:", e)
         return None
-    return response.data[0].url
+    return cast(str, response.data[0].url)

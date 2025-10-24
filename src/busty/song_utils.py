@@ -1,7 +1,7 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 
 from discord import Attachment, Embed, File, User
 from discord.utils import escape_markdown
@@ -180,7 +180,7 @@ def get_song_length(filename: str) -> Optional[float]:
     try:
         audio = MutagenFile(filename)
         if audio is not None:
-            return audio.info.length
+            return cast(float, audio.info.length)
     except MutagenError as e:
         print(f"Error reading length of {filename}:", e)
     except Exception as e:

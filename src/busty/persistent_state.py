@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, cast
 
 from discord import Interaction
 
@@ -129,7 +129,7 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
 
     # We explicitly return a copy of the value, otherwise any manipulations the calling function
     # does to the value may result in the state dict being changed.
-    return copy.deepcopy(value)
+    return cast(JSON_DATA_TYPE, copy.deepcopy(value))
 
 
 def delete_state(path: Iterable[str]) -> bool:
@@ -155,13 +155,9 @@ def delete_state(path: Iterable[str]) -> bool:
 
     # this should be a dict as we're one level up
     state_at_path = get_state(path)
-    if not isinstance(state_at_path, dict):
+    if state_at_path is None or not isinstance(state_at_path, dict):
         # The path is invalid, as removing the last item from a path should
         # result in a path that leads to a dict.
-        return False
-
-    if state_at_path is None:
-        # This path does not exist
         return False
 
     if field_to_delete not in state_at_path:

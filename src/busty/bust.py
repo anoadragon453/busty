@@ -21,6 +21,7 @@ from discord import (
     Message,
     StageChannel,
     TextChannel,
+    User,
     VoiceChannel,
     VoiceClient,
 )
@@ -341,7 +342,7 @@ class BustController:
         await play_lock.acquire()
 
         # Called when song finishes playing
-        def ffmpeg_post_hook(e: Optional[Exception] = None):
+        def ffmpeg_post_hook(e: Optional[Exception] = None) -> None:
             if e is not None:
                 print("Song playback quit with error:", e)
             # Release the lock to allow play_song to continue
@@ -445,7 +446,7 @@ class BustController:
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len: Dict[int, float] = defaultdict(lambda: 0.0)
-        submitter_map: Dict[int, "discord.User"] = {}
+        submitter_map: Dict[int, User] = {}
 
         errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
