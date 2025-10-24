@@ -1,9 +1,9 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional, Tuple, cast
+from typing import Optional, Tuple, Union, cast
 
-from discord import Attachment, Embed, File, User
+from discord import Attachment, Embed, File, Member, User
 from discord.utils import escape_markdown
 from mutagen import File as MutagenFile
 from mutagen import MutagenError
@@ -20,7 +20,7 @@ def embed_song(
     message_content: str,
     attachment_filepath: str,
     attachment: Attachment,
-    user: User,
+    user: Union[User, Member],
     emoji: str,
     jump_url: str,
 ) -> Embed:

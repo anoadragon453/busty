@@ -18,6 +18,7 @@ from discord import (
     FFmpegPCMAudio,
     File,
     Interaction,
+    Member,
     Message,
     StageChannel,
     TextChannel,
@@ -25,6 +26,7 @@ from discord import (
     VoiceChannel,
     VoiceClient,
 )
+from discord.voice_client import AudioSource
 
 from busty import config, discord_utils, forms, llm, persistent_state, song_utils
 
@@ -134,6 +136,9 @@ class BustController:
         if self.playing_index is None:
             print("No track is currently playing. Ignoring seek.")
             return
+        if interaction.guild is None:
+            print("No guild found for seek operation.")
+            return
         self._seek_to_seconds = timestamp
         self.temp_audio_file = discord_utils.build_filepath_for_media(
             interaction.guild.id, "temp_audio.ogg"
@@ -161,21 +166,38 @@ class BustController:
 
         # Update message channel to where command was issued from
         # (in case `list` was called from a separate/private channel).
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         self.message_channel = interaction.channel
 
         # Join active voice call
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
+
         voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
             interaction.guild.voice_channels
         )
         voice_channels.extend(interaction.guild.stage_channels)
 
         if not voice_channels:
-            await interaction.send(
+            await interaction.response.send_message(
                 "You need to be in an active voice or stage channel.", ephemeral=True
             )
             return
 
         # Get a reference to the bot's Member object
+        if self.client.user is None:
+            await interaction.response.send_message(
+                "Bot user not found.", ephemeral=True
+            )
+            return
+
         bot_member = interaction.guild.get_member(self.client.user.id)
 
         for voice_channel in voice_channels:
@@ -191,7 +213,8 @@ class BustController:
                 # If this is a stage voice channel, ensure that we are currently speaking.
                 if voice_channel.type == ChannelType.stage_voice:
                     # Set the bot's own member to be speaking in the voice channel
-                    await bot_member.edit(suppress=False)
+                    if bot_member is not None:
+                        await bot_member.edit(suppress=False)
 
                 break
             except ClientException as e:
@@ -199,14 +222,15 @@ class BustController:
                 return
         else:
             # No voice channel was found
-            await interaction.send(
+            await interaction.response.send_message(
                 "You need to be in an active voice channel.", ephemeral=True
             )
             return
 
         # Save the bot's current display name (nick or name)
         # We'll restore it after songs have finished playing.
-        self.original_bot_nickname = bot_member.display_name
+        if bot_member is not None:
+            self.original_bot_nickname = bot_member.display_name
 
         await self.message_channel.send("Let's get **BUSTY**.")
         await interaction.delete_original_response()
@@ -225,7 +249,8 @@ class BustController:
                 await self.play_song_task
             except asyncio.CancelledError:
                 # Voice client playback must be manually stopped
-                self.voice_client.stop()
+                if self.voice_client:
+                    self.voice_client.stop()
 
             self.playing_index += 1
 
@@ -246,9 +271,10 @@ class BustController:
             await self.voice_client.disconnect()
 
         # Restore the bot's original guild nickname (if it had one)
-        if self.original_bot_nickname and self.message_channel:
+        if self.original_bot_nickname and self.message_channel and self.client.user:
             bot_member = self.message_channel.guild.get_member(self.client.user.id)
-            await bot_member.edit(nick=self.original_bot_nickname)
+            if bot_member is not None:
+                await bot_member.edit(nick=self.original_bot_nickname)
 
         if say_goodbye:
             goodbye_emoji = ":heart_on_fire:"
@@ -350,7 +376,7 @@ class BustController:
             # The async cleanup will be handled in the main play_song method
             play_lock.release()
 
-        audio_to_play = None
+        audio_to_play: Optional[AudioSource] = None
         if self._seek_to_seconds is not None:
             audio_to_play = FFmpegOpusAudio(
                 self.temp_audio_file,
@@ -384,8 +410,10 @@ class BustController:
             new_nick = new_nick[: config.NICKNAME_CHAR_LIMIT - 1] + "…"
 
         # Set the new nickname
-        bot_member = self.message_channel.guild.get_member(self.client.user.id)
-        await bot_member.edit(nick=new_nick)
+        if self.message_channel and self.client.user:
+            bot_member = self.message_channel.guild.get_member(self.client.user.id)
+            if bot_member is not None:
+                await bot_member.edit(nick=new_nick)
 
         # Wait for song to finish playing
         await play_lock.acquire()
@@ -446,7 +474,7 @@ class BustController:
 
         # Compute map of submitter --> total length of all submissions
         submitter_to_len: Dict[int, float] = defaultdict(lambda: 0.0)
-        submitter_map: Dict[int, User] = {}
+        submitter_map: Dict[int, Union[User, Member]] = {}
 
         errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
@@ -490,7 +518,7 @@ class BustController:
             description=embed_text,
             color=config.INFO_EMBED_COLOR,
         )
-        await interaction.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
 
 async def create_controller(
@@ -509,6 +537,12 @@ async def create_controller(
     if not channel_media_attachments:
         await interaction.edit_original_response(
             content=":warning: No valid media files found."
+        )
+        return None
+
+    if not isinstance(interaction.channel, TextChannel):
+        await interaction.edit_original_response(
+            content="This command can only be used in a text channel."
         )
         return None
 

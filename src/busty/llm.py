@@ -2,11 +2,11 @@ import asyncio
 import datetime
 import json
 import re
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import openai
 import tiktoken
-from discord import Client, Member, Message, User
+from discord import Client, ClientUser, Member, Message, User
 
 from busty import bust, config
 
@@ -14,7 +14,7 @@ from busty import bust, config
 gpt_lock: Optional[asyncio.Lock] = None
 context_data: Optional[Dict] = None
 encoding: Optional[tiktoken.Encoding] = None
-self_user: Optional[User] = None
+self_user: Optional[Union[User, Member, ClientUser]] = None
 banned_word_pattern: Optional[re.Pattern] = None
 word_trigger_pattern: Optional[re.Pattern] = None
 user_trigger_pattern: Optional[re.Pattern] = None
@@ -98,7 +98,7 @@ def disallowed_message(message: Message) -> bool:
 
 
 # Get the name we should call the user
-def get_name(user: Member) -> str:
+def get_name(user: Union[User, Member, ClientUser]) -> str:
     if context_data is None:
         return cast(str, user.name)
     user_info = context_data["user_info"]
@@ -113,7 +113,7 @@ async def get_server_context(message: Message) -> List[str]:
     result = []
 
     # Detect if song is currently playing
-    if hasattr(message, "guild"):
+    if hasattr(message, "guild") and message.guild:
         bc = bust.controllers.get(message.guild.id)
         if bc and bc.is_active():
             result.append("The bust is going on right now!")
@@ -246,9 +246,14 @@ async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
     if openai_async_client is None:
         return None
     try:
+        # Convert the data to the proper format for OpenAI API
+        messages: List[Any] = []
+        for item in data:
+            messages.append({"role": item["role"], "content": item["content"]})
+
         response = await openai_async_client.chat.completions.create(
             model=config.openai_model,
-            messages=data,
+            messages=messages,
             timeout=10.0,
         )
         return cast(str, response.choices[0].message.content)
@@ -386,4 +391,4 @@ async def generate_image(prompt: str) -> Optional[str]:
     except Exception as e:
         print("OpenAI API exception:", e)
         return None
-    return cast(str, response.data[0].url)
+    return cast(str, response.data[0].url) if response.data else None

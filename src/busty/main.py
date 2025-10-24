@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import sys
+from pathlib import Path
 from typing import Optional
 
 import discord
@@ -15,6 +16,7 @@ from discord import (
     TextChannel,
     app_commands,
 )
+from discord.app_commands import AppCommandError
 from discord.ext import commands
 from discord.ext.commands import has_role
 
@@ -64,6 +66,7 @@ async def on_message(message: Message) -> None:
     if (
         config.openai_api_key
         and message.guild
+        and client.user
         and (
             client.user in message.mentions
             or any(role.name == client.user.name for role in message.role_mentions)
@@ -84,6 +87,12 @@ async def on_list(
     interaction: Interaction, list_channel: Optional[TextChannel] = None
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
     if bc and bc.is_active():
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
@@ -94,6 +103,11 @@ async def on_list(
         )
         return
     if list_channel is None:
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         list_channel = interaction.channel
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
@@ -106,6 +120,12 @@ async def on_list(
 @has_role(config.dj_role_name)
 async def on_bust(interaction: Interaction, index: int = 1) -> None:
     """Begin a bust."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
     if bc is None:
         await interaction.response.send_message(
@@ -131,6 +151,12 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
 @has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -150,6 +176,12 @@ async def seek(
     timestamp: Optional[str] = None,
 ) -> None:
     """Seek to time in the currently playing song."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     # Get seek offset
     seek_to_seconds = song_utils.convert_timestamp_to_seconds(timestamp)
     if seek_to_seconds is None:
@@ -177,6 +209,12 @@ async def seek(
 @has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -193,6 +231,12 @@ async def replay(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -275,6 +319,12 @@ client.tree.add_command(ImageGroup())
 @has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if bc is None:
@@ -294,6 +344,12 @@ async def preview(
     submit_message: Optional[str] = None,
 ) -> None:
     """Show a preview of a submission's 'Now Playing' embed."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     await interaction.response.defer(ephemeral=True)
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
@@ -308,7 +364,7 @@ async def preview(
     )
 
     # Save attachment to disk for processing
-    await uploaded_file.save(fp=attachment_filepath)
+    await uploaded_file.save(fp=Path(attachment_filepath))
     random_emoji = random.choice(config.emoji_list)
 
     embed = song_utils.embed_song(
@@ -346,6 +402,11 @@ async def announce(
     """Send a message as the bot into a channel wrapped in an embed."""
     await interaction.response.defer(ephemeral=True)
     if channel is None:
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         channel = interaction.channel
 
     # Build the announcement embed
@@ -377,7 +438,7 @@ async def on_application_command_error(
     interaction: Interaction, error: Exception
 ) -> None:
     # Catch insufficient permissions exception, ignore all others
-    if isinstance(error, has_role.errors.ApplicationMissingRole):
+    if isinstance(error, AppCommandError):
         await interaction.response.send_message(
             "You don't have permission to use this command.", ephemeral=True
         )
