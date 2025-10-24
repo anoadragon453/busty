@@ -49,6 +49,8 @@ busty = "busty.main:run_bot"
 dev = [
     "types-pillow>=10.2.0.20240822",
     "types-requests>=2.32.4.20250913",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
 ]
 
 [tool.ruff.lint]
