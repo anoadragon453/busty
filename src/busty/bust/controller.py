@@ -11,11 +11,11 @@ from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 import requests
 from discord import (
     ChannelType,
-    Client,
     ClientException,
     Embed,
     FFmpegOpusAudio,
@@ -36,6 +36,9 @@ from busty.bust.models import BustPhase, PlaybackState, Track
 from busty.config import constants
 from busty.config.settings import BustySettings
 
+if TYPE_CHECKING:
+    from busty.main import BustyBot
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,7 +47,7 @@ class BustController:
 
     def __init__(
         self,
-        client: Client,
+        client: "BustyBot",
         settings: BustySettings,
         tracks: list[Track],
         message_channel: TextChannel,
@@ -552,7 +555,7 @@ class BustController:
 
 
 async def create_controller(
-    client: Client,
+    client: "BustyBot",
     settings: BustySettings,
     interaction: Interaction,
     list_channel: TextChannel,
@@ -560,7 +563,7 @@ async def create_controller(
     """Create a BustController by scraping and listing a channel.
 
     Args:
-        client: Discord client.
+        client: Discord bot client.
         settings: Bot settings.
         interaction: An interaction which has not yet been responded to.
         list_channel: Channel to scrape for media.
