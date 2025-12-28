@@ -53,7 +53,8 @@ from busty import (  # noqa: E402
     persistent_state,
     song_utils,
 )
-from busty.config import BustySettings, constants  # noqa: E402
+from busty.config import constants  # noqa: E402
+from busty.config.settings import BustySettings  # noqa: E402
 
 # Get logger for this module
 logger = logging.getLogger(__name__)

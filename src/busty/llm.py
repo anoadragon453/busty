@@ -12,7 +12,7 @@ from discord import ClientUser, Member, Message, User
 from busty.config import constants
 
 if TYPE_CHECKING:
-    from busty.config import BustySettings
+    from busty.config.settings import BustySettings
     from busty.main import BustyBot
 
 logger = logging.getLogger(__name__)

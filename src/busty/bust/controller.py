@@ -31,7 +31,8 @@ from discord.voice_client import AudioSource
 
 from busty import discord_utils, forms, llm, persistent_state, song_utils
 from busty.bust.models import BustPhase, PlaybackState, Track
-from busty.config import BustySettings, constants
+from busty.config import constants
+from busty.config.settings import BustySettings
 
 logger = logging.getLogger(__name__)
 

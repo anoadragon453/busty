@@ -5,7 +5,7 @@ from typing import Any, Iterable, cast
 
 from discord import Interaction
 
-from busty.config import JSON_DATA_TYPE
+from busty.config.constants import JSON_DATA_TYPE
 
 logger = logging.getLogger(__name__)
 
