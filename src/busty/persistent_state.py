@@ -32,6 +32,9 @@ def load_state_from_disk() -> None:
         # Load the JSON representation of the bot's state and convert it to a Python dict so
         # it can be easily manipulated.
         _bot_state = json.loads(bot_state_str)
+        logger.info(f"Loaded bot state from {bot_state_file}")
+    else:
+        logger.info("No existing bot state file found, starting fresh")
 
 
 def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:

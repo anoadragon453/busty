@@ -237,6 +237,10 @@ class BustController:
         await self.message_channel.send("Let's get **BUSTY**.")
         await interaction.delete_original_response()
 
+        logger.info(
+            f"Starting bust playback in guild {interaction.guild_id}, {len(self.bust_content)} tracks total, starting at track {skip_count + 1}"
+        )
+
         # Play songs
         self.playing_index = skip_count
         while self.playing_index < len(self.bust_content):
@@ -294,6 +298,15 @@ class BustController:
         self.voice_client = None
         self.original_bot_nickname = None
         self._finished = True
+
+        if say_goodbye:
+            logger.info(
+                f"Bust playback completed in guild {self.message_channel.guild.id}"
+            )
+        else:
+            logger.info(
+                f"Bust playback stopped early in guild {self.message_channel.guild.id}"
+            )
 
     async def play_song(self, index: int) -> None:
         # Send the chilling message
@@ -623,6 +636,11 @@ async def create_controller(
             await discord_utils.try_set_pin(form_message, True)
 
     await interaction.delete_original_response()
+
+    logger.info(
+        f"Created bust list with {len(channel_media_attachments)} tracks from channel {list_channel.name} (guild {interaction.guild_id})"
+    )
+
     # Return controller
     return bc
 

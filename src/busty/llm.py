@@ -83,6 +83,10 @@ def initialize(client: Client) -> None:
         user_trigger_pattern = None
         user_info_map = None
 
+    logger.info(
+        f"LLM features initialized successfully with model {config.openai_model}"
+    )
+
 
 # Check if a message's content should be allowed when feeding message history to the model
 # Currently this is just if it contains banned phrases
