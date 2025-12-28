@@ -31,7 +31,7 @@ from discord import (
 )
 from discord.voice_client import AudioSource
 
-from busty import discord_utils, forms, llm, persistent_state, song_utils
+from busty import discord_utils, forms, llm, song_utils
 from busty.bust.models import BustPhase, PlaybackState, Track
 from busty.config import constants
 from busty.config.settings import BustySettings
@@ -643,7 +643,7 @@ async def create_controller(
 
         # Generate Google Form
         try:
-            image_url = persistent_state.get_form_image_url(interaction)
+            image_url = controller.client.persistent_state.get_form_image_url(interaction)
             form_url = controller.get_google_form_url(image_url)
 
             if form_url:
