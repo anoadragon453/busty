@@ -70,7 +70,7 @@ def initialize(client: "BustyBot", settings: "BustySettings") -> None:
     openai_model = settings.openai_model
 
     # Preload tokenizer
-    encoding = tiktoken.encoding_for_model(openai_model)
+    encoding = tiktoken.encoding_for_model(settings.openai_tokenizer_model)
     # Store bot user and client
     self_user = client.user
     self_client = client

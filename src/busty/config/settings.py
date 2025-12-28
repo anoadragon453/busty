@@ -40,6 +40,7 @@ class BustySettings:
     # OpenAI integration
     openai_api_key: str | None
     openai_model: str
+    openai_tokenizer_model: str
 
     # Playback settings
     seconds_between_songs: int
@@ -78,6 +79,9 @@ class BustySettings:
         llm_context_file = config_dir / "llm_context.json"
         google_auth_file = auth_dir / "oauth_token.json"
 
+        # Load OpenAI model (used for both model and tokenizer by default)
+        openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-4o")
+
         return BustySettings(
             discord_token=os.environ.get("BUSTY_DISCORD_TOKEN"),
             dj_role_name=os.environ.get("BUSTY_DJ_ROLE", "bangermeister"),
@@ -94,7 +98,10 @@ class BustySettings:
             google_auth_file=google_auth_file,
             google_form_folder=os.environ.get("BUSTY_GOOGLE_FORM_FOLDER"),
             openai_api_key=os.environ.get("BUSTY_OPENAI_API_KEY", None),
-            openai_model=os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo"),
+            openai_model=openai_model,
+            openai_tokenizer_model=os.environ.get(
+                "BUSTY_OPENAI_TOKENIZER", openai_model
+            ),
             seconds_between_songs=int(os.environ.get("BUSTY_COOLDOWN_SECS", "10")),
             num_longest_submitters=int(
                 os.environ.get("BUSTY_NUM_LONGEST_SUBMITTERS", "3")
