@@ -1,5 +1,8 @@
+import logging
 import os
 from typing import Any, Iterable, Mapping
+
+logger = logging.getLogger(__name__)
 
 # CONSTANTS
 # See https://discord.com/developers/docs/resources/channel#embed-limits for LIMIT values
@@ -64,17 +67,17 @@ JSON_DATA_TYPE = str | int | float | bool | Mapping[str, Any] | Iterable[Any] | 
 
 # Warn about disabled Google Forms generation
 if google_form_folder is None:
-    print(
-        "Warning: BUSTY_GOOGLE_FORM_FOLDER is not set, Google Forms generation will be disabled"
+    logger.warning(
+        "BUSTY_GOOGLE_FORM_FOLDER is not set, Google Forms generation will be disabled"
     )
 elif not os.path.isfile(google_auth_file):
-    print(
-        f"Warning: {google_auth_file} is not a valid file, Google Forms generation will be disabled"
+    logger.warning(
+        f"{google_auth_file} is not a valid file, Google Forms generation will be disabled"
     )
 
 if openai_api_key is None:
-    print(
-        "Warning: BUSTY_OPENAI_API_KEY is not set, natural language abilities will be disabled"
+    logger.warning(
+        "BUSTY_OPENAI_API_KEY is not set, natural language abilities will be disabled"
     )
 
 # Import list of emojis from either a custom or the default list.

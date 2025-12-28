@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from os import path
 from pathlib import Path
@@ -16,6 +17,8 @@ from discord.utils import DISCORD_EPOCH
 
 from busty import config
 
+logger = logging.getLogger(__name__)
+
 
 async def try_set_pin(message: Message, pin_state: bool) -> None:
     """Attempt to set message's pin status to pin_state, catching and printing errors"""
@@ -25,12 +28,12 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
         else:
             await message.unpin()
     except Forbidden:
-        print(
+        logger.error(
             "Insufficient permission to manage pinned messages. "
             'Please give me the "manage_messages" permission and try again'
         )
     except (HTTPException, NotFound) as e:
-        print("Altering message pin state failed:", e)
+        logger.error(f"Altering message pin state failed: {e}")
 
 
 def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:

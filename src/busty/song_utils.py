@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from io import BytesIO
 from typing import cast
@@ -14,6 +15,8 @@ from mutagen.wave import WAVE
 from PIL import Image, UnidentifiedImageError
 
 from busty import config
+
+logger = logging.getLogger(__name__)
 
 
 def embed_song(
@@ -70,7 +73,7 @@ def get_song_metadata(local_filepath: str, filename: str) -> tuple[str | None, s
         title = tags.get("title", [None])[0]
     except MutagenError:
         # Ignore file and move on
-        print(f"Error reading tags from file: {local_filepath}")
+        logger.error(f"Error reading tags from file: {local_filepath}")
 
     # Sanitize tag contents.
     # We explicitly check for None here, as anything else means that the data was
@@ -180,9 +183,9 @@ def get_song_length(filename: str) -> float | None:
         if audio is not None:
             return cast(float, audio.info.length)
     except MutagenError as e:
-        print(f"Error reading length of {filename}:", e)
+        logger.error(f"Error reading length of {filename}: {e}")
     except Exception as e:
-        print(f"Unknown error reading length of {filename}:", e)
+        logger.error(f"Unknown error reading length of {filename}: {e}")
     return None
 
 
@@ -218,7 +221,7 @@ def get_cover_art(filename: str) -> File | None:
         # Ignore file and move on
         return None
     except Exception as e:
-        print(f"Unknown error reading cover art for {filename}:", e)
+        logger.error(f"Unknown error reading cover art for {filename}: {e}")
         return None
 
     # Make sure it doesn't go over the maximum size allowed for a Discord attachment.
@@ -233,7 +236,7 @@ def get_cover_art(filename: str) -> File | None:
     try:
         image = Image.open(image_bytes_fp)
     except UnidentifiedImageError:
-        print(f"Warning: Skipping unidentifiable cover art field in {filename}")
+        logger.warning(f"Skipping unidentifiable cover art field in {filename}")
         return None
     image_file_extension = image.format
 

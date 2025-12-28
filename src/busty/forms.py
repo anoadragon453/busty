@@ -1,8 +1,12 @@
+import logging
+
 import googleapiclient.discovery
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource
 
 from busty import config
+
+logger = logging.getLogger(__name__)
 
 
 def get_google_services() -> tuple[Resource | None, Resource | None]:
@@ -19,7 +23,7 @@ def get_google_services() -> tuple[Resource | None, Resource | None]:
             error_msg = (
                 f"Encountered {type(e).__name__} reading {config.google_auth_file}"
             )
-        print(f"{error_msg}. Skipping form generation...")
+        logger.error(f"{error_msg}. Skipping form generation")
         return None, None
 
     forms_service = googleapiclient.discovery.build("forms", "v1", credentials=creds)
@@ -121,7 +125,7 @@ def create_remote_form(
             }
             forms.batchUpdate(formId=form_id, body=image_update).execute()
         except Exception as e:
-            print("Error adding image to form: ", e)
+            logger.error(f"Error adding image to form: {e}")
 
     # Move form to correct folder + rename
     files = drive_service.files()
@@ -137,6 +141,6 @@ def create_remote_form(
                 addParents=config.google_form_folder,
             ).execute()
         except Exception as e:
-            print("Error moving form:", e)
+            logger.error(f"Error moving form: {e}")
 
     return form_url
