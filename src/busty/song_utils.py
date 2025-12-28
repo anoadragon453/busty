@@ -201,24 +201,25 @@ def get_cover_art(filename: str) -> File | None:
         # In each case, ensure audio tags are not None or empty
         # mutagen.wave.WAVE is not an ID3FileType, although its tags are
         # of type mutagen.id3.ID3
-        if isinstance(audio, ID3FileType) or isinstance(audio, WAVE):
-            if audio.tags:
-                for tag_name, tag_value in audio.tags.items():
-                    if (
-                        tag_name.startswith("APIC:")
-                        and tag_value.type == PictureType.COVER_FRONT
-                    ):
-                        image_data = tag_value.data
-        elif isinstance(audio, OggFileType):
-            if audio.tags:
-                artwork_tags = audio.tags.get("metadata_block_picture", [])
-                if artwork_tags:
-                    # artwork_tags[0] is the base64-encoded data
-                    raw_data = base64.b64decode(artwork_tags[0])
-                    image_data = Picture(raw_data).data
-        elif isinstance(audio, FLAC):
-            if audio.pictures:
-                image_data = audio.pictures[0].data
+        match audio:
+            case ID3FileType() | WAVE():
+                if audio.tags:
+                    for tag_name, tag_value in audio.tags.items():
+                        if (
+                            tag_name.startswith("APIC:")
+                            and tag_value.type == PictureType.COVER_FRONT
+                        ):
+                            image_data = tag_value.data
+            case OggFileType():
+                if audio.tags:
+                    artwork_tags = audio.tags.get("metadata_block_picture", [])
+                    if artwork_tags:
+                        # artwork_tags[0] is the base64-encoded data
+                        raw_data = base64.b64decode(artwork_tags[0])
+                        image_data = Picture(raw_data).data
+            case FLAC():
+                if audio.pictures:
+                    image_data = audio.pictures[0].data
     except MutagenError:
         # Ignore file and move on
         return None
