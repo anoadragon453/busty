@@ -20,6 +20,18 @@ from discord import (
 from discord.app_commands import AppCommandError
 from discord.ext import commands
 
+from busty import (
+    bust,
+    discord_utils,
+    llm,
+    persistent_state,
+    song_utils,
+)
+from busty.config import constants
+from busty.config.settings import BustySettings
+
+logger = logging.getLogger(__name__)
+
 
 def setup_logging(log_level: int) -> None:
     formatter = colorlog.ColoredFormatter(
@@ -42,24 +54,6 @@ def setup_logging(log_level: int) -> None:
     logger.addHandler(handler)
 
 
-# Setup logging BEFORE importing busty modules (so config.py warnings get formatted)
-setup_logging(logging.INFO)
-
-# Now import busty modules
-from busty import (  # noqa: E402
-    bust,
-    discord_utils,
-    llm,
-    persistent_state,
-    song_utils,
-)
-from busty.config import constants  # noqa: E402
-from busty.config.settings import BustySettings  # noqa: E402
-
-# Get logger for this module
-logger = logging.getLogger(__name__)
-
-
 class BustyBot(commands.Bot):
     """Custom Busty bot class."""
 
@@ -73,6 +67,9 @@ class BustyBot(commands.Bot):
 intents = Intents.default()
 intents.members = True
 intents.message_content = True
+
+# Setup logging
+setup_logging(logging.INFO)
 
 # Load settings once at startup
 settings = BustySettings.from_environment()
