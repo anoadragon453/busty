@@ -53,7 +53,7 @@ class BustySettings:
         emoji_list = list(emoji_module.DISCORD_TO_UNICODE.values())
 
         # Load OpenAI model (used for both model and tokenizer by default)
-        openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-4.1")
+        openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-4o")
 
         return BustySettings(
             discord_token=os.environ.get("BUSTY_DISCORD_TOKEN"),
