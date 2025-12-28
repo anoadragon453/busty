@@ -212,7 +212,9 @@ class BustController:
                     self._playback.current_index += 1
 
                 # Playback finished
-                await self._finish_playback(say_goodbye=not self._playback.stop_requested)
+                await self._finish_playback(
+                    say_goodbye=not self._playback.stop_requested
+                )
 
         except ClientException as e:
             logger.error(f"Failed to connect to voice channel: {e}")
@@ -427,9 +429,7 @@ class BustController:
 
             logger.info(f"Bust playback completed in guild {self.channel.guild.id}")
         else:
-            logger.info(
-                f"Bust playback stopped early in guild {self.channel.guild.id}"
-            )
+            logger.info(f"Bust playback stopped early in guild {self.channel.guild.id}")
 
     def get_google_form_url(self, image_url: str | None = None) -> str | None:
         """Create a Google form for voting on this bust.
@@ -515,7 +515,9 @@ class BustController:
         )
 
         if errors:
-            embed_text += "\n\n**There were some errors. Statistics may be inaccurate.**"
+            embed_text += (
+                "\n\n**There were some errors. Statistics may be inaccurate.**"
+            )
 
         embed = Embed(
             title="Listed Statistics",
@@ -580,7 +582,10 @@ async def create_controller(
 
         # Check if adding entry would exceed limit
         prefix_len = len(embed_prefix) if len(embed_descriptions) == 0 else 0
-        if prefix_len + len(current_description) + len(entry) > config.EMBED_DESCRIPTION_LIMIT:
+        if (
+            prefix_len + len(current_description) + len(entry)
+            > config.EMBED_DESCRIPTION_LIMIT
+        ):
             embed_descriptions.append(current_description)
             current_description = entry
         else:
