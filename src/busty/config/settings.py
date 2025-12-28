@@ -64,7 +64,7 @@ class BustySettings:
             ),
             google_form_folder=os.environ.get("BUSTY_GOOGLE_FORM_FOLDER"),
             google_auth_file=os.environ.get(
-                "BUSTY_GOOGLE_AUTH_FILE", "auth/service_key.json"
+                "BUSTY_GOOGLE_AUTH_FILE", "auth/oauth_token.json"
             ),
             openai_api_key=os.environ.get("BUSTY_OPENAI_API_KEY", None),
             openai_model=os.environ.get("BUSTY_OPENAI_MODEL", "gpt-3.5-turbo"),

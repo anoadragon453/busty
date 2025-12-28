@@ -61,22 +61,49 @@ servers maximum, unless you verify your bot with Discord.
 Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains
 the bot token when running the bot.
 
-If you'd like automatic Google Form generation, you need a [Google service account](https://cloud.google.com/iam/docs/service-accounts).
-See [this page](https://console.cloud.google.com/iam-admin/serviceaccounts?walkthrough_id=iam--create-service-account-keys&start_index=1#step_index=1)
-to manage and create a service account (and a project if you don't already have one). Once created, go to the
-"keys" tab and click "Add Key" -> "Create new key" and download the key in JSON format. The path
-to this file is what you should use for the value of `BUSTY_GOOGLE_AUTH_FILE`.
+If you'd like automatic Google Form generation, you need to set up Google OAuth credentials.
 
-Once you've created an account, ensure the project it is attached to has both the
-[Google Forms API](https://console.developers.google.com/apis/api/forms.googleapis.com/overview)
-and the
-[Google Drive API](https://console.cloud.google.com/apis/api/drive.googleapis.com/metrics)
-enabled for form generation.
+### Setting up Google Forms Integration
 
-Next, create (or use an existing) Google Drive folder to store the generated Google forms in. Share this folder with the
-email address associated with your service account (typically `account-name@project-id.iam.gserviceaccount.com`).
-Set `BUSTY_GOOGLE_FORM_FOLDER` to the ID of this folder when running the bot. To find the ID of a Google Drive folder,
-navigate inside it in your web browser. The folder ID is the token at the end of the URL.
+1. **Create a Google Cloud Project** (or use an existing one):
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project or select an existing one
+
+2. **Enable Required APIs**:
+   - Enable [Google Forms API](https://console.developers.google.com/apis/api/forms.googleapis.com/overview)
+   - Enable [Google Drive API](https://console.cloud.google.com/apis/api/drive.googleapis.com/metrics)
+
+3. **Create OAuth 2.0 Credentials**:
+   - Create the auth directory: `mkdir -p auth/`
+   - Go to **APIs & Services** > **Credentials**
+   - Click **Create Credentials** > **OAuth 2.0 Client ID**
+   - If prompted, configure the OAuth consent screen:
+     - User type: **External** (or Internal if you have Google Workspace)
+     - App name: **Busty Bot**
+     - Add your support email
+     - Scopes: Click **Save and Continue** (scopes are set in code)
+     - **Test users** (may be called "Audience"): Click **Add Users** and add the email of the Google account you'll use for the bot
+     - Click **Save and Continue**
+   - Back on the Credentials page, click **Create Credentials** > **OAuth 2.0 Client ID** again
+   - Choose **Desktop app** as the application type
+   - Name it **Busty Bot**
+   - Click **Create** and download the JSON file
+   - Save it as `auth/oauth_credentials.json` in your project directory
+
+4. **Run the OAuth Setup Script**:
+   ```bash
+   uv run python scripts/setup_oauth.py
+   ```
+   - A browser window will open
+   - Sign in with the Google account you want the bot to use
+   - Grant the requested permissions
+   - The script will save your token to `auth/oauth_token.json`
+
+5. **Create a Google Drive Folder** for forms:
+   - Create a folder in Google Drive (using the same account from step 4)
+   - Navigate inside the folder in your browser
+   - Copy the folder ID from the URL (the part after `/folders/`)
+   - Set `BUSTY_GOOGLE_FORM_FOLDER` to this ID
 
 Finally, add the bot to your desired Discord server.
 
@@ -84,12 +111,15 @@ The complete list of environment variable configuration options is:
 
 1. `BUSTY_DISCORD_TOKEN` - Discord bot API token (required)
 1. `BUSTY_GOOGLE_FORM_FOLDER` - Google Drive folder ID for voting form (required for form generation)
-1. `BUSTY_GOOGLE_AUTH_FILE` - Google service account auth file (default = auth/service_key.json)
+1. `BUSTY_GOOGLE_AUTH_FILE` - Path to Google OAuth token file (default = auth/oauth_token.json)
+1. `BUSTY_APPS_SCRIPT_URL` - Apps Script web app URL for automated sheet setup (optional)
 1. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
 1. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
 1. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
 1. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
 1. `BUSTY_BOT_STATE_FILE` - The location of the file to store persistent bot state in (default = bot_state.json)
+1. `BUSTY_OPENAI_API_KEY` - OpenAI API key for AI features (optional)
+1. `BUSTY_OPENAI_MODEL` - OpenAI model to use (default = gpt-3.5-turbo)
 1. `BUSTY_TESTING_GUILD_ID` - For developers only. Specify a testing guild id to avoid 1 hour command update delay (see [this Discord API issue](https://github.com/discord/discord-api-docs/issues/2372#issuecomment-761161082) for details) (default = None)
 
 A random emoji is displayed for each song played during a bust. The list of possible
