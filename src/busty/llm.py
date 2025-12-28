@@ -56,25 +56,17 @@ def initialize(client: Client) -> None:
     # Cache regex for banned words
     if context_data is not None:
         banned_word_pattern = re.compile(
-            r"\b{}\b".format("|".join(context_data["banned_phrases"]))
+            rf"\b{"|".join(context_data["banned_phrases"])}\b"
         )
 
         # Cache regex for word triggers
         word_trigger_pattern = re.compile(
-            r"\b({})\b".format("|".join(context_data["word_triggers"].keys()))
+            rf"\b({"|".join(context_data["word_triggers"].keys())})\b"
         )
 
         # Cache regex for user info triggers
         user_trigger_pattern = re.compile(
-            r"\b({})\b".format(
-                "|".join(
-                    [
-                        user["name"].lower()
-                        for user in context_data["user_info"].values()
-                        if "info" in user
-                    ]
-                )
-            )
+            rf"\b({"|".join([user["name"].lower() for user in context_data["user_info"].values() if "info" in user])})\b"
         )
         # Store map for user info triggers
         user_info_map = {

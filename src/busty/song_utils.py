@@ -27,13 +27,7 @@ def embed_song(
     """Build and return a "Now Playing" embed"""
 
     embed_title = f"{emoji} Now Playing {emoji}"
-    list_format = "{0}: [{1}]({2}) [`↲jump`]({3})"
-    embed_content = list_format.format(
-        user.mention,
-        escape_markdown(song_format(attachment_filepath, attachment.filename)),
-        attachment.url,
-        jump_url,
-    )
+    embed_content = f"{user.mention}: [{escape_markdown(song_format(attachment_filepath, attachment.filename))}]({attachment.url}) [`↲jump`]({jump_url})"
     embed = Embed(
         title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
     )
