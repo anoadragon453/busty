@@ -1,27 +1,50 @@
-from typing import List, Optional, Tuple
+import logging
 
 import googleapiclient.discovery
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import Resource
-from oauth2client.service_account import ServiceAccountCredentials
 
-from busty import config
+logger = logging.getLogger(__name__)
 
 
-def get_google_services() -> Tuple[Optional[Resource], Optional[Resource]]:
-    SCOPES = "https://www.googleapis.com/auth/drive"
+def get_google_services(
+    google_auth_file: str,
+) -> tuple[Resource | None, Resource | None]:
+    """Get Google Forms and Drive services using OAuth 2.0.
+
+    Args:
+        google_auth_file: Path to the OAuth token file.
+
+    Returns:
+        Tuple of (forms_service, drive_service), or (None, None) if auth fails.
+    """
+    SCOPES = [
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/forms.body",
+    ]
 
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(
-            config.google_auth_file, SCOPES
-        )
+        # Load OAuth 2.0 credentials
+        creds = Credentials.from_authorized_user_file(google_auth_file, SCOPES)
+
+        # Refresh token if expired
+        if creds.expired and creds.refresh_token:
+            logger.info("OAuth token expired, refreshing...")
+            creds.refresh(Request())
+
+            # Save refreshed token
+            with open(google_auth_file, "w") as token:
+                token.write(creds.to_json())
+
+            logger.info("OAuth token refreshed successfully")
+
     except Exception as e:
         if isinstance(e, FileNotFoundError):
-            error_msg = f"Could not find {config.google_auth_file}"
+            error_msg = f"Could not find {google_auth_file}"
         else:
-            error_msg = (
-                f"Encountered {type(e).__name__} reading {config.google_auth_file}"
-            )
-        print(f"{error_msg}. Skipping form generation...")
+            error_msg = f"Encountered {type(e).__name__} reading {google_auth_file}"
+        logger.error(f"{error_msg}. Skipping form generation")
         return None, None
 
     forms_service = googleapiclient.discovery.build("forms", "v1", credentials=creds)
@@ -31,13 +54,31 @@ def get_google_services() -> Tuple[Optional[Resource], Optional[Resource]]:
 
 def create_remote_form(
     title: str,
-    items: List[str],
+    items: list[str],
     low_val: int,
     high_val: int,
     low_label: str,
     high_label: str,
-    image_url: Optional[str] = None,
-) -> Optional[str]:
+    google_auth_file: str,
+    google_form_folder: str | None,
+    image_url: str | None = None,
+) -> str | None:
+    """Create a Google Form for voting.
+
+    Args:
+        title: Form title.
+        items: List of items to rate.
+        low_val: Minimum rating value.
+        high_val: Maximum rating value.
+        low_label: Label for low rating.
+        high_label: Label for high rating.
+        google_auth_file: Path to the OAuth token file.
+        google_form_folder: Google Drive folder ID to move form to, or None.
+        image_url: Optional image URL to include at top of form.
+
+    Returns:
+        Form URL if successful, None otherwise.
+    """
     form_info = {
         "info": {
             "title": title,
@@ -88,7 +129,7 @@ def create_remote_form(
     }
 
     # get form service
-    form_service, drive_service = get_google_services()
+    form_service, drive_service = get_google_services(google_auth_file)
     if form_service is None or drive_service is None:
         return None
 
@@ -96,7 +137,7 @@ def create_remote_form(
     forms = form_service.forms()
     form_info = forms.create(body=form_info).execute()
     form_id = form_info["formId"]
-    form_url = form_info["responderUri"]
+    form_url = str(form_info["responderUri"])
 
     # Add content to the form
     forms.batchUpdate(formId=form_id, body=form_update).execute()
@@ -123,22 +164,23 @@ def create_remote_form(
             }
             forms.batchUpdate(formId=form_id, body=image_update).execute()
         except Exception as e:
-            print("Error adding image to form: ", e)
+            logger.error(f"Error adding image to form: {e}")
 
     # Move form to correct folder + rename
-    files = drive_service.files()
-    file = files.get(
-        fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents"
-    ).execute()
-    if file["capabilities"]["canMoveItemWithinDrive"]:
-        file_parent_id = file["parents"][0]
-        try:
-            files.update(
-                fileId=form_id,
-                removeParents=file_parent_id,
-                addParents=config.google_form_folder,
-            ).execute()
-        except Exception as e:
-            print("Error moving form:", e)
+    if google_form_folder:
+        files = drive_service.files()
+        file = files.get(
+            fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents"
+        ).execute()
+        if file["capabilities"]["canMoveItemWithinDrive"]:
+            file_parent_id = file["parents"][0]
+            try:
+                files.update(
+                    fileId=form_id,
+                    removeParents=file_parent_id,
+                    addParents=google_form_folder,
+                ).execute()
+            except Exception as e:
+                logger.error(f"Error moving form: {e}")
 
     return form_url

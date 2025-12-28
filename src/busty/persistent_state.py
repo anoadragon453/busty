@@ -1,34 +1,50 @@
 import copy
 import json
-from typing import Iterable, Optional
+import logging
+from typing import Any, Iterable, cast
 
 from discord import Interaction
 
-from busty.config import JSON_DATA_TYPE, bot_state_file
+from busty.config.constants import JSON_DATA_TYPE
+
+logger = logging.getLogger(__name__)
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
-_bot_state = {}
+_bot_state: dict[str, Any] = {}
+
+# Path to the bot state file. Set via load_state_from_disk().
+_bot_state_file: str | None = None
 
 
-def load_state_from_disk() -> None:
-    """Read the bot state from disk and store it in memory."""
-    global _bot_state
+def load_state_from_disk(state_file: str) -> None:
+    """Read the bot state from disk and store it in memory.
+
+    Args:
+        state_file: Path to the state file.
+    """
+    global _bot_state, _bot_state_file
+
+    # Set the bot state file path for use by set_state
+    _bot_state_file = state_file
 
     try:
-        with open(bot_state_file) as f:
+        with open(state_file) as f:
             bot_state_str = f.read()
     except FileNotFoundError:
         # Expected on first run or after setting a new custom bot state filepath.
         bot_state_str = None
     except IOError:
-        print(f"Could not read state from {bot_state_file}")
+        logger.error(f"Could not read state from {state_file}")
         raise
 
     if bot_state_str:
         # Load the JSON representation of the bot's state and convert it to a Python dict so
         # it can be easily manipulated.
         _bot_state = json.loads(bot_state_str)
+        logger.info(f"Loaded bot state from {state_file}")
+    else:
+        logger.info("No existing bot state file found, starting fresh")
 
 
 def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
@@ -83,7 +99,12 @@ def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
         _bot_state = value
 
     # Now write the modified `bot_state` back to disk.
-    with open(bot_state_file, "w") as f:
+    if _bot_state_file is None:
+        raise RuntimeError(
+            "Bot state file not initialized. Call load_state_from_disk() first."
+        )
+
+    with open(_bot_state_file, "w") as f:
         # We add indenting (which also adds newlines) into the file to make it easy for a human
         # to look through in case of the need for debugging (the performance cost in minimal).
         bot_state_str = json.dumps(_bot_state, indent=2)
@@ -114,11 +135,13 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
     # be used as the field name in the JSON dict.
     key = path.pop()
     for pathname in path:
-        current_path = current_path.get(pathname)
+        next_path = current_path.get(pathname)
 
-        if current_path is None:
+        if next_path is None or not isinstance(next_path, dict):
             # Oops, we hit a dead end.
             return None
+
+        current_path = next_path
 
     # Return the value under the field at the end of the given path.
     value = current_path.get(key)
@@ -127,7 +150,7 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
 
     # We explicitly return a copy of the value, otherwise any manipulations the calling function
     # does to the value may result in the state dict being changed.
-    return copy.deepcopy(value)
+    return cast(JSON_DATA_TYPE, copy.deepcopy(value))
 
 
 def delete_state(path: Iterable[str]) -> bool:
@@ -153,13 +176,9 @@ def delete_state(path: Iterable[str]) -> bool:
 
     # this should be a dict as we're one level up
     state_at_path = get_state(path)
-    if not isinstance(state_at_path, dict):
+    if state_at_path is None or not isinstance(state_at_path, dict):
         # The path is invalid, as removing the last item from a path should
         # result in a path that leads to a dict.
-        return False
-
-    if state_at_path is None:
-        # This path does not exist
         return False
 
     if field_to_delete not in state_at_path:
@@ -197,9 +216,9 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     try:
         set_state(["guilds", str(interaction.guild_id), "form_image_url"], image_url)
     except Exception as e:
-        print("Unable to set form image:", e)
+        logger.error(f"Unable to set form image: {e}")
 
-        await interaction.send(
+        await interaction.response.send_message(
             f"Failed to upload image ({type(e)}). See the logs for more details.",
             ephemeral=True,
         )
@@ -208,7 +227,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     return True
 
 
-def get_form_image_url(interaction: Interaction) -> Optional[str]:
+def get_form_image_url(interaction: Interaction) -> str | None:
     """
     Retrieve a saved google form image url given an interaction in a guild.
 
@@ -218,7 +237,10 @@ def get_form_image_url(interaction: Interaction) -> Optional[str]:
     Returns:
         The image form URL if it was found, otherwise None.
     """
-    return get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    result = get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    if isinstance(result, str):
+        return result
+    return None
 
 
 def clear_form_image_url(interaction: Interaction) -> bool:

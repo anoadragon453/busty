@@ -1,102 +1,140 @@
 import asyncio
 import datetime
 import json
+import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, cast
 
 import openai
 import tiktoken
-from discord import Client, Member, Message
+from discord import ClientUser, Member, Message, User
 
-from busty import bust, config
+from busty.config import constants
+
+if TYPE_CHECKING:
+    from busty.config.settings import BustySettings
+    from busty.main import BustyBot
+
+logger = logging.getLogger(__name__)
+
+# Global variables
+gpt_lock: asyncio.Lock | None = None
+context_data: dict | None = None
+encoding: tiktoken.Encoding | None = None
+self_user: User | Member | ClientUser | None = None
+self_client: "BustyBot | None" = None
+banned_word_pattern: re.Pattern | None = None
+word_trigger_pattern: re.Pattern | None = None
+user_trigger_pattern: re.Pattern | None = None
+user_info_map: dict[str, str] | None = None
+openai_async_client: openai.AsyncOpenAI | None = None
+openai_model: str | None = None
 
 
 # Initialize globals
-def initialize(client: Client) -> None:
+def initialize(client: "BustyBot", settings: "BustySettings") -> None:
+    """Initialize LLM features with the given settings.
+
+    Args:
+        client: The BustyBot client instance.
+        settings: The bot settings containing OpenAI configuration.
+    """
     global gpt_lock
     global context_data
     global encoding
     global self_user
+    global self_client
     global banned_word_pattern
     global word_trigger_pattern
     global user_trigger_pattern
     global user_info_map
     global openai_async_client
+    global openai_model
 
     # Global lock for message response
     gpt_lock = asyncio.Lock()
     # Load manual hidden data
     try:
-        with open(config.llm_context_file) as f:
+        with open(settings.llm_context_file) as f:
             context_data = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-        print(
-            f"ERROR: Issue loading {config.llm_context_file}. GPT capabilities will be disabled.\n{e}"
+        logger.error(
+            f"Issue loading {settings.llm_context_file}. GPT capabilities will be disabled: {e}"
         )
         context_data = None
         return
     # Initialize OpenAI client
-    openai_async_client = openai.AsyncOpenAI(api_key=config.openai_api_key)
+    openai_async_client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+
+    # Store OpenAI model
+    openai_model = settings.openai_model
 
     # Preload tokenizer
-    encoding = tiktoken.encoding_for_model(config.openai_tokenizer_model)
-    # Store bot user
+    encoding = tiktoken.encoding_for_model(settings.openai_tokenizer_model)
+    # Store bot user and client
     self_user = client.user
+    self_client = client
     # Cache regex for banned words
-    banned_word_pattern = re.compile(
-        r"\b{}\b".format("|".join(context_data["banned_phrases"]))
-    )
-
-    # Cache regex for word triggers
-    word_trigger_pattern = re.compile(
-        r"\b({})\b".format("|".join(context_data["word_triggers"].keys()))
-    )
-
-    # Cache regex for user info triggers
-    user_trigger_pattern = re.compile(
-        r"\b({})\b".format(
-            "|".join(
-                [
-                    user["name"].lower()
-                    for user in context_data["user_info"].values()
-                    if "info" in user
-                ]
-            )
+    if context_data is not None:
+        banned_word_pattern = re.compile(
+            rf"\b{'|'.join(context_data['banned_phrases'])}\b"
         )
-    )
-    # Store map for user info triggers
-    user_info_map = {
-        user["name"].lower(): user["info"].lower()
-        for user in context_data["user_info"].values()
-        if "info" in user and "name" in user
-    }
+
+        # Cache regex for word triggers
+        word_trigger_pattern = re.compile(
+            rf"\b({'|'.join(context_data['word_triggers'].keys())})\b"
+        )
+
+        # Cache regex for user info triggers
+        user_trigger_pattern = re.compile(
+            rf"\b({'|'.join([user['name'].lower() for user in context_data['user_info'].values() if 'info' in user])})\b"
+        )
+        # Store map for user info triggers
+        user_info_map = {
+            user["name"].lower(): user["info"].lower()
+            for user in context_data["user_info"].values()
+            if "info" in user and "name" in user
+        }
+    else:
+        banned_word_pattern = None
+        word_trigger_pattern = None
+        user_trigger_pattern = None
+        user_info_map = None
+
+    logger.info(f"LLM features initialized successfully with model {openai_model}")
 
 
 # Check if a message's content should be allowed when feeding message history to the model
 # Currently this is just if it contains banned phrases
 def disallowed_message(message: Message) -> bool:
+    if banned_word_pattern is None:
+        return False
     return banned_word_pattern.search(message.content.lower()) is not None
 
 
 # Get the name we should call the user
-def get_name(user: Member) -> str:
+def get_name(user: User | Member | ClientUser) -> str:
+    if context_data is None:
+        return cast(str, user.name)
     user_info = context_data["user_info"]
     id = str(user.id)
     if id in user_info and "name" in user_info[id]:
-        return user_info[id]["name"]
-    return user.name
+        return cast(str, user_info[id]["name"])
+    return cast(str, user.name)
 
 
 # Get context about the server
-async def get_server_context(message: Message) -> List[str]:
+async def get_server_context(message: Message) -> list[str]:
     result = []
 
     # Detect if song is currently playing
-    if hasattr(message, "guild"):
-        bc = bust.controllers.get(message.guild.id)
-        if bc and bc.is_active():
+    if hasattr(message, "guild") and message.guild and self_client:
+        bc = self_client.bust_registry.get(message.guild.id)
+        if bc and bc.is_playing:
             result.append("The bust is going on right now!")
-            result.append(f"Now playing: {bc.current_song()}")
+            current_track = bc.current_track
+            if current_track:
+                result.append(f"Now playing: {current_track.formatted_title}")
             result.append("Tell everyone you can't respond since you're busy busting.")
 
     # Load server event info
@@ -141,6 +179,8 @@ async def get_server_context(message: Message) -> List[str]:
 
 # Count tokens in a string
 def token_count(data: str) -> int:
+    if encoding is None:
+        return len(data.split())  # Fallback to word count
     return len(encoding.encode(data))
 
 
@@ -153,13 +193,13 @@ def substitute_mentions(message: Message) -> str:
         content = content.replace(channel.mention, channel.name)
     for role in message.role_mentions:
         content = content.replace(role.mention, role.name)
-    return content
+    return cast(str, content)
 
 
 # Fetch message content from history up to a certain token allowance
 async def fetch_history(
     token_limit: int, speaking_turn_limit: int, message: Message
-) -> List[Tuple[str, bool]]:
+) -> list[tuple[str, bool]]:
     total_tokens = 0
     # A list of (str, bool) tuples containing:
     #     - "{message author}: {message content}"
@@ -209,29 +249,45 @@ async def fetch_history(
 
 
 # Build context around a message
-async def get_message_context(message: Message) -> List[str]:
+async def get_message_context(message: Message) -> list[str]:
+    if context_data is None:
+        return []
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
-    return static_context + author_context
+    return cast(list[str], static_context + author_context)
 
 
 # Query the OpenAI API and return response
-async def query_api(data: Dict) -> Optional[str]:
+async def query_api(data: list[dict[str, str]]) -> str | None:
+    if openai_async_client is None:
+        return None
     try:
+        # Convert the data to the proper format for OpenAI API
+        messages: list[Any] = []
+        for item in data:
+            messages.append({"role": item["role"], "content": item["content"]})
+
         response = await openai_async_client.chat.completions.create(
-            model=config.openai_model,
-            messages=data,
+            model=openai_model if openai_model else "gpt-3.5-turbo",
+            messages=messages,
             timeout=10.0,
         )
-        return response.choices[0].message.content
+        return cast(str, response.choices[0].message.content)
 
     except Exception as e:
-        print("OpenAI API exception:", e)
+        logger.error(f"OpenAI API exception: {e}")
         return None
 
 
-def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
+def get_history_context(history: list[tuple[str, bool]]) -> list[str]:
+    if (
+        context_data is None
+        or word_trigger_pattern is None
+        or user_trigger_pattern is None
+        or user_info_map is None
+    ):
+        return []
     # Load additional context from history
     word_triggers = set()
     user_triggers = set()
@@ -247,14 +303,16 @@ def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
 
 
 # Make an api query
-async def get_response_text(message: Message) -> Optional[str]:
+async def get_response_text(message: Message) -> str | None:
+    if context_data is None or self_user is None:
+        return None
     context = await get_message_context(message)
     if disallowed_message(message):
         # If message is disallowed (or the user is unlucky), pass a special instruction
 
         # Get user info (if available) as we're not passing history which would trigger it
         user = get_name(message.author)
-        if user.lower() in user_info_map:
+        if user_info_map and user.lower() in user_info_map:
             context.append(f"{user}: {user_info_map[user.lower()]}")
         # Pass special instruction
         context.append(context_data["banned_phrase_instruction"])
@@ -266,7 +324,7 @@ async def get_response_text(message: Message) -> Optional[str]:
         # We couldn't fit even a single message in history
         if not history:
             await message.reply("I'm not reading all that.")
-            return
+            return None
 
         context += get_history_context(history)
 
@@ -293,7 +351,7 @@ async def get_response_text(message: Message) -> Optional[str]:
 
 async def respond(message: Message) -> None:
     # React with a "stop" hand, we're responding to someone else
-    if gpt_lock.locked() or not context_data:
+    if gpt_lock is None or gpt_lock.locked() or context_data is None:
         raised_hand_emoji = "\N{RAISED HAND}\U0001f3ff"
         await message.add_reaction(raised_hand_emoji)
         return
@@ -304,8 +362,8 @@ async def respond(message: Message) -> None:
             response = await get_response_text(message)
         if response:
             response_split = [
-                response[i : i + config.MESSAGE_LIMIT]
-                for i in range(0, len(response), config.MESSAGE_LIMIT)
+                response[i : i + constants.MESSAGE_LIMIT]
+                for i in range(0, len(response), constants.MESSAGE_LIMIT)
             ]
             # Reply to the message if it's not the most recent one in the chat history
             most_recent_message = [
@@ -319,8 +377,8 @@ async def respond(message: Message) -> None:
 
 
 async def generate_album_art(
-    artist: str, title: str, description: Optional[str]
-) -> Optional[str]:
+    artist: str, title: str, description: str | None
+) -> str | None:
     """Generate album art given song metadata"""
     prompt = [
         "Generate bizarre photorealistic album art for the following song.",
@@ -335,8 +393,10 @@ async def generate_album_art(
 
 
 # Generate any image with DALL-E 3 given a text prompt
-async def generate_image(prompt: str) -> Optional[str]:
+async def generate_image(prompt: str) -> str | None:
     """Generate any image with DALL-E 3 given a text prompt"""
+    if openai_async_client is None:
+        return None
     try:
         response = await openai_async_client.images.generate(
             model="dall-e-3",
@@ -346,6 +406,6 @@ async def generate_image(prompt: str) -> Optional[str]:
             n=1,
         )
     except Exception as e:
-        print("OpenAI API exception:", e)
+        logger.error(f"OpenAI API exception: {e}")
         return None
-    return response.data[0].url
+    return cast(str, response.data[0].url) if response.data else None

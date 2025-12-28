@@ -3,55 +3,114 @@ import logging
 import os
 import random
 import sys
-from typing import Optional
+from pathlib import Path
 
+import colorlog
 import discord
 from discord import (
     Attachment,
     Embed,
     Intents,
     Interaction,
+    Member,
     Message,
     TextChannel,
     app_commands,
 )
+from discord.app_commands import AppCommandError
 from discord.ext import commands
-from discord.ext.commands import has_role
 
-from busty import bust, config, discord_utils, llm, persistent_state, song_utils
+from busty import (
+    bust,
+    discord_utils,
+    llm,
+    persistent_state,
+    song_utils,
+)
+from busty.config import constants
+from busty.config.settings import BustySettings
+
+logger = logging.getLogger(__name__)
 
 
-def setup_logging(log_level):
-    logger = logging.getLogger("discord")
-    logger.setLevel(log_level)
-    handler = logging.StreamHandler(stream=sys.stderr)
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s")
+def setup_logging(log_level: int) -> None:
+    formatter = colorlog.ColoredFormatter(
+        "%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)-8s%(reset)s %(light_purple)s%(name)s:%(reset)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        log_colors={
+            "DEBUG": "purple",
+            "INFO": "blue",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red,bg_white",
+        },
     )
+
+    handler = logging.StreamHandler(stream=sys.stdout)
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger()
+    logger.setLevel(log_level)
     logger.addHandler(handler)
 
 
-setup_logging(logging.INFO)
+class BustyBot(commands.Bot):
+    """Custom Busty bot class."""
 
-# Get logger for this module
-logger = logging.getLogger(__name__)
+    def __init__(self, settings: BustySettings, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.settings = settings
+        self.bust_registry = bust.BustRegistry()
+
 
 # This is necessary to query guild members
 intents = Intents.default()
 intents.members = True
 intents.message_content = True
 
-if config.testing_guild:
-    logger.info(f"Using testing guild {config.testing_guild}")
-    ids = [int(config.testing_guild)]
-client = commands.Bot(intents=intents, command_prefix="!")
+# Setup logging
+setup_logging(logging.INFO)
+
+# Load settings once at startup
+settings = BustySettings.from_environment()
+settings.validate(logger)
+
+if settings.testing_guild:
+    logger.info(f"Using testing guild {settings.testing_guild}")
+    ids = [int(settings.testing_guild)]
+client = BustyBot(settings=settings, intents=intents, command_prefix="!")
+
+
+def has_dj_role():
+    """Decorator that checks for DJ role using bot's settings.
+
+    This decorator defers the role lookup to runtime, allowing it to access
+    the bot's settings which are not available at module import time.
+    """
+
+    async def predicate(interaction: Interaction) -> bool:
+        if not hasattr(interaction.client, "settings"):
+            return False
+        dj_role = interaction.client.settings.dj_role_name
+        # Check if user is a Member (has roles attribute)
+        if not isinstance(interaction.user, Member):
+            return False
+        return any(role.name == dj_role for role in interaction.user.roles)
+
+    return app_commands.check(predicate)
 
 
 @client.event
 async def on_ready() -> None:
-    logger.info(f"We have logged in as {client.user}.")
-    if config.openai_api_key:
-        llm.initialize(client)
+    logger.info(f"We have logged in as {client.user}")
+
+    if client.settings.openai_api_key:
+        logger.info("OpenAI API key detected, initializing LLM features")
+        llm.initialize(client, client.settings)
+    else:
+        logger.info("OpenAI API key not configured, LLM features disabled")
+
+    # Sync slash commands
     try:
         synced = await client.tree.sync()
         logger.info(f"Synced {len(synced)} command(s)")
@@ -62,12 +121,13 @@ async def on_ready() -> None:
 @client.event
 async def on_message(message: Message) -> None:
     if (
-        config.openai_api_key
+        client.settings.openai_api_key
         and message.guild
+        and client.user
         and (
             client.user in message.mentions
             or any(role.name == client.user.name for role in message.role_mentions)
-            or random.random() < config.RESPOND_TO_MESSAGE_PROBABILITY
+            or random.random() < constants.RESPOND_TO_MESSAGE_PROBABILITY
         )
         and message.author != client.user
     ):
@@ -79,13 +139,19 @@ list_task_control_lock = asyncio.Lock()
 
 # List command
 @client.tree.command(name="list")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def on_list(
-    interaction: Interaction, list_channel: Optional[TextChannel] = None
+    interaction: Interaction, list_channel: TextChannel | None = None
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
-    bc = bust.controllers.get(interaction.guild_id)
-    if bc and bc.is_active():
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
+    bc = client.bust_registry.get(interaction.guild_id)
+    if bc and bc.is_playing:
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
         return
     if list_task_control_lock.locked():
@@ -94,114 +160,169 @@ async def on_list(
         )
         return
     if list_channel is None:
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         list_channel = interaction.channel
+
+    logger.info(
+        f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}"
+    )
     async with list_task_control_lock:
-        bc = await bust.create_controller(client, interaction, list_channel)
-        bust.controllers[interaction.guild_id] = bc
+        bc = await bust.create_controller(
+            client, client.settings, interaction, list_channel
+        )
+        if bc is not None:
+            client.bust_registry.register(interaction.guild_id, bc)
 
 
 # Bust command
 @client.tree.command(name="bust")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def on_bust(interaction: Interaction, index: int = 1) -> None:
     """Begin a bust."""
-    bc = bust.controllers.get(interaction.guild_id)
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
+    bc = client.bust_registry.get(interaction.guild_id)
     if bc is None:
         await interaction.response.send_message(
             "You need to use `/list` first.", ephemeral=True
         )
         return
-    elif bc.is_active():
+    elif bc.is_playing:
         await interaction.response.send_message(
             "We're already busting.", ephemeral=True
         )
         return
-    if index > len(bc.bust_content):
+    if index > len(bc.tracks):
         await interaction.response.send_message(
             "There aren't that many tracks.", ephemeral=True
         )
         return
+
+    logger.info(
+        f"User {interaction.user} issued /bust command in guild {interaction.guild_id}, starting at track {index}"
+    )
     await bc.play(interaction, index - 1)
-    del bust.controllers[interaction.guild_id]
+    # Registry auto-cleans finished controllers
 
 
 # Skip command
 @client.tree.command(name="skip")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
-    bc = bust.controllers.get(interaction.guild_id)
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
 
-    if not bc or not bc.is_active():
+    bc = client.bust_registry.get(interaction.guild_id)
+
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
+    logger.info(
+        f"User {interaction.user} issued /skip command in guild {interaction.guild_id}"
+    )
     await interaction.response.send_message("I didn't like that track anyways.")
-    bc.skip_to_track(bc.playing_index + 1)
+    # Skip to next track (current_index will be incremented in playback loop)
+    if bc._playback:
+        bc.skip_to(bc._playback.current_index + 1)
 
 
 # Seek command
 @client.tree.command(name="seek")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def seek(
     interaction: Interaction,
-    timestamp: str = None,
+    timestamp: str | None = None,
 ) -> None:
     """Seek to time in the currently playing song."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     # Get seek offset
     seek_to_seconds = song_utils.convert_timestamp_to_seconds(timestamp)
     if seek_to_seconds is None:
         await interaction.response.send_message("Invalid seek time.", ephemeral=True)
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = client.bust_registry.get(interaction.guild_id)
 
-    if not bc or not bc.is_active():
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    if bc.is_seeking():
-        await interaction.response.send_message(
-            "Still seeking, chill a sec.", ephemeral=True
-        )
-        return
-
+    logger.info(
+        f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s"
+    )
     await interaction.response.send_message("Let's skip to the good part.")
-    bc.seek_current_track(interaction, seek_to_seconds)
+    bc.seek(interaction, seek_to_seconds)
 
 
 # Replay command
 @client.tree.command(name="replay")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
-    bc = bust.controllers.get(interaction.guild_id)
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
 
-    if not bc or not bc.is_active():
+    bc = client.bust_registry.get(interaction.guild_id)
+
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
+    logger.info(
+        f"User {interaction.user} issued /replay command in guild {interaction.guild_id}"
+    )
     await interaction.response.send_message("Replaying this track.")
-    bc.skip_to_track(bc.playing_index)
+    if bc._playback:
+        bc.skip_to(bc._playback.current_index)
 
 
 # Stop command
 @client.tree.command(name="stop")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
-    bc = bust.controllers.get(interaction.guild_id)
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
 
-    if not bc or not bc.is_active():
+    bc = client.bust_registry.get(interaction.guild_id)
+
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
+    logger.info(
+        f"User {interaction.user} issued /stop command in guild {interaction.guild_id}"
+    )
     await interaction.response.send_message("Alright I'll shut up.")
     bc.stop()
 
 
 class ImageGroup(app_commands.Group):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="image", description="Manage saved Google Forms image.")
 
     @app_commands.command(
@@ -209,7 +330,7 @@ class ImageGroup(app_commands.Group):
     )
     async def upload(
         self, interaction: discord.Interaction, image_file: discord.Attachment
-    ):
+    ) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
         if not await persistent_state.save_form_image_url(interaction, image_file.url):
@@ -223,7 +344,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="url", description="Set a Google Forms image by pasting a URL."
     )
-    async def url(self, interaction: discord.Interaction, image_url: str):
+    async def url(self, interaction: discord.Interaction, image_url: str) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
         if not await persistent_state.save_form_image_url(interaction, image_url):
@@ -237,7 +358,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="clear", description="Clear the loaded Google Forms image."
     )
-    async def clear(self, interaction: discord.Interaction):
+    async def clear(self, interaction: discord.Interaction) -> None:
         image_existed = persistent_state.clear_form_image_url(interaction)
         if not image_existed:
             await interaction.response.send_message(
@@ -250,7 +371,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="view", description="View the loaded Google Forms image."
     )
-    async def view(self, interaction: discord.Interaction):
+    async def view(self, interaction: discord.Interaction) -> None:
         loaded_image_url = persistent_state.get_form_image_url(interaction)
         if loaded_image_url is None:
             await interaction.response.send_message(
@@ -269,10 +390,16 @@ client.tree.add_command(ImageGroup())
 
 # Info command
 @client.tree.command(name="info")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
-    bc = bust.controllers.get(interaction.guild_id)
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
+    bc = client.bust_registry.get(interaction.guild_id)
 
     if bc is None:
         await interaction.response.send_message(
@@ -288,9 +415,15 @@ async def info(interaction: Interaction) -> None:
 async def preview(
     interaction: Interaction,
     uploaded_file: Attachment,
-    submit_message: Optional[str] = None,
+    submit_message: str | None = None,
 ) -> None:
     """Show a preview of a submission's 'Now Playing' embed."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     await interaction.response.defer(ephemeral=True)
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
@@ -301,20 +434,22 @@ async def preview(
         return
 
     attachment_filepath = discord_utils.build_filepath_for_attachment(
-        interaction.guild_id, uploaded_file
+        client.settings.attachment_directory_filepath,
+        interaction.guild_id,
+        uploaded_file,
     )
 
     # Save attachment to disk for processing
-    await uploaded_file.save(fp=attachment_filepath)
-    random_emoji = random.choice(config.emoji_list)
+    await uploaded_file.save(fp=Path(attachment_filepath))
+    random_emoji = random.choice(client.settings.emoji_list)
 
     embed = song_utils.embed_song(
-        submit_message,
+        submit_message or "",
         attachment_filepath,
         uploaded_file,
         interaction.user,
         random_emoji,
-        config.PREVIEW_JUMP_URL,
+        constants.PREVIEW_JUMP_URL,
     )
 
     cover_art = song_utils.get_cover_art(attachment_filepath)
@@ -333,23 +468,28 @@ async def preview(
 
 
 @client.tree.command(name="announce")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def announce(
     interaction: Interaction,
     title: str,
     body: str,
-    channel: Optional[TextChannel] = None,
+    channel: TextChannel | None = None,
 ) -> None:
     """Send a message as the bot into a channel wrapped in an embed."""
     await interaction.response.defer(ephemeral=True)
     if channel is None:
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         channel = interaction.channel
 
     # Build the announcement embed
     embed = Embed(
         title=title,
         description=body,
-        color=config.INFO_EMBED_COLOR,
+        color=constants.INFO_EMBED_COLOR,
     )
 
     # Disallow sending announcements from one guild into another.
@@ -374,7 +514,7 @@ async def on_application_command_error(
     interaction: Interaction, error: Exception
 ) -> None:
     # Catch insufficient permissions exception, ignore all others
-    if isinstance(error, has_role.errors.ApplicationMissingRole):
+    if isinstance(error, AppCommandError):
         await interaction.response.send_message(
             "You don't have permission to use this command.", ephemeral=True
         )
@@ -382,14 +522,17 @@ async def on_application_command_error(
         logger.error(error)
 
 
-def run_bot():
+def run_bot() -> None:
     """Entry point for the busty script."""
+    logger.info("Starting Busty bot")
+
     # Load the bot state.
-    persistent_state.load_state_from_disk()
+    persistent_state.load_state_from_disk(client.settings.bot_state_file)
 
     # Connect to discord
-    if config.discord_token:
-        client.run(config.discord_token)
+    if client.settings.discord_token:
+        # Disable built-in log handler as we set our own
+        client.run(client.settings.discord_token, log_handler=None)
     else:
         logger.error(
             "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
