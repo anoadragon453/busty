@@ -279,9 +279,7 @@ class BustController:
             goodbye_emoji = ":heart_on_fire:"
             embed_title = f"{goodbye_emoji} That's it everyone {goodbye_emoji}"
             embed_content = "Hope ya had a good **BUST!**"
-            embed_content += "\n*Total length of all submissions: {}*".format(
-                song_utils.format_time(int(self.total_song_len))
-            )
+            embed_content += f"\n*Total length of all submissions: {song_utils.format_time(int(self.total_song_len))}*"
             embed = Embed(
                 title=embed_title,
                 description=embed_content,
@@ -438,10 +436,7 @@ class BustController:
             return None
 
         song_list = [
-            "{}: {}".format(
-                submit_message.author.display_name,
-                song_utils.song_format(local_filepath, attachment.filename),
-            )
+            f"{submit_message.author.display_name}: {song_utils.song_format(local_filepath, attachment.filename)}"
             for submit_message, attachment, local_filepath in self.bust_content
         ]
 
@@ -561,14 +556,7 @@ async def create_controller(
         attachment,
         local_filepath,
     ) in enumerate(channel_media_attachments):
-        list_format = "**{0}.** {1}: [{2}]({3}) [`↲jump`]({4})\n"
-        song_list_entry = list_format.format(
-            index + 1,
-            submit_message.author.mention,
-            song_utils.song_format(local_filepath, attachment.filename),
-            attachment.url,
-            submit_message.jump_url,
-        )
+        song_list_entry = f"**{index + 1}.** {submit_message.author.mention}: [{song_utils.song_format(local_filepath, attachment.filename)}]({attachment.url}) [`↲jump`]({submit_message.jump_url})\n"
 
         # We only add the embed description prefix to the first message
         description_prefix_charcount = 0
