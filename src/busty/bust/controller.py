@@ -29,8 +29,10 @@ from discord import (
 )
 from discord.voice_client import AudioSource
 
-from busty import config, discord_utils, forms, llm, persistent_state, song_utils
+from busty import discord_utils, forms, llm, persistent_state, song_utils
 from busty.bust.models import BustPhase, PlaybackState, Track
+from busty.config import constants
+from busty.config.settings import BustySettings
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +43,12 @@ class BustController:
     def __init__(
         self,
         client: Client,
+        settings: BustySettings,
         tracks: list[Track],
         message_channel: TextChannel,
     ):
         self.client = client
+        self.settings = settings
         self.tracks = tracks
         self.channel = message_channel
         self.phase = BustPhase.LISTED
@@ -246,7 +250,7 @@ class BustController:
 
         # Get or generate cover art
         cover_art = song_utils.get_cover_art(track.filepath)
-        if cover_art is None and config.openai_api_key:
+        if cover_art is None and self.settings.openai_api_key:
             artist, title = song_utils.get_song_metadata_with_fallback(
                 track.filepath, track.attachment.filename, track.submitter.display_name
             )
@@ -266,11 +270,11 @@ class BustController:
 
         # Wait remaining cooldown time
         elapsed = time.time() - start_time
-        remaining = max(0, config.seconds_between_songs - elapsed)
+        remaining = max(0, self.settings.seconds_between_songs - elapsed)
         await asyncio.sleep(remaining)
 
         # Build "Now Playing" embed
-        random_emoji = random.choice(config.emoji_list)
+        random_emoji = random.choice(self.settings.emoji_list)
         embed = song_utils.embed_song(
             track.message.content,
             track.filepath,
@@ -329,7 +333,7 @@ class BustController:
             # Normal playback
             return FFmpegPCMAudio(
                 track.filepath,
-                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
         # Seek playback - convert to Opus at timestamp
@@ -346,11 +350,13 @@ class BustController:
             # Fallback to normal playback
             return FFmpegPCMAudio(
                 track.filepath,
-                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
         temp_file = discord_utils.build_filepath_for_media(
-            self.channel.guild.id, "temp_audio.ogg"
+            self.settings.attachment_directory_filepath,
+            self.channel.guild.id,
+            "temp_audio.ogg",
         )
 
         # Convert to Opus starting at seek point
@@ -375,14 +381,14 @@ class BustController:
             subprocess.run(ffmpeg_command, check=True)
             return FFmpegOpusAudio(
                 temp_file,
-                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to seek audio: {e}")
             # Fallback to normal playback
             return FFmpegPCMAudio(
                 track.filepath,
-                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
     async def _set_bot_nickname(self, emoji: str, title: str) -> None:
@@ -402,8 +408,8 @@ class BustController:
         new_nick = f"{emoji}{title}"
 
         # Truncate to Discord's limit
-        if len(new_nick) > config.NICKNAME_CHAR_LIMIT:
-            new_nick = new_nick[: config.NICKNAME_CHAR_LIMIT - 1] + "…"
+        if len(new_nick) > constants.NICKNAME_CHAR_LIMIT:
+            new_nick = new_nick[: constants.NICKNAME_CHAR_LIMIT - 1] + "…"
 
         await bot_member.edit(nick=new_nick)
 
@@ -424,7 +430,7 @@ class BustController:
                     "Hope ya had a good **BUST!**\n"
                     f"*Total length of all submissions: {song_utils.format_time(int(self.total_duration))}*"
                 ),
-                color=config.LIST_EMBED_COLOR,
+                color=constants.LIST_EMBED_COLOR,
             )
             await self.channel.send(embed=embed)
 
@@ -441,7 +447,7 @@ class BustController:
         Returns:
             Form URL, or None if form creation fails.
         """
-        if config.google_form_folder is None:
+        if self.settings.google_form_folder is None:
             logger.info("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset")
             return None
 
@@ -462,6 +468,8 @@ class BustController:
             high_val=7,
             low_label="OK",
             high_label="Masterpiece",
+            google_auth_file=self.settings.google_auth_file,
+            google_form_folder=self.settings.google_form_folder,
             image_url=image_url,
         )
         return form_url
@@ -476,7 +484,9 @@ class BustController:
 
         total_duration = int(self.total_duration)
         num_tracks = len(self.tracks)
-        total_bust_time = total_duration + config.seconds_between_songs * num_tracks
+        total_bust_time = (
+            total_duration + self.settings.seconds_between_songs * num_tracks
+        )
 
         # Compute submitter statistics
         submitter_durations: dict[int, float] = defaultdict(lambda: 0.0)
@@ -500,7 +510,7 @@ class BustController:
         longest_submitters = [
             f"{i + 1}. {submitter_map[user_id].mention} - {song_utils.format_time(int(duration))}"
             for i, (duration, user_id) in enumerate(
-                sorted_submitters[: config.num_longest_submitters]
+                sorted_submitters[: self.settings.num_longest_submitters]
             )
         ]
 
@@ -523,13 +533,14 @@ class BustController:
         embed = Embed(
             title="Listed Statistics",
             description=embed_text,
-            color=config.INFO_EMBED_COLOR,
+            color=constants.INFO_EMBED_COLOR,
         )
         await interaction.followup.send(embed=embed)
 
 
 async def create_controller(
     client: Client,
+    settings: BustySettings,
     interaction: Interaction,
     list_channel: TextChannel,
 ) -> BustController | None:
@@ -537,6 +548,7 @@ async def create_controller(
 
     Args:
         client: Discord client.
+        settings: Bot settings.
         interaction: An interaction which has not yet been responded to.
         list_channel: Channel to scrape for media.
 
@@ -546,7 +558,9 @@ async def create_controller(
     await interaction.response.defer(ephemeral=True)
 
     # Scrape channel for media
-    channel_media = await discord_utils.scrape_channel_media(list_channel)
+    channel_media = await discord_utils.scrape_channel_media(
+        list_channel, settings.attachment_directory_filepath
+    )
     if not channel_media:
         await interaction.edit_original_response(
             content=":warning: No valid media files found."
@@ -563,7 +577,7 @@ async def create_controller(
     tracks = [Track(msg, att, path) for msg, att, path in channel_media]
 
     # Create controller
-    controller = BustController(client, tracks, interaction.channel)
+    controller = BustController(client, settings, tracks, interaction.channel)
 
     # Build list embeds
     bust_emoji = ":heart_on_fire:"
@@ -585,7 +599,7 @@ async def create_controller(
         prefix_len = len(embed_prefix) if len(embed_descriptions) == 0 else 0
         if (
             prefix_len + len(current_description) + len(entry)
-            > config.EMBED_DESCRIPTION_LIMIT
+            > constants.EMBED_DESCRIPTION_LIMIT
         ):
             embed_descriptions.append(current_description)
             current_description = entry
@@ -601,10 +615,10 @@ async def create_controller(
             embed = Embed(
                 title=embed_title,
                 description=embed_prefix + description,
-                color=config.LIST_EMBED_COLOR,
+                color=constants.LIST_EMBED_COLOR,
             )
         else:
-            embed = Embed(description=description, color=config.LIST_EMBED_COLOR)
+            embed = Embed(description=description, color=constants.LIST_EMBED_COLOR)
 
         message = await interaction.channel.send(embed=embed)
         messages.append(message)

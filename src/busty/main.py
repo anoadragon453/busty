@@ -12,13 +12,25 @@ from discord import (
     Embed,
     Intents,
     Interaction,
+    Member,
     Message,
     TextChannel,
     app_commands,
 )
 from discord.app_commands import AppCommandError
 from discord.ext import commands
-from discord.ext.commands import has_role
+
+from busty import (
+    bust,
+    discord_utils,
+    llm,
+    persistent_state,
+    song_utils,
+)
+from busty.config import constants
+from busty.config.settings import BustySettings
+
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(log_level: int) -> None:
@@ -42,28 +54,12 @@ def setup_logging(log_level: int) -> None:
     logger.addHandler(handler)
 
 
-# Setup logging BEFORE importing busty modules (so config.py warnings get formatted)
-setup_logging(logging.INFO)
-
-# Now import busty modules
-from busty import (  # noqa: E402
-    bust,
-    config,
-    discord_utils,
-    llm,
-    persistent_state,
-    song_utils,
-)
-
-# Get logger for this module
-logger = logging.getLogger(__name__)
-
-
 class BustyBot(commands.Bot):
     """Custom Busty bot class."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, settings: BustySettings, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.settings = settings
         self.bust_registry = bust.BustRegistry()
 
 
@@ -72,19 +68,45 @@ intents = Intents.default()
 intents.members = True
 intents.message_content = True
 
-if config.testing_guild:
-    logger.info(f"Using testing guild {config.testing_guild}")
-    ids = [int(config.testing_guild)]
-client = BustyBot(intents=intents, command_prefix="!")
+# Setup logging
+setup_logging(logging.INFO)
+
+# Load settings once at startup
+settings = BustySettings.from_environment()
+settings.validate(logger)
+
+if settings.testing_guild:
+    logger.info(f"Using testing guild {settings.testing_guild}")
+    ids = [int(settings.testing_guild)]
+client = BustyBot(settings=settings, intents=intents, command_prefix="!")
+
+
+def has_dj_role():
+    """Decorator that checks for DJ role using bot's settings.
+
+    This decorator defers the role lookup to runtime, allowing it to access
+    the bot's settings which are not available at module import time.
+    """
+
+    async def predicate(interaction: Interaction) -> bool:
+        if not hasattr(interaction.client, "settings"):
+            return False
+        dj_role = interaction.client.settings.dj_role_name
+        # Check if user is a Member (has roles attribute)
+        if not isinstance(interaction.user, Member):
+            return False
+        return any(role.name == dj_role for role in interaction.user.roles)
+
+    return app_commands.check(predicate)
 
 
 @client.event
 async def on_ready() -> None:
     logger.info(f"We have logged in as {client.user}")
 
-    if config.openai_api_key:
+    if client.settings.openai_api_key:
         logger.info("OpenAI API key detected, initializing LLM features")
-        llm.initialize(client)
+        llm.initialize(client, client.settings)
     else:
         logger.info("OpenAI API key not configured, LLM features disabled")
 
@@ -99,13 +121,13 @@ async def on_ready() -> None:
 @client.event
 async def on_message(message: Message) -> None:
     if (
-        config.openai_api_key
+        client.settings.openai_api_key
         and message.guild
         and client.user
         and (
             client.user in message.mentions
             or any(role.name == client.user.name for role in message.role_mentions)
-            or random.random() < config.RESPOND_TO_MESSAGE_PROBABILITY
+            or random.random() < constants.RESPOND_TO_MESSAGE_PROBABILITY
         )
         and message.author != client.user
     ):
@@ -117,7 +139,7 @@ list_task_control_lock = asyncio.Lock()
 
 # List command
 @client.tree.command(name="list")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def on_list(
     interaction: Interaction, list_channel: TextChannel | None = None
 ) -> None:
@@ -149,14 +171,16 @@ async def on_list(
         f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}"
     )
     async with list_task_control_lock:
-        bc = await bust.create_controller(client, interaction, list_channel)
+        bc = await bust.create_controller(
+            client, client.settings, interaction, list_channel
+        )
         if bc is not None:
             client.bust_registry.register(interaction.guild_id, bc)
 
 
 # Bust command
 @client.tree.command(name="bust")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def on_bust(interaction: Interaction, index: int = 1) -> None:
     """Begin a bust."""
     if interaction.guild_id is None:
@@ -191,7 +215,7 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
 
 # Skip command
 @client.tree.command(name="skip")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
     if interaction.guild_id is None:
@@ -217,7 +241,7 @@ async def skip(interaction: Interaction) -> None:
 
 # Seek command
 @client.tree.command(name="seek")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def seek(
     interaction: Interaction,
     timestamp: str | None = None,
@@ -250,7 +274,7 @@ async def seek(
 
 # Replay command
 @client.tree.command(name="replay")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
     if interaction.guild_id is None:
@@ -275,7 +299,7 @@ async def replay(interaction: Interaction) -> None:
 
 # Stop command
 @client.tree.command(name="stop")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
     if interaction.guild_id is None:
@@ -366,7 +390,7 @@ client.tree.add_command(ImageGroup())
 
 # Info command
 @client.tree.command(name="info")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
     if interaction.guild_id is None:
@@ -410,12 +434,14 @@ async def preview(
         return
 
     attachment_filepath = discord_utils.build_filepath_for_attachment(
-        interaction.guild_id, uploaded_file
+        client.settings.attachment_directory_filepath,
+        interaction.guild_id,
+        uploaded_file,
     )
 
     # Save attachment to disk for processing
     await uploaded_file.save(fp=Path(attachment_filepath))
-    random_emoji = random.choice(config.emoji_list)
+    random_emoji = random.choice(client.settings.emoji_list)
 
     embed = song_utils.embed_song(
         submit_message or "",
@@ -423,7 +449,7 @@ async def preview(
         uploaded_file,
         interaction.user,
         random_emoji,
-        config.PREVIEW_JUMP_URL,
+        constants.PREVIEW_JUMP_URL,
     )
 
     cover_art = song_utils.get_cover_art(attachment_filepath)
@@ -442,7 +468,7 @@ async def preview(
 
 
 @client.tree.command(name="announce")
-@has_role(config.dj_role_name)
+@has_dj_role()
 async def announce(
     interaction: Interaction,
     title: str,
@@ -463,7 +489,7 @@ async def announce(
     embed = Embed(
         title=title,
         description=body,
-        color=config.INFO_EMBED_COLOR,
+        color=constants.INFO_EMBED_COLOR,
     )
 
     # Disallow sending announcements from one guild into another.
@@ -501,12 +527,12 @@ def run_bot() -> None:
     logger.info("Starting Busty bot")
 
     # Load the bot state.
-    persistent_state.load_state_from_disk()
+    persistent_state.load_state_from_disk(client.settings.bot_state_file)
 
     # Connect to discord
-    if config.discord_token:
+    if client.settings.discord_token:
         # Disable built-in log handler as we set our own
-        client.run(config.discord_token, log_handler=None)
+        client.run(client.settings.discord_token, log_handler=None)
     else:
         logger.error(
             "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."

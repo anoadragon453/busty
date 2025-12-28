@@ -5,7 +5,7 @@ from typing import Any, Iterable, cast
 
 from discord import Interaction
 
-from busty.config import JSON_DATA_TYPE, bot_state_file
+from busty.config.constants import JSON_DATA_TYPE
 
 logger = logging.getLogger(__name__)
 
@@ -13,26 +13,36 @@ logger = logging.getLogger(__name__)
 # getter and setter methods below.
 _bot_state: dict[str, Any] = {}
 
+# Path to the bot state file. Set via load_state_from_disk().
+_bot_state_file: str | None = None
 
-def load_state_from_disk() -> None:
-    """Read the bot state from disk and store it in memory."""
-    global _bot_state
+
+def load_state_from_disk(state_file: str) -> None:
+    """Read the bot state from disk and store it in memory.
+
+    Args:
+        state_file: Path to the state file.
+    """
+    global _bot_state, _bot_state_file
+
+    # Set the bot state file path for use by set_state
+    _bot_state_file = state_file
 
     try:
-        with open(bot_state_file) as f:
+        with open(state_file) as f:
             bot_state_str = f.read()
     except FileNotFoundError:
         # Expected on first run or after setting a new custom bot state filepath.
         bot_state_str = None
     except IOError:
-        logger.error(f"Could not read state from {bot_state_file}")
+        logger.error(f"Could not read state from {state_file}")
         raise
 
     if bot_state_str:
         # Load the JSON representation of the bot's state and convert it to a Python dict so
         # it can be easily manipulated.
         _bot_state = json.loads(bot_state_str)
-        logger.info(f"Loaded bot state from {bot_state_file}")
+        logger.info(f"Loaded bot state from {state_file}")
     else:
         logger.info("No existing bot state file found, starting fresh")
 
@@ -89,7 +99,12 @@ def set_state(path: Iterable[str], value: JSON_DATA_TYPE) -> None:
         _bot_state = value
 
     # Now write the modified `bot_state` back to disk.
-    with open(bot_state_file, "w") as f:
+    if _bot_state_file is None:
+        raise RuntimeError(
+            "Bot state file not initialized. Call load_state_from_disk() first."
+        )
+
+    with open(_bot_state_file, "w") as f:
         # We add indenting (which also adds newlines) into the file to make it easy for a human
         # to look through in case of the need for debugging (the performance cost in minimal).
         bot_state_str = json.dumps(_bot_state, indent=2)

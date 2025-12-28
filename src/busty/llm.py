@@ -9,9 +9,10 @@ import openai
 import tiktoken
 from discord import ClientUser, Member, Message, User
 
-from busty import config
+from busty.config import constants
 
 if TYPE_CHECKING:
+    from busty.config.settings import BustySettings
     from busty.main import BustyBot
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,17 @@ word_trigger_pattern: re.Pattern | None = None
 user_trigger_pattern: re.Pattern | None = None
 user_info_map: dict[str, str] | None = None
 openai_async_client: openai.AsyncOpenAI | None = None
+openai_model: str | None = None
 
 
 # Initialize globals
-def initialize(client: "BustyBot") -> None:
+def initialize(client: "BustyBot", settings: "BustySettings") -> None:
+    """Initialize LLM features with the given settings.
+
+    Args:
+        client: The BustyBot client instance.
+        settings: The bot settings containing OpenAI configuration.
+    """
     global gpt_lock
     global context_data
     global encoding
@@ -41,24 +49,28 @@ def initialize(client: "BustyBot") -> None:
     global user_trigger_pattern
     global user_info_map
     global openai_async_client
+    global openai_model
 
     # Global lock for message response
     gpt_lock = asyncio.Lock()
     # Load manual hidden data
     try:
-        with open(config.llm_context_file) as f:
+        with open(settings.llm_context_file) as f:
             context_data = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
         logger.error(
-            f"Issue loading {config.llm_context_file}. GPT capabilities will be disabled: {e}"
+            f"Issue loading {settings.llm_context_file}. GPT capabilities will be disabled: {e}"
         )
         context_data = None
         return
     # Initialize OpenAI client
-    openai_async_client = openai.AsyncOpenAI(api_key=config.openai_api_key)
+    openai_async_client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
+
+    # Store OpenAI model
+    openai_model = settings.openai_model
 
     # Preload tokenizer
-    encoding = tiktoken.encoding_for_model(config.openai_model)
+    encoding = tiktoken.encoding_for_model(openai_model)
     # Store bot user and client
     self_user = client.user
     self_client = client
@@ -89,9 +101,7 @@ def initialize(client: "BustyBot") -> None:
         user_trigger_pattern = None
         user_info_map = None
 
-    logger.info(
-        f"LLM features initialized successfully with model {config.openai_model}"
-    )
+    logger.info(f"LLM features initialized successfully with model {openai_model}")
 
 
 # Check if a message's content should be allowed when feeding message history to the model
@@ -259,7 +269,7 @@ async def query_api(data: list[dict[str, str]]) -> str | None:
             messages.append({"role": item["role"], "content": item["content"]})
 
         response = await openai_async_client.chat.completions.create(
-            model=config.openai_model,
+            model=openai_model if openai_model else "gpt-3.5-turbo",
             messages=messages,
             timeout=10.0,
         )
@@ -352,8 +362,8 @@ async def respond(message: Message) -> None:
             response = await get_response_text(message)
         if response:
             response_split = [
-                response[i : i + config.MESSAGE_LIMIT]
-                for i in range(0, len(response), config.MESSAGE_LIMIT)
+                response[i : i + constants.MESSAGE_LIMIT]
+                for i in range(0, len(response), constants.MESSAGE_LIMIT)
             ]
             # Reply to the message if it's not the most recent one in the chat history
             most_recent_message = [
