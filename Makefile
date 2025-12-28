@@ -8,10 +8,10 @@ run: ## Run the bot
 	uv run python -m busty.main
 
 lint: ## Lint the code with ruff
-	uv run ruff check --fix .
+	ruff check --fix .
 
 format: ## Format the code with ruff
-	uv run ruff format .
+	ruff format .
 
 type-check: ## Type check the code with mypy
-	uv run mypy src/
+	mypy src/
