@@ -1,3 +1,5 @@
+"""BustController for managing bust playback sessions."""
+
 import asyncio
 import logging
 import random
@@ -5,14 +7,10 @@ import subprocess
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
-from enum import Enum, auto
-from functools import cached_property
 from io import BytesIO
 
 import requests
 from discord import (
-    Attachment,
     ChannelType,
     Client,
     ClientException,
@@ -22,7 +20,6 @@ from discord import (
     File,
     Interaction,
     Member,
-    Message,
     StageChannel,
     TextChannel,
     User,
@@ -32,52 +29,9 @@ from discord import (
 from discord.voice_client import AudioSource
 
 from busty import config, discord_utils, forms, llm, persistent_state, song_utils
+from busty.bust.models import BustPhase, PlaybackState, Track
 
 logger = logging.getLogger(__name__)
-
-
-class BustPhase(Enum):
-    """Represents the current phase of a bust."""
-
-    LISTED = auto()  # Content scraped and listed, ready to play
-    PLAYING = auto()  # Currently playing songs
-    FINISHED = auto()  # Bust completed or stopped
-
-
-@dataclass(frozen=True)
-class Track:
-    """Immutable track information."""
-
-    message: Message
-    attachment: Attachment
-    filepath: str
-
-    @property
-    def submitter(self) -> User | Member:
-        return self.message.author
-
-    @cached_property
-    def duration(self) -> float | None:
-        return song_utils.get_song_length(self.filepath)
-
-    @cached_property
-    def formatted_title(self) -> str:
-        return song_utils.song_format(
-            self.filepath, self.attachment.filename, self.submitter.display_name
-        )
-
-
-@dataclass
-class PlaybackState:
-    """Mutable playback state that only exists during PLAYING phase."""
-
-    voice_client: VoiceClient
-    original_nickname: str | None
-    current_index: int
-    current_task: asyncio.Task[None] | None = None
-    now_playing_msg: Message | None = None
-    stop_requested: bool = False
-    seek_timestamp: int | None = None
 
 
 class BustController:
@@ -569,52 +523,6 @@ class BustController:
             color=config.INFO_EMBED_COLOR,
         )
         await interaction.followup.send(embed=embed)
-
-
-class BustRegistry:
-    """Manages BustController instances per guild."""
-
-    def __init__(self) -> None:
-        self._controllers: dict[int, BustController] = {}
-
-    def get(self, guild_id: int) -> BustController | None:
-        """Get controller for guild, auto-removing finished ones.
-
-        Args:
-            guild_id: Discord guild ID.
-
-        Returns:
-            Active controller, or None if none exists or finished.
-        """
-        controller = self._controllers.get(guild_id)
-
-        # Auto-cleanup finished controllers
-        if controller and controller.phase == BustPhase.FINISHED:
-            del self._controllers[guild_id]
-            return None
-
-        return controller
-
-    def register(self, guild_id: int, controller: BustController) -> None:
-        """Register a controller for a guild.
-
-        Args:
-            guild_id: Discord guild ID.
-            controller: BustController to register.
-        """
-        self._controllers[guild_id] = controller
-
-    def remove(self, guild_id: int) -> None:
-        """Explicitly remove controller for guild.
-
-        Args:
-            guild_id: Discord guild ID.
-        """
-        self._controllers.pop(guild_id, None)
-
-
-# Global registry instance
-registry = BustRegistry()
 
 
 async def create_controller(
