@@ -48,7 +48,3 @@ class BustRegistry:
             guild_id: Discord guild ID.
         """
         self._controllers.pop(guild_id, None)
-
-
-# Global registry instance
-registry = BustRegistry()

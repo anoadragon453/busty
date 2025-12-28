@@ -2,12 +2,11 @@
 
 from busty.bust.controller import BustController, create_controller
 from busty.bust.models import BustPhase, PlaybackState, Track
-from busty.bust.registry import BustRegistry, registry
+from busty.bust.registry import BustRegistry
 
 __all__ = [
     "BustController",
     "BustRegistry",
-    "registry",
     "BustPhase",
     "Track",
     "PlaybackState",

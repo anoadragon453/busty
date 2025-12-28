@@ -9,7 +9,7 @@ import openai
 import tiktoken
 from discord import Client, ClientUser, Member, Message, User
 
-from busty import bust, config
+from busty import config
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ gpt_lock: asyncio.Lock | None = None
 context_data: dict | None = None
 encoding: tiktoken.Encoding | None = None
 self_user: User | Member | ClientUser | None = None
+self_client: Client | None = None
 banned_word_pattern: re.Pattern | None = None
 word_trigger_pattern: re.Pattern | None = None
 user_trigger_pattern: re.Pattern | None = None
@@ -31,6 +32,7 @@ def initialize(client: Client) -> None:
     global context_data
     global encoding
     global self_user
+    global self_client
     global banned_word_pattern
     global word_trigger_pattern
     global user_trigger_pattern
@@ -54,8 +56,9 @@ def initialize(client: Client) -> None:
 
     # Preload tokenizer
     encoding = tiktoken.encoding_for_model(config.openai_model)
-    # Store bot user
+    # Store bot user and client
     self_user = client.user
+    self_client = client
     # Cache regex for banned words
     if context_data is not None:
         banned_word_pattern = re.compile(
@@ -112,8 +115,8 @@ async def get_server_context(message: Message) -> list[str]:
     result = []
 
     # Detect if song is currently playing
-    if hasattr(message, "guild") and message.guild:
-        bc = bust.registry.get(message.guild.id)
+    if hasattr(message, "guild") and message.guild and self_client:
+        bc = self_client.bust_registry.get(message.guild.id)
         if bc and bc.is_playing:
             result.append("The bust is going on right now!")
             current_track = bc.current_track
