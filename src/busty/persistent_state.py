@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Iterable, Optional
+from typing import Any, Dict, Iterable, Optional, cast
 
 from discord import Interaction
 
@@ -8,7 +8,7 @@ from busty.config import JSON_DATA_TYPE, bot_state_file
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
-_bot_state = {}
+_bot_state: Dict[str, Any] = {}
 
 
 def load_state_from_disk() -> None:
@@ -114,11 +114,13 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
     # be used as the field name in the JSON dict.
     key = path.pop()
     for pathname in path:
-        current_path = current_path.get(pathname)
+        next_path = current_path.get(pathname)
 
-        if current_path is None:
+        if next_path is None or not isinstance(next_path, dict):
             # Oops, we hit a dead end.
             return None
+
+        current_path = next_path
 
     # Return the value under the field at the end of the given path.
     value = current_path.get(key)
@@ -127,7 +129,7 @@ def get_state(path: Iterable[str]) -> JSON_DATA_TYPE:
 
     # We explicitly return a copy of the value, otherwise any manipulations the calling function
     # does to the value may result in the state dict being changed.
-    return copy.deepcopy(value)
+    return cast(JSON_DATA_TYPE, copy.deepcopy(value))
 
 
 def delete_state(path: Iterable[str]) -> bool:
@@ -153,13 +155,9 @@ def delete_state(path: Iterable[str]) -> bool:
 
     # this should be a dict as we're one level up
     state_at_path = get_state(path)
-    if not isinstance(state_at_path, dict):
+    if state_at_path is None or not isinstance(state_at_path, dict):
         # The path is invalid, as removing the last item from a path should
         # result in a path that leads to a dict.
-        return False
-
-    if state_at_path is None:
-        # This path does not exist
         return False
 
     if field_to_delete not in state_at_path:
@@ -199,7 +197,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     except Exception as e:
         print("Unable to set form image:", e)
 
-        await interaction.send(
+        await interaction.response.send_message(
             f"Failed to upload image ({type(e)}). See the logs for more details.",
             ephemeral=True,
         )
@@ -218,7 +216,10 @@ def get_form_image_url(interaction: Interaction) -> Optional[str]:
     Returns:
         The image form URL if it was found, otherwise None.
     """
-    return get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    result = get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+    if isinstance(result, str):
+        return result
+    return None
 
 
 def clear_form_image_url(interaction: Interaction) -> bool:

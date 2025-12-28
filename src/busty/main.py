@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import sys
+from pathlib import Path
 from typing import Optional
 
 import discord
@@ -15,13 +16,14 @@ from discord import (
     TextChannel,
     app_commands,
 )
+from discord.app_commands import AppCommandError
 from discord.ext import commands
 from discord.ext.commands import has_role
 
 from busty import bust, config, discord_utils, llm, persistent_state, song_utils
 
 
-def setup_logging(log_level):
+def setup_logging(log_level: int) -> None:
     logger = logging.getLogger("discord")
     logger.setLevel(log_level)
     handler = logging.StreamHandler(stream=sys.stderr)
@@ -64,6 +66,7 @@ async def on_message(message: Message) -> None:
     if (
         config.openai_api_key
         and message.guild
+        and client.user
         and (
             client.user in message.mentions
             or any(role.name == client.user.name for role in message.role_mentions)
@@ -84,6 +87,12 @@ async def on_list(
     interaction: Interaction, list_channel: Optional[TextChannel] = None
 ) -> None:
     """Download and list all media sent in a chosen text channel."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
     if bc and bc.is_active():
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
@@ -94,10 +103,16 @@ async def on_list(
         )
         return
     if list_channel is None:
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         list_channel = interaction.channel
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
-        bust.controllers[interaction.guild_id] = bc
+        if bc is not None:
+            bust.controllers[interaction.guild_id] = bc
 
 
 # Bust command
@@ -105,6 +120,12 @@ async def on_list(
 @has_role(config.dj_role_name)
 async def on_bust(interaction: Interaction, index: int = 1) -> None:
     """Begin a bust."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
     if bc is None:
         await interaction.response.send_message(
@@ -130,6 +151,12 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
 @has_role(config.dj_role_name)
 async def skip(interaction: Interaction) -> None:
     """Skip currently playing song."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -137,7 +164,8 @@ async def skip(interaction: Interaction) -> None:
         return
 
     await interaction.response.send_message("I didn't like that track anyways.")
-    bc.skip_to_track(bc.playing_index + 1)
+    if bc.playing_index is not None:
+        bc.skip_to_track(bc.playing_index + 1)
 
 
 # Seek command
@@ -145,9 +173,15 @@ async def skip(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def seek(
     interaction: Interaction,
-    timestamp: str = None,
+    timestamp: Optional[str] = None,
 ) -> None:
     """Seek to time in the currently playing song."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     # Get seek offset
     seek_to_seconds = song_utils.convert_timestamp_to_seconds(timestamp)
     if seek_to_seconds is None:
@@ -175,6 +209,12 @@ async def seek(
 @has_role(config.dj_role_name)
 async def replay(interaction: Interaction) -> None:
     """Replay currently playing song from the beginning."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -182,7 +222,8 @@ async def replay(interaction: Interaction) -> None:
         return
 
     await interaction.response.send_message("Replaying this track.")
-    bc.skip_to_track(bc.playing_index)
+    if bc.playing_index is not None:
+        bc.skip_to_track(bc.playing_index)
 
 
 # Stop command
@@ -190,6 +231,12 @@ async def replay(interaction: Interaction) -> None:
 @has_role(config.dj_role_name)
 async def stop(interaction: Interaction) -> None:
     """Stop playback."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if not bc or not bc.is_active():
@@ -201,7 +248,7 @@ async def stop(interaction: Interaction) -> None:
 
 
 class ImageGroup(app_commands.Group):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="image", description="Manage saved Google Forms image.")
 
     @app_commands.command(
@@ -209,7 +256,7 @@ class ImageGroup(app_commands.Group):
     )
     async def upload(
         self, interaction: discord.Interaction, image_file: discord.Attachment
-    ):
+    ) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
         if not await persistent_state.save_form_image_url(interaction, image_file.url):
@@ -223,7 +270,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="url", description="Set a Google Forms image by pasting a URL."
     )
-    async def url(self, interaction: discord.Interaction, image_url: str):
+    async def url(self, interaction: discord.Interaction, image_url: str) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
         if not await persistent_state.save_form_image_url(interaction, image_url):
@@ -237,7 +284,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="clear", description="Clear the loaded Google Forms image."
     )
-    async def clear(self, interaction: discord.Interaction):
+    async def clear(self, interaction: discord.Interaction) -> None:
         image_existed = persistent_state.clear_form_image_url(interaction)
         if not image_existed:
             await interaction.response.send_message(
@@ -250,7 +297,7 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="view", description="View the loaded Google Forms image."
     )
-    async def view(self, interaction: discord.Interaction):
+    async def view(self, interaction: discord.Interaction) -> None:
         loaded_image_url = persistent_state.get_form_image_url(interaction)
         if loaded_image_url is None:
             await interaction.response.send_message(
@@ -272,6 +319,12 @@ client.tree.add_command(ImageGroup())
 @has_role(config.dj_role_name)
 async def info(interaction: Interaction) -> None:
     """Get info about currently listed songs."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     bc = bust.controllers.get(interaction.guild_id)
 
     if bc is None:
@@ -291,6 +344,12 @@ async def preview(
     submit_message: Optional[str] = None,
 ) -> None:
     """Show a preview of a submission's 'Now Playing' embed."""
+    if interaction.guild_id is None:
+        await interaction.response.send_message(
+            "This command can only be used in a server.", ephemeral=True
+        )
+        return
+
     await interaction.response.defer(ephemeral=True)
 
     if not discord_utils.is_valid_media(uploaded_file.content_type):
@@ -305,11 +364,11 @@ async def preview(
     )
 
     # Save attachment to disk for processing
-    await uploaded_file.save(fp=attachment_filepath)
+    await uploaded_file.save(fp=Path(attachment_filepath))
     random_emoji = random.choice(config.emoji_list)
 
     embed = song_utils.embed_song(
-        submit_message,
+        submit_message or "",
         attachment_filepath,
         uploaded_file,
         interaction.user,
@@ -343,6 +402,11 @@ async def announce(
     """Send a message as the bot into a channel wrapped in an embed."""
     await interaction.response.defer(ephemeral=True)
     if channel is None:
+        if not isinstance(interaction.channel, TextChannel):
+            await interaction.response.send_message(
+                "This command can only be used in a text channel.", ephemeral=True
+            )
+            return
         channel = interaction.channel
 
     # Build the announcement embed
@@ -374,7 +438,7 @@ async def on_application_command_error(
     interaction: Interaction, error: Exception
 ) -> None:
     # Catch insufficient permissions exception, ignore all others
-    if isinstance(error, has_role.errors.ApplicationMissingRole):
+    if isinstance(error, AppCommandError):
         await interaction.response.send_message(
             "You don't have permission to use this command.", ephemeral=True
         )
@@ -382,7 +446,7 @@ async def on_application_command_error(
         logger.error(error)
 
 
-def run_bot():
+def run_bot() -> None:
     """Entry point for the busty script."""
     # Load the bot state.
     persistent_state.load_state_from_disk()

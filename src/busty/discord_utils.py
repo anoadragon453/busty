@@ -1,6 +1,7 @@
 import asyncio
 import os
 from os import path
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 from discord import (
@@ -127,7 +128,7 @@ async def scrape_channel_media(
 
         # Limit concurrent downloads
         async with download_semaphore:
-            await attachment.save(attachment_filepath)
+            await attachment.save(Path(attachment_filepath))
 
     if channel_media_attachments:
         tasks = [
