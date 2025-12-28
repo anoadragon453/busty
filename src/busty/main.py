@@ -138,7 +138,9 @@ async def on_list(
             return
         list_channel = interaction.channel
 
-    logger.info(f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}")
+    logger.info(
+        f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}"
+    )
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
         if bc is not None:
@@ -173,7 +175,9 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
         )
         return
 
-    logger.info(f"User {interaction.user} issued /bust command in guild {interaction.guild_id}, starting at track {index}")
+    logger.info(
+        f"User {interaction.user} issued /bust command in guild {interaction.guild_id}, starting at track {index}"
+    )
     await bc.play(interaction, index - 1)
     del bust.controllers[interaction.guild_id]
 
@@ -195,7 +199,9 @@ async def skip(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    logger.info(f"User {interaction.user} issued /skip command in guild {interaction.guild_id}")
+    logger.info(
+        f"User {interaction.user} issued /skip command in guild {interaction.guild_id}"
+    )
     await interaction.response.send_message("I didn't like that track anyways.")
     if bc.playing_index is not None:
         bc.skip_to_track(bc.playing_index + 1)
@@ -233,7 +239,9 @@ async def seek(
         )
         return
 
-    logger.info(f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s")
+    logger.info(
+        f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s"
+    )
     await interaction.response.send_message("Let's skip to the good part.")
     bc.seek_current_track(interaction, seek_to_seconds)
 
@@ -255,7 +263,9 @@ async def replay(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    logger.info(f"User {interaction.user} issued /replay command in guild {interaction.guild_id}")
+    logger.info(
+        f"User {interaction.user} issued /replay command in guild {interaction.guild_id}"
+    )
     await interaction.response.send_message("Replaying this track.")
     if bc.playing_index is not None:
         bc.skip_to_track(bc.playing_index)
@@ -278,7 +288,9 @@ async def stop(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
-    logger.info(f"User {interaction.user} issued /stop command in guild {interaction.guild_id}")
+    logger.info(
+        f"User {interaction.user} issued /stop command in guild {interaction.guild_id}"
+    )
     await interaction.response.send_message("Alright I'll shut up.")
     bc.stop()
 

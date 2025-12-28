@@ -238,7 +238,9 @@ class BustController:
         await interaction.delete_original_response()
 
         # Log bust start
-        logger.info(f"Starting bust playback in guild {interaction.guild_id}, {len(self.bust_content)} tracks total, starting at track {skip_count + 1}")
+        logger.info(
+            f"Starting bust playback in guild {interaction.guild_id}, {len(self.bust_content)} tracks total, starting at track {skip_count + 1}"
+        )
 
         # Play songs
         self.playing_index = skip_count
@@ -300,9 +302,13 @@ class BustController:
 
         # Log bust completion
         if say_goodbye:
-            logger.info(f"Bust playback completed in guild {self.message_channel.guild.id}")
+            logger.info(
+                f"Bust playback completed in guild {self.message_channel.guild.id}"
+            )
         else:
-            logger.info(f"Bust playback stopped early in guild {self.message_channel.guild.id}")
+            logger.info(
+                f"Bust playback stopped early in guild {self.message_channel.guild.id}"
+            )
 
     async def play_song(self, index: int) -> None:
         # Send the chilling message
@@ -634,7 +640,9 @@ async def create_controller(
     await interaction.delete_original_response()
 
     # Log successful list creation
-    logger.info(f"Created bust list with {len(channel_media_attachments)} tracks from channel {list_channel.name} (guild {interaction.guild_id})")
+    logger.info(
+        f"Created bust list with {len(channel_media_attachments)} tracks from channel {list_channel.name} (guild {interaction.guild_id})"
+    )
 
     # Return controller
     return bc
