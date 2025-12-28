@@ -119,8 +119,8 @@ async def on_list(
         )
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
-    if bc and bc.is_active():
+    bc = bust.registry.get(interaction.guild_id)
+    if bc and bc.is_playing:
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
         return
     if list_task_control_lock.locked():
@@ -142,7 +142,7 @@ async def on_list(
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
         if bc is not None:
-            bust.controllers[interaction.guild_id] = bc
+            bust.registry.register(interaction.guild_id, bc)
 
 
 # Bust command
@@ -156,18 +156,18 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
         )
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = bust.registry.get(interaction.guild_id)
     if bc is None:
         await interaction.response.send_message(
             "You need to use `/list` first.", ephemeral=True
         )
         return
-    elif bc.is_active():
+    elif bc.is_playing:
         await interaction.response.send_message(
             "We're already busting.", ephemeral=True
         )
         return
-    if index > len(bc.bust_content):
+    if index > len(bc.tracks):
         await interaction.response.send_message(
             "There aren't that many tracks.", ephemeral=True
         )
@@ -177,7 +177,7 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
         f"User {interaction.user} issued /bust command in guild {interaction.guild_id}, starting at track {index}"
     )
     await bc.play(interaction, index - 1)
-    del bust.controllers[interaction.guild_id]
+    # Registry auto-cleans finished controllers
 
 
 # Skip command
@@ -191,9 +191,9 @@ async def skip(interaction: Interaction) -> None:
         )
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = bust.registry.get(interaction.guild_id)
 
-    if not bc or not bc.is_active():
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
@@ -201,8 +201,9 @@ async def skip(interaction: Interaction) -> None:
         f"User {interaction.user} issued /skip command in guild {interaction.guild_id}"
     )
     await interaction.response.send_message("I didn't like that track anyways.")
-    if bc.playing_index is not None:
-        bc.skip_to_track(bc.playing_index + 1)
+    # Skip to next track (current_index will be incremented in playback loop)
+    if bc._playback:
+        bc.skip_to(bc._playback.current_index + 1)
 
 
 # Seek command
@@ -225,23 +226,17 @@ async def seek(
         await interaction.response.send_message("Invalid seek time.", ephemeral=True)
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = bust.registry.get(interaction.guild_id)
 
-    if not bc or not bc.is_active():
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
-        return
-
-    if bc.is_seeking():
-        await interaction.response.send_message(
-            "Still seeking, chill a sec.", ephemeral=True
-        )
         return
 
     logger.info(
         f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s"
     )
     await interaction.response.send_message("Let's skip to the good part.")
-    bc.seek_current_track(interaction, seek_to_seconds)
+    bc.seek(interaction, seek_to_seconds)
 
 
 # Replay command
@@ -255,9 +250,9 @@ async def replay(interaction: Interaction) -> None:
         )
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = bust.registry.get(interaction.guild_id)
 
-    if not bc or not bc.is_active():
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
@@ -265,8 +260,8 @@ async def replay(interaction: Interaction) -> None:
         f"User {interaction.user} issued /replay command in guild {interaction.guild_id}"
     )
     await interaction.response.send_message("Replaying this track.")
-    if bc.playing_index is not None:
-        bc.skip_to_track(bc.playing_index)
+    if bc._playback:
+        bc.skip_to(bc._playback.current_index)
 
 
 # Stop command
@@ -280,9 +275,9 @@ async def stop(interaction: Interaction) -> None:
         )
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = bust.registry.get(interaction.guild_id)
 
-    if not bc or not bc.is_active():
+    if not bc or not bc.is_playing:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
@@ -371,7 +366,7 @@ async def info(interaction: Interaction) -> None:
         )
         return
 
-    bc = bust.controllers.get(interaction.guild_id)
+    bc = bust.registry.get(interaction.guild_id)
 
     if bc is None:
         await interaction.response.send_message(

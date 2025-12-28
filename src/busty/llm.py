@@ -113,10 +113,12 @@ async def get_server_context(message: Message) -> list[str]:
 
     # Detect if song is currently playing
     if hasattr(message, "guild") and message.guild:
-        bc = bust.controllers.get(message.guild.id)
-        if bc and bc.is_active():
+        bc = bust.registry.get(message.guild.id)
+        if bc and bc.is_playing:
             result.append("The bust is going on right now!")
-            result.append(f"Now playing: {bc.current_song()}")
+            current_track = bc.current_track
+            if current_track:
+                result.append(f"Now playing: {current_track.formatted_title}")
             result.append("Tell everyone you can't respond since you're busy busting.")
 
     # Load server event info

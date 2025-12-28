@@ -1,10 +1,13 @@
 import asyncio
 import logging
-import os
 import random
 import subprocess
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from enum import Enum, auto
+from functools import cached_property
 from io import BytesIO
 
 import requests
@@ -33,151 +36,168 @@ from busty import config, discord_utils, forms, llm, persistent_state, song_util
 logger = logging.getLogger(__name__)
 
 
+class BustPhase(Enum):
+    """Represents the current phase of a bust."""
+
+    LISTED = auto()  # Content scraped and listed, ready to play
+    PLAYING = auto()  # Currently playing songs
+    FINISHED = auto()  # Bust completed or stopped
+
+
+@dataclass(frozen=True)
+class Track:
+    """Immutable track information."""
+
+    message: Message
+    attachment: Attachment
+    filepath: str
+
+    @property
+    def submitter(self) -> User | Member:
+        return self.message.author
+
+    @cached_property
+    def duration(self) -> float | None:
+        return song_utils.get_song_length(self.filepath)
+
+    @cached_property
+    def formatted_title(self) -> str:
+        return song_utils.song_format(
+            self.filepath, self.attachment.filename, self.submitter.display_name
+        )
+
+
+@dataclass
+class PlaybackState:
+    """Mutable playback state that only exists during PLAYING phase."""
+
+    voice_client: VoiceClient
+    original_nickname: str | None
+    current_index: int
+    current_task: asyncio.Task[None] | None = None
+    now_playing_msg: Message | None = None
+    stop_requested: bool = False
+    seek_timestamp: int | None = None
+
+
 class BustController:
+    """Manages a bust session for a guild."""
+
     def __init__(
         self,
         client: Client,
-        bust_content: list[tuple[Message, Attachment, str]],
+        tracks: list[Track],
         message_channel: TextChannel,
     ):
-        # The actively connected voice client
-        self.voice_client: VoiceClient | None = None
-        # Currently pinned "now playing" message ID
-        self.now_playing_msg: Message | None = None
-        # Keep track of the coroutine used to play the next track, which is active while
-        # waiting in the intermission between songs. This task should be interrupted if
-        # stopping playback is requested.
-        self.play_song_task: asyncio.Task[None] | None = None
+        self.client = client
+        self.tracks = tracks
+        self.channel = message_channel
+        self.phase = BustPhase.LISTED
+        self._playback: PlaybackState | None = None
 
-        # The nickname of the bot. We need to store it as it will be
-        # changed while songs are being played.
-        self.original_bot_nickname: str | None = None
+    @property
+    def is_playing(self) -> bool:
+        """Check if currently in PLAYING phase."""
+        return self.phase == BustPhase.PLAYING
 
-        # The channel to send messages in
-        self.message_channel: TextChannel = message_channel
-        # The media in the current channel
-        self.bust_content: list[tuple[Message, Attachment, str]] = bust_content
-        # Whether bust has been manually stopped
-        self.bust_stopped: bool = False
-        # Client object
-        self.client: Client = client
-        # Whether or not a song seek is being executed
-        self.seeking: bool = False
+    @property
+    def current_track(self) -> Track | None:
+        """Get currently playing track, if any."""
+        if self._playback is None:
+            return None
+        return self.tracks[self._playback.current_index]
 
-        # Calculate total length of all songs in seconds
-        self.total_song_len: float = 0.0
-        for _, _, local_filepath in self.bust_content:
-            song_len = song_utils.get_song_length(local_filepath)
-            if song_len:
-                self.total_song_len += song_len
-
-        # None if no song is playing, otherwise formatted str "artist - title"
-        self.now_playing_str: str | None = None
-
-        self._finished: bool = False
-        self.playing_index: int | None = None
-
-        # Temp audio file to truncate seeks to
-        self.temp_audio_file: str = ""
-
-        self._seek_to_seconds: int | None = None
-
-    def is_active(self) -> bool:
-        return bool(self.voice_client and self.voice_client.is_connected())
-
-    def is_seeking(self) -> bool:
-        return self.seeking
-
-    def current_song(self) -> str | None:
-        return self.now_playing_str
-
-    def finished(self) -> bool:
-        # TODO: This function should become unnecessary once for-refactor is done
-        # See comment in main.py
-        return self._finished
+    @property
+    def total_duration(self) -> float:
+        """Calculate total duration of all tracks in seconds."""
+        return sum(track.duration or 0.0 for track in self.tracks)
 
     def stop(self) -> None:
-        """Stop playing music."""
-        self.bust_stopped = True
-        if self.play_song_task:
-            self.play_song_task.cancel()
+        """Request playback to stop."""
+        if self._playback is None:
+            return
 
-    def seek_and_convert_to_opus(self, timestamp: int, local_filepath: str) -> None:
-        song_len = song_utils.get_song_length(local_filepath)
-        if song_len is None or timestamp >= song_len:
-            timestamp = 0
-            logger.warning("Attempted to seek past length of song. Ignoring timestamp.")
+        self._playback.stop_requested = True
+        if self._playback.current_task:
+            self._playback.current_task.cancel()
 
-        ffmpeg_command = [
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            local_filepath,
-            "-ss",
-            str(timestamp),
-            "-c:a",
-            "libopus",
-            "-b:a",
-            "128k",
-            "-y",
-            self.temp_audio_file,
-        ]
-        subprocess.run(ffmpeg_command, check=True)
+    def skip_to(self, track_index: int) -> None:
+        """Skip to a specific track (0-indexed)."""
+        if self._playback is None or self._playback.current_task is None:
+            return
 
-    def skip_to_track(self, track_number: int) -> None:
-        """Skip to track number (0-indexed)."""
-        if self.play_song_task:
-            # Reduce playing index so it stays the same after increment upon task cancel
-            self.playing_index = max(0, track_number) - 1
-            self.play_song_task.cancel()
+        # Set index to one before target (will be incremented after cancel)
+        self._playback.current_index = max(0, track_index - 1)
+        self._playback.current_task.cancel()
 
-    def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
-        # Get seek offset
-        if self.playing_index is None:
+    def seek(self, interaction: Interaction, timestamp: int) -> None:
+        """Seek current track to timestamp in seconds."""
+        if self._playback is None:
             logger.warning("No track is currently playing. Ignoring seek.")
             return
+
         if interaction.guild is None:
             logger.error("No guild found for seek operation.")
             return
-        self._seek_to_seconds = timestamp
-        self.temp_audio_file = discord_utils.build_filepath_for_media(
-            interaction.guild.id, "temp_audio.ogg"
-        )
-        submit_message, attachment, local_filepath = self.bust_content[
-            self.playing_index
-        ]
-        self.seeking = True
-        self.seek_and_convert_to_opus(timestamp, local_filepath)
-        if not os.path.exists(self.temp_audio_file):
-            logger.error("Failed to convert file for seeking. Cancelling seek.")
-            self._seek_to_seconds = None
-        self.skip_to_track(self.playing_index)
-        self.seeking = False
 
-    async def play(self, interaction: Interaction, skip_count: int = 0) -> None:
-        """Begin playback.
+        self._playback.seek_timestamp = timestamp
+        # Skip to current track (will restart with seek timestamp)
+        self.skip_to(self._playback.current_index)
+
+    @asynccontextmanager
+    async def _voice_session(
+        self, voice_channel: VoiceChannel | StageChannel
+    ) -> VoiceClient:
+        """Connect to voice, yield client, then disconnect and restore nickname."""
+        voice_client = await voice_channel.connect()
+
+        # If stage channel, ensure bot is speaking
+        if voice_channel.type == ChannelType.stage_voice:
+            if self.client.user and voice_channel.guild:
+                bot_member = voice_channel.guild.get_member(self.client.user.id)
+                if bot_member:
+                    await bot_member.edit(suppress=False)
+
+        # Save original nickname
+        original_nickname = None
+        if self.client.user and voice_channel.guild:
+            bot_member = voice_channel.guild.get_member(self.client.user.id)
+            if bot_member:
+                original_nickname = bot_member.display_name
+
+        try:
+            yield voice_client
+        finally:
+            # Disconnect from voice
+            if voice_client.is_connected():
+                await voice_client.disconnect()
+
+            # Restore original nickname
+            if original_nickname and self.client.user and voice_channel.guild:
+                bot_member = voice_channel.guild.get_member(self.client.user.id)
+                if bot_member:
+                    await bot_member.edit(nick=original_nickname)
+
+    async def play(self, interaction: Interaction, start_index: int = 0) -> None:
+        """Begin playback starting from the specified track index (0-indexed).
 
         Args:
             interaction: An interaction which has not yet been responded to.
-            skip_count: List index to start playback from.
+            start_index: Track index to start playback from.
         """
-
         await interaction.response.defer(ephemeral=True)
 
-        # Update message channel to where command was issued from
-        # (in case `list` was called from a separate/private channel).
+        # Update message channel to where command was issued
         if not isinstance(interaction.channel, TextChannel):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "This command can only be used in a text channel.", ephemeral=True
             )
             return
-        self.message_channel = interaction.channel
+        self.channel = interaction.channel
 
-        # Join active voice call
+        # Find the voice channel the user is in
         if interaction.guild is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "This command can only be used in a server.", ephemeral=True
             )
             return
@@ -187,277 +207,296 @@ class BustController:
         )
         voice_channels.extend(interaction.guild.stage_channels)
 
-        if not voice_channels:
-            await interaction.response.send_message(
-                "You need to be in an active voice or stage channel.", ephemeral=True
-            )
-            return
-
-        # Get a reference to the bot's Member object
-        if self.client.user is None:
-            await interaction.response.send_message(
-                "Bot user not found.", ephemeral=True
-            )
-            return
-
-        bot_member = interaction.guild.get_member(self.client.user.id)
-
+        target_voice_channel = None
         for voice_channel in voice_channels:
-            if interaction.user not in voice_channel.members:
-                # Skip this voice channel
-                continue
-
-            # We found a voice channel that the author is in.
-            # Join the voice channel.
-            try:
-                self.voice_client = await voice_channel.connect()
-
-                # If this is a stage voice channel, ensure that we are currently speaking.
-                if voice_channel.type == ChannelType.stage_voice:
-                    # Set the bot's own member to be speaking in the voice channel
-                    if bot_member is not None:
-                        await bot_member.edit(suppress=False)
-
+            if interaction.user in voice_channel.members:
+                target_voice_channel = voice_channel
                 break
-            except ClientException as e:
-                logger.error(f"Unable to connect to voice channel: {e}")
-                return
-        else:
-            # No voice channel was found
-            await interaction.response.send_message(
+
+        if target_voice_channel is None:
+            await interaction.followup.send(
                 "You need to be in an active voice channel.", ephemeral=True
             )
             return
 
-        # Save the bot's current display name (nick or name)
-        # We'll restore it after songs have finished playing.
-        if bot_member is not None:
-            self.original_bot_nickname = bot_member.display_name
+        # Connect to voice and play
+        try:
+            async with self._voice_session(target_voice_channel) as voice_client:
+                await self.channel.send("Let's get **BUSTY**.")
+                await interaction.delete_original_response()
 
-        await self.message_channel.send("Let's get **BUSTY**.")
-        await interaction.delete_original_response()
+                logger.info(
+                    f"Starting bust playback in guild {interaction.guild_id}, "
+                    f"{len(self.tracks)} tracks total, starting at track {start_index + 1}"
+                )
 
-        logger.info(
-            f"Starting bust playback in guild {interaction.guild_id}, {len(self.bust_content)} tracks total, starting at track {skip_count + 1}"
-        )
+                # Initialize playback state
+                self._playback = PlaybackState(
+                    voice_client=voice_client,
+                    original_nickname=None,  # Managed by context manager
+                    current_index=start_index,
+                )
+                self.phase = BustPhase.PLAYING
 
-        # Play songs
-        self.playing_index = skip_count
-        while self.playing_index < len(self.bust_content):
-            if self.bust_stopped:
-                break
+                # Main playback loop
+                while self._playback.current_index < len(self.tracks):
+                    if self._playback.stop_requested:
+                        break
 
-            # wrap play_song() in a coroutine so it is cancellable
-            self.play_song_task = asyncio.create_task(
-                self.play_song(self.playing_index)
+                    # Wrap play_track in a task so it can be cancelled for skip/seek
+                    self._playback.current_task = asyncio.create_task(
+                        self._play_track(self._playback.current_index)
+                    )
+
+                    try:
+                        await self._playback.current_task
+                    except asyncio.CancelledError:
+                        # Stop voice playback when task cancelled
+                        if voice_client.is_playing():
+                            voice_client.stop()
+
+                    self._playback.current_index += 1
+
+                # Playback finished
+                await self._finish_playback(say_goodbye=not self._playback.stop_requested)
+
+        except ClientException as e:
+            logger.error(f"Failed to connect to voice channel: {e}")
+            await interaction.followup.send(
+                "Failed to connect to voice channel.", ephemeral=True
             )
-            try:
-                await self.play_song_task
-            except asyncio.CancelledError:
-                # Voice client playback must be manually stopped
-                if self.voice_client:
-                    self.voice_client.stop()
 
-            self.playing_index += 1
-
-        # tidy up
-        await self.finish(say_goodbye=not self.bust_stopped)
-
-    async def finish(self, say_goodbye: bool = True) -> None:
-        """End the current bust.
+    async def _play_track(self, index: int) -> None:
+        """Play a single track.
 
         Args:
-            say_goodbye: If True, a goodbye message will be posted to `message_channel`. If False, the bust
-                will be ended silently.
+            index: Index of track to play.
         """
-        self.playing_index = None
+        if self._playback is None:
+            return
 
-        # Disconnect from voice if necessary
-        if self.voice_client and self.voice_client.is_connected():
-            await self.voice_client.disconnect()
+        track = self.tracks[index]
 
-        # Restore the bot's original guild nickname (if it had one)
-        if self.original_bot_nickname and self.message_channel and self.client.user:
-            bot_member = self.message_channel.guild.get_member(self.client.user.id)
-            if bot_member is not None:
-                await bot_member.edit(nick=self.original_bot_nickname)
-
-        if say_goodbye:
-            goodbye_emoji = ":heart_on_fire:"
-            embed_title = f"{goodbye_emoji} That's it everyone {goodbye_emoji}"
-            embed_content = "Hope ya had a good **BUST!**"
-            embed_content += f"\n*Total length of all submissions: {song_utils.format_time(int(self.total_song_len))}*"
-            embed = Embed(
-                title=embed_title,
-                description=embed_content,
-                color=config.LIST_EMBED_COLOR,
-            )
-            await self.message_channel.send(embed=embed)
-
-        # Clear variables relating to current bust
-        self.voice_client = None
-        self.original_bot_nickname = None
-        self._finished = True
-
-        if say_goodbye:
-            logger.info(
-                f"Bust playback completed in guild {self.message_channel.guild.id}"
-            )
-        else:
-            logger.info(
-                f"Bust playback stopped early in guild {self.message_channel.guild.id}"
-            )
-
-    async def play_song(self, index: int) -> None:
-        # Send the chilling message
-        embed_title = "Currently Chilling"
-        embed_content = (
-            "The track will start soon...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**"
+        # Send chilling message
+        embed = Embed(
+            title="Currently Chilling",
+            description="The track will start soon...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**",
         )
-        embed = Embed(title=embed_title, description=embed_content)
-        await self.message_channel.send(embed=embed)
-        # Begin album art generation timer, so we know how long to wait afterwards
-        start_album_generation = time.time()
+        await self.channel.send(embed=embed)
 
-        # Pop a song off the front of the queue and play it
-        submit_message, attachment, local_filepath = self.bust_content[index]
+        # Begin album art generation timer
+        start_time = time.time()
 
-        # Get cover art
-        cover_art = song_utils.get_cover_art(local_filepath)
+        # Get or generate cover art
+        cover_art = song_utils.get_cover_art(track.filepath)
         if cover_art is None and config.openai_api_key:
-            # Use generative AI to create some album art for this song.
             artist, title = song_utils.get_song_metadata_with_fallback(
-                local_filepath, attachment.filename, submit_message.author.display_name
+                track.filepath, track.attachment.filename, track.submitter.display_name
             )
             try:
                 cover_art_url = await asyncio.wait_for(
                     llm.generate_album_art(
-                        artist or "Unknown Artist", title, submit_message.content or ""
+                        artist or "Unknown Artist", title, track.message.content or ""
                     ),
                     timeout=20.0,
                 )
-                if cover_art_url is not None:
-                    # Attaching the URL for the artwork directly to the embed doesn't appear to work,
-                    # so instead download the art and upload it to Discord.
-                    # This also ensures that the cover art is preserved on Discord's CDN, whereas
-                    # the original URL may not remain forever.
+                if cover_art_url:
                     image_data = requests.get(cover_art_url).content
                     image_bytes_fp = BytesIO(image_data)
                     cover_art = File(image_bytes_fp, "ai_cover.png")
             except asyncio.TimeoutError:
                 logger.warning("Cover art generation timed out")
 
-        # Wait any remaining time not taken by image generation
-        waited = time.time() - start_album_generation
-        time_to_sleep = max(0, config.seconds_between_songs - waited)
-        await asyncio.sleep(time_to_sleep)
+        # Wait remaining cooldown time
+        elapsed = time.time() - start_time
+        remaining = max(0, config.seconds_between_songs - elapsed)
+        await asyncio.sleep(remaining)
 
-        # Associate a random emoji with this song
+        # Build "Now Playing" embed
         random_emoji = random.choice(config.emoji_list)
-
         embed = song_utils.embed_song(
-            submit_message.content,
-            local_filepath,
-            attachment,
-            submit_message.author,
+            track.message.content,
+            track.filepath,
+            track.attachment,
+            track.submitter,
             random_emoji,
-            submit_message.jump_url,
+            track.message.jump_url,
         )
 
-        # Add cover art and send
-        if cover_art is not None:
+        # Send embed with cover art
+        if cover_art:
             embed.set_image(url=f"attachment://{cover_art.filename}")
-            self.now_playing_msg = await self.message_channel.send(
+            self._playback.now_playing_msg = await self.channel.send(
                 file=cover_art, embed=embed
             )
         else:
-            self.now_playing_msg = await self.message_channel.send(embed=embed)
+            self._playback.now_playing_msg = await self.channel.send(embed=embed)
 
-        await discord_utils.try_set_pin(self.now_playing_msg, True)
+        await discord_utils.try_set_pin(self._playback.now_playing_msg, True)
 
-        # Play song
+        # Update bot nickname to show current track
+        await self._set_bot_nickname(random_emoji, track.formatted_title)
+
+        # Prepare audio source
+        audio_source = await self._prepare_audio(track)
+
+        # Play the track
         play_lock = asyncio.Lock()
-        # Acquire the lock during playback so that on release, play_song() returns
         await play_lock.acquire()
 
-        # Called when song finishes playing
-        def ffmpeg_post_hook(e: Exception | None = None) -> None:
-            if e is not None:
-                logger.error(f"Song playback quit with error: {e}")
-            # Release the lock to allow play_song to continue
-            # Note: We can't do async operations here since this runs in a different thread
-            # The async cleanup will be handled in the main play_song method
+        def on_playback_complete(error: Exception | None = None) -> None:
+            if error:
+                logger.error(f"Song playback error: {error}")
             play_lock.release()
 
-        audio_to_play: AudioSource | None = None
-        if self._seek_to_seconds is not None:
-            audio_to_play = FFmpegOpusAudio(
-                self.temp_audio_file,
-                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
-            )
-            self._seek_to_seconds = None
-        else:
-            audio_to_play = FFmpegPCMAudio(
-                local_filepath,
+        self._playback.voice_client.play(audio_source, after=on_playback_complete)
+
+        # Wait for playback to complete
+        await play_lock.acquire()
+
+        # Clean up after track
+        if self._playback.now_playing_msg:
+            await discord_utils.try_set_pin(self._playback.now_playing_msg, False)
+            self._playback.now_playing_msg = None
+
+    async def _prepare_audio(self, track: Track) -> AudioSource:
+        """Prepare audio source for playback, handling seek if needed.
+
+        Args:
+            track: Track to prepare.
+
+        Returns:
+            Audio source ready for playback.
+        """
+        if self._playback is None or self._playback.seek_timestamp is None:
+            # Normal playback
+            return FFmpegPCMAudio(
+                track.filepath,
                 options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
 
-        if self.voice_client is not None:
-            self.voice_client.play(
-                audio_to_play,
-                after=ffmpeg_post_hook,
+        # Seek playback - convert to Opus at timestamp
+        seek_to = self._playback.seek_timestamp
+        self._playback.seek_timestamp = None  # Clear for next track
+
+        # Validate seek timestamp
+        if track.duration and seek_to >= track.duration:
+            logger.warning("Seek timestamp beyond track duration, seeking to start")
+            seek_to = 0
+
+        # Create temp file for seeked audio
+        if self.channel.guild is None:
+            # Fallback to normal playback
+            return FFmpegPCMAudio(
+                track.filepath,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
             )
 
-        # Set now playing title
-        self.now_playing_str = song_utils.song_format(
-            local_filepath, attachment.filename, submit_message.author.display_name
+        temp_file = discord_utils.build_filepath_for_media(
+            self.channel.guild.id, "temp_audio.ogg"
         )
 
-        # Change the name of the bot to that of the currently playing song.
-        # This allows people to quickly see which song is currently playing.
-        new_nick = random_emoji + self.now_playing_str
+        # Convert to Opus starting at seek point
+        ffmpeg_command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            track.filepath,
+            "-ss",
+            str(seek_to),
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-y",
+            temp_file,
+        ]
 
-        # If necessary, truncate name to max length allowed by Discord,
-        # appending an ellipsis on the end.
+        try:
+            subprocess.run(ffmpeg_command, check=True)
+            return FFmpegOpusAudio(
+                temp_file,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to seek audio: {e}")
+            # Fallback to normal playback
+            return FFmpegPCMAudio(
+                track.filepath,
+                options=f"-filter:a volume={config.VOLUME_MULTIPLIER}",
+            )
+
+    async def _set_bot_nickname(self, emoji: str, title: str) -> None:
+        """Update bot's nickname to show current track.
+
+        Args:
+            emoji: Random emoji to prefix.
+            title: Formatted track title.
+        """
+        if not self.client.user or not self.channel.guild:
+            return
+
+        bot_member = self.channel.guild.get_member(self.client.user.id)
+        if not bot_member:
+            return
+
+        new_nick = f"{emoji}{title}"
+
+        # Truncate to Discord's limit
         if len(new_nick) > config.NICKNAME_CHAR_LIMIT:
             new_nick = new_nick[: config.NICKNAME_CHAR_LIMIT - 1] + "…"
 
-        # Set the new nickname
-        if self.message_channel and self.client.user:
-            bot_member = self.message_channel.guild.get_member(self.client.user.id)
-            if bot_member is not None:
-                await bot_member.edit(nick=new_nick)
+        await bot_member.edit(nick=new_nick)
 
-        # Wait for song to finish playing
-        await play_lock.acquire()
-
-        # Handle async cleanup after song finishes
-        if self.now_playing_msg:
-            await discord_utils.try_set_pin(self.now_playing_msg, False)
-            self.now_playing_msg = None
-
-        self.now_playing_str = None
-
-    def get_google_form_url(self, image_url: str | None = None) -> str | None:
-        """Create a Google form for voting on this bust
+    async def _finish_playback(self, say_goodbye: bool = True) -> None:
+        """Finish playback and transition to FINISHED phase.
 
         Args:
-            image_url: If passed, the image at this url will be placed at the start of the form.
+            say_goodbye: Whether to post goodbye message.
+        """
+        self.phase = BustPhase.FINISHED
+        self._playback = None
+
+        if say_goodbye:
+            goodbye_emoji = ":heart_on_fire:"
+            embed = Embed(
+                title=f"{goodbye_emoji} That's it everyone {goodbye_emoji}",
+                description=(
+                    "Hope ya had a good **BUST!**\n"
+                    f"*Total length of all submissions: {song_utils.format_time(int(self.total_duration))}*"
+                ),
+                color=config.LIST_EMBED_COLOR,
+            )
+            await self.channel.send(embed=embed)
+
+            logger.info(f"Bust playback completed in guild {self.channel.guild.id}")
+        else:
+            logger.info(
+                f"Bust playback stopped early in guild {self.channel.guild.id}"
+            )
+
+    def get_google_form_url(self, image_url: str | None = None) -> str | None:
+        """Create a Google form for voting on this bust.
+
+        Args:
+            image_url: Optional image URL to display at start of form.
 
         Returns:
-            the URL of the Google Form, or None if form creation fails.
+            Form URL, or None if form creation fails.
         """
         if config.google_form_folder is None:
             logger.info("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset")
             return None
 
         song_list = [
-            f"{submit_message.author.display_name}: {song_utils.song_format(local_filepath, attachment.filename)}"
-            for submit_message, attachment, local_filepath in self.bust_content
+            f"{track.submitter.display_name}: {song_utils.song_format(track.filepath, track.attachment.filename)}"
+            for track in self.tracks
         ]
 
         # Extract bust number from channel name
-        bust_number = "".join([c for c in self.message_channel.name if c.isdigit()])
+        bust_number = "".join([c for c in self.channel.name if c.isdigit()])
         if bust_number:
             bust_number = bust_number + " "
 
@@ -476,59 +515,106 @@ class BustController:
         """Send statistics about current bust.
 
         Args:
-            interaction: An interaction which has not yet been responded to."""
+            interaction: An interaction which has not yet been responded to.
+        """
         await interaction.response.defer()
-        songs_len = int(self.total_song_len)
-        num_songs = len(self.bust_content)
-        bust_len = songs_len + config.seconds_between_songs * num_songs
 
-        # Compute map of submitter --> total length of all submissions
-        submitter_to_len: dict[int, float] = defaultdict(lambda: 0.0)
+        total_duration = int(self.total_duration)
+        num_tracks = len(self.tracks)
+        total_bust_time = total_duration + config.seconds_between_songs * num_tracks
+
+        # Compute submitter statistics
+        submitter_durations: dict[int, float] = defaultdict(lambda: 0.0)
         submitter_map: dict[int, User | Member] = {}
 
         errors = False
-        for submit_message, attachment, local_filepath in self.bust_content:
-            song_len = song_utils.get_song_length(local_filepath)
-            if song_len is None:
+        for track in self.tracks:
+            duration = track.duration
+            if duration is None:
                 errors = True
-                # Even if song length is an error, we still add 0 to submitter_to_len
-                # to ensure len(submitter_to_len) equals the number of submitters
-                song_len = 0.0
-            submitter_to_len[submit_message.author.id] += song_len
-            submitter_map[submit_message.author.id] = submit_message.author
+                duration = 0.0
+            submitter_durations[track.submitter.id] += duration
+            submitter_map[track.submitter.id] = track.submitter
 
-        # Format list of users with longest total submission length
-        submitters_sorted_by_len = sorted(
-            [(length, user_id) for (user_id, length) in submitter_to_len.items()],
+        # Sort submitters by total duration
+        sorted_submitters = sorted(
+            [(duration, user_id) for user_id, duration in submitter_durations.items()],
             reverse=True,
         )
-        longest_submitters_formatted = [
-            f"{i + 1}. {submitter_map[user_id].mention} - {song_utils.format_time(int(length))}"
-            for i, (length, user_id) in enumerate(
-                submitters_sorted_by_len[: config.num_longest_submitters]
+
+        longest_submitters = [
+            f"{i + 1}. {submitter_map[user_id].mention} - {song_utils.format_time(int(duration))}"
+            for i, (duration, user_id) in enumerate(
+                sorted_submitters[: config.num_longest_submitters]
             )
         ]
 
         embed_text = "\n".join(
             [
-                f"*Number of tracks:* {num_songs}",
-                f"*Total track length:* {song_utils.format_time(songs_len)}",
-                f"*Total bust length:* {song_utils.format_time(bust_len)}",
-                f"*Unique submitters:* {len(submitter_to_len)}",
+                f"*Number of tracks:* {num_tracks}",
+                f"*Total track length:* {song_utils.format_time(total_duration)}",
+                f"*Total bust length:* {song_utils.format_time(total_bust_time)}",
+                f"*Unique submitters:* {len(submitter_durations)}",
                 "*Longest submitters:*",
             ]
-            + longest_submitters_formatted
+            + longest_submitters
         )
+
         if errors:
-            embed_text += (
-                "\n\n**There were some errors. Statistics may be inaccurate.**"
-            )
+            embed_text += "\n\n**There were some errors. Statistics may be inaccurate.**"
+
         embed = Embed(
             title="Listed Statistics",
             description=embed_text,
             color=config.INFO_EMBED_COLOR,
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
+
+
+class BustRegistry:
+    """Manages BustController instances per guild."""
+
+    def __init__(self) -> None:
+        self._controllers: dict[int, BustController] = {}
+
+    def get(self, guild_id: int) -> BustController | None:
+        """Get controller for guild, auto-removing finished ones.
+
+        Args:
+            guild_id: Discord guild ID.
+
+        Returns:
+            Active controller, or None if none exists or finished.
+        """
+        controller = self._controllers.get(guild_id)
+
+        # Auto-cleanup finished controllers
+        if controller and controller.phase == BustPhase.FINISHED:
+            del self._controllers[guild_id]
+            return None
+
+        return controller
+
+    def register(self, guild_id: int, controller: BustController) -> None:
+        """Register a controller for a guild.
+
+        Args:
+            guild_id: Discord guild ID.
+            controller: BustController to register.
+        """
+        self._controllers[guild_id] = controller
+
+    def remove(self, guild_id: int) -> None:
+        """Explicitly remove controller for guild.
+
+        Args:
+            guild_id: Discord guild ID.
+        """
+        self._controllers.pop(guild_id, None)
+
+
+# Global registry instance
+registry = BustRegistry()
 
 
 async def create_controller(
@@ -536,15 +622,21 @@ async def create_controller(
     interaction: Interaction,
     list_channel: TextChannel,
 ) -> BustController | None:
-    """Attempt to create a BustController listing a given channel.
+    """Create a BustController by scraping and listing a channel.
 
     Args:
-        interaction: An interaction which has not yet been responded to
+        client: Discord client.
+        interaction: An interaction which has not yet been responded to.
+        list_channel: Channel to scrape for media.
+
+    Returns:
+        New BustController, or None if no media found or error.
     """
     await interaction.response.defer(ephemeral=True)
-    # Scrape all tracks in the target channel and list them
-    channel_media_attachments = await discord_utils.scrape_channel_media(list_channel)
-    if not channel_media_attachments:
+
+    # Scrape channel for media
+    channel_media = await discord_utils.scrape_channel_media(list_channel)
+    if not channel_media:
         await interaction.edit_original_response(
             content=":warning: No valid media files found."
         )
@@ -556,93 +648,77 @@ async def create_controller(
         )
         return None
 
-    bc = BustController(client, channel_media_attachments, interaction.channel)
+    # Convert to Track objects
+    tracks = [Track(msg, att, path) for msg, att, path in channel_media]
 
-    # Title of /list embed
+    # Create controller
+    controller = BustController(client, tracks, interaction.channel)
+
+    # Build list embeds
     bust_emoji = ":heart_on_fire:"
     embed_title = f"{bust_emoji} AIGHT. IT'S BUSTY TIME {bust_emoji}"
-    embed_description_prefix = "**Track Listing**\n"
+    embed_prefix = "**Track Listing**\n"
 
-    # List of embed descriptions to circumvent the Discord character embed limit
-    embed_description_list: list[str] = []
-    embed_description_current = ""
+    # Split into multiple embeds if needed (Discord char limit)
+    embed_descriptions: list[str] = []
+    current_description = ""
 
-    for index, (
-        submit_message,
-        attachment,
-        local_filepath,
-    ) in enumerate(channel_media_attachments):
-        song_list_entry = f"**{index + 1}.** {submit_message.author.mention}: [{song_utils.song_format(local_filepath, attachment.filename)}]({attachment.url}) [`↲jump`]({submit_message.jump_url})\n"
+    for index, track in enumerate(tracks):
+        entry = (
+            f"**{index + 1}.** {track.submitter.mention}: "
+            f"[{song_utils.song_format(track.filepath, track.attachment.filename)}]"
+            f"({track.attachment.url}) [`↲jump`]({track.message.jump_url})\n"
+        )
 
-        # We only add the embed description prefix to the first message
-        description_prefix_charcount = 0
-        if len(embed_description_list) == 0:
-            description_prefix_charcount = len(embed_description_prefix)
-
-        if (
-            description_prefix_charcount
-            + len(embed_description_current)
-            + len(song_list_entry)
-            > config.EMBED_DESCRIPTION_LIMIT
-        ):
-            # If adding a new list entry would go over, push our current list entries to a new embed
-            embed_description_list.append(embed_description_current)
-            # Start a new embed
-            embed_description_current = song_list_entry
+        # Check if adding entry would exceed limit
+        prefix_len = len(embed_prefix) if len(embed_descriptions) == 0 else 0
+        if prefix_len + len(current_description) + len(entry) > config.EMBED_DESCRIPTION_LIMIT:
+            embed_descriptions.append(current_description)
+            current_description = entry
         else:
-            embed_description_current += song_list_entry
+            current_description += entry
 
-    # Add the leftover part to a new embed
-    embed_description_list.append(embed_description_current)
+    embed_descriptions.append(current_description)
 
-    # Iterate through each embed description, send and pin messages
-    message_list = []
-
-    # Send messages, only first message gets title and prefix
-    for index, embed_description in enumerate(embed_description_list):
-        if index == 0:
+    # Send embeds
+    messages = []
+    for i, description in enumerate(embed_descriptions):
+        if i == 0:
             embed = Embed(
                 title=embed_title,
-                description=embed_description_prefix + embed_description,
+                description=embed_prefix + description,
                 color=config.LIST_EMBED_COLOR,
             )
         else:
-            embed = Embed(
-                description=embed_description,
-                color=config.LIST_EMBED_COLOR,
-            )
-        list_message = await interaction.channel.send(embed=embed)
-        message_list.append(list_message)
+            embed = Embed(description=description, color=config.LIST_EMBED_COLOR)
 
-    # If message channel == target channel,
-    # pin messages in reverse order and generate Google Form
-    pin_and_form = list_channel == interaction.channel
-    if pin_and_form:
-        for list_message in reversed(message_list):
-            await discord_utils.try_set_pin(list_message, True)
-        # Wrap form generation in try/catch so we don't block a list command if it fails
-        form_url = None
-        image_url = persistent_state.get_form_image_url(interaction)
+        message = await interaction.channel.send(embed=embed)
+        messages.append(message)
+
+    # Pin messages and generate form if listing in same channel
+    if list_channel == interaction.channel:
+        for message in reversed(messages):
+            await discord_utils.try_set_pin(message, True)
+
+        # Generate Google Form
         try:
-            form_url = bc.get_google_form_url(image_url)
-        except Exception as e:
-            logger.error(f"Unknown error generating form: {e}")
+            image_url = persistent_state.get_form_image_url(interaction)
+            form_url = controller.get_google_form_url(image_url)
 
-        if form_url is not None:
-            vote_emoji = ":ballot_box_with_ballot:"
-            form_message = await interaction.channel.send(
-                f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
-            )
-            await discord_utils.try_set_pin(form_message, True)
+            if form_url:
+                vote_emoji = ":ballot_box_with_ballot:"
+                form_message = await interaction.channel.send(
+                    f"{vote_emoji} **Voting Form** {vote_emoji}\n{form_url}"
+                )
+                await discord_utils.try_set_pin(form_message, True)
+        except Exception as e:
+            logger.error(f"Failed to generate Google Form: {e}")
 
     await interaction.delete_original_response()
 
     logger.info(
-        f"Created bust list with {len(channel_media_attachments)} tracks from channel {list_channel.name} (guild {interaction.guild_id})"
+        f"Created bust list with {len(tracks)} tracks from channel "
+        f"{list_channel.name} (guild {interaction.guild_id})"
     )
 
-    # Return controller
-    return bc
-
-
-controllers: dict[int, BustController] = {}
+    return controller
