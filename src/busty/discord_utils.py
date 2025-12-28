@@ -1,7 +1,5 @@
 import asyncio
 import logging
-import os
-from os import path
 from pathlib import Path
 
 from discord import (
@@ -37,8 +35,8 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
 
 
 def build_filepath_for_attachment(
-    attachment_directory: str, guild_id: int, attachment: Attachment
-) -> str:
+    attachment_directory: Path, guild_id: int, attachment: Attachment
+) -> Path:
     """Generate a unique, absolute filepath for a given attachment.
 
     Args:
@@ -49,12 +47,12 @@ def build_filepath_for_attachment(
     Returns:
         Absolute filepath in format: <attachment_directory>/<guild_id>/<attachment_id>
     """
-    return path.join(attachment_directory, str(guild_id), str(attachment.id))
+    return attachment_directory / str(guild_id) / str(attachment.id)
 
 
 def build_filepath_for_media(
-    attachment_directory: str, guild_id: int, media_filename: str
-) -> str:
+    attachment_directory: Path, guild_id: int, media_filename: str
+) -> Path:
     """Generate a unique, absolute filepath for media files.
 
     Args:
@@ -65,7 +63,7 @@ def build_filepath_for_media(
     Returns:
         Absolute filepath in format: <attachment_directory>/<guild_id>/<media_filename>
     """
-    return path.join(attachment_directory, str(guild_id), media_filename)
+    return attachment_directory / str(guild_id) / media_filename
 
 
 def is_valid_media(attachment_content_type: str | None) -> bool:
@@ -78,10 +76,10 @@ def is_valid_media(attachment_content_type: str | None) -> bool:
 
 async def scrape_channel_media(
     channel: TextChannel,
-    attachment_directory: str,
+    attachment_directory: Path,
     max_messages: int = constants.MAXIMUM_MESSAGES_TO_SCAN,
     max_concurrent_downloads: int = constants.MAXIMUM_CONCURRENT_DOWNLOADS,
-) -> list[tuple[Message, Attachment, str]]:
+) -> list[tuple[Message, Attachment, Path]]:
     """Scrape media attachments from a Discord channel.
 
     Args:
@@ -94,13 +92,12 @@ async def scrape_channel_media(
         List of (message, attachment, filepath) tuples.
     """
     # A list of (original message, message attachment, local filepath)
-    channel_media_attachments: list[tuple[Message, Attachment, str]] = []
+    channel_media_attachments: list[tuple[Message, Attachment, Path]] = []
 
-    attachment_dir = path.join(attachment_directory, str(channel.guild.id))
+    attachment_dir = attachment_directory / str(channel.guild.id)
 
     # Ensure attachment directory exists
-    if not os.path.exists(attachment_dir):
-        os.makedirs(attachment_dir)
+    attachment_dir.mkdir(parents=True, exist_ok=True)
 
     # Iterate through each message in the channel
     # We pass `after` explicitly to work around this nextcord
@@ -131,24 +128,23 @@ async def scrape_channel_media(
             )
 
     # Clear unused files in this guild's attachment directory
-    used_files = {path for (_, _, path) in channel_media_attachments}
-    for filename in os.listdir(attachment_dir):
-        filepath = path.join(attachment_dir, filename)
-        if filepath not in used_files:
-            if os.path.isfile(filepath):
-                os.remove(filepath)
+    used_files = {filepath for (_, _, filepath) in channel_media_attachments}
+    for file_path in attachment_dir.iterdir():
+        if file_path not in used_files:
+            if file_path.is_file():
+                file_path.unlink()
 
     # Download attachments
     download_semaphore = asyncio.Semaphore(value=max_concurrent_downloads)
 
     # Save all files if not in cache
-    async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
-        if os.path.exists(attachment_filepath):
+    async def dl_file(attachment: Attachment, attachment_filepath: Path) -> None:
+        if attachment_filepath.exists():
             return
 
         # Limit concurrent downloads
         async with download_semaphore:
-            await attachment.save(Path(attachment_filepath))
+            await attachment.save(attachment_filepath)
 
     if channel_media_attachments:
         tasks = [

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import googleapiclient.discovery
 from google.auth.transport.requests import Request
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_google_services(
-    google_auth_file: str,
+    google_auth_file: Path,
 ) -> tuple[Resource | None, Resource | None]:
     """Get Google Forms and Drive services using OAuth 2.0.
 
@@ -26,7 +27,7 @@ def get_google_services(
 
     try:
         # Load OAuth 2.0 credentials
-        creds = Credentials.from_authorized_user_file(google_auth_file, SCOPES)
+        creds = Credentials.from_authorized_user_file(str(google_auth_file), SCOPES)
 
         # Refresh token if expired
         if creds.expired and creds.refresh_token:
@@ -59,7 +60,7 @@ def create_remote_form(
     high_val: int,
     low_label: str,
     high_label: str,
-    google_auth_file: str,
+    google_auth_file: Path,
     google_form_folder: str | None,
     image_url: str | None = None,
 ) -> str | None:
