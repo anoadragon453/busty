@@ -4,25 +4,29 @@ import googleapiclient.discovery
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource
 
-from busty import config
-
 logger = logging.getLogger(__name__)
 
 
-def get_google_services() -> tuple[Resource | None, Resource | None]:
+def get_google_services(
+    google_auth_file: str,
+) -> tuple[Resource | None, Resource | None]:
+    """Get Google Forms and Drive services.
+
+    Args:
+        google_auth_file: Path to the Google service account auth file.
+
+    Returns:
+        Tuple of (forms_service, drive_service), or (None, None) if auth fails.
+    """
     SCOPES = ["https://www.googleapis.com/auth/drive"]
 
     try:
-        creds = Credentials.from_service_account_file(
-            config.google_auth_file, scopes=SCOPES
-        )
+        creds = Credentials.from_service_account_file(google_auth_file, scopes=SCOPES)
     except Exception as e:
         if isinstance(e, FileNotFoundError):
-            error_msg = f"Could not find {config.google_auth_file}"
+            error_msg = f"Could not find {google_auth_file}"
         else:
-            error_msg = (
-                f"Encountered {type(e).__name__} reading {config.google_auth_file}"
-            )
+            error_msg = f"Encountered {type(e).__name__} reading {google_auth_file}"
         logger.error(f"{error_msg}. Skipping form generation")
         return None, None
 
@@ -38,8 +42,26 @@ def create_remote_form(
     high_val: int,
     low_label: str,
     high_label: str,
+    google_auth_file: str,
+    google_form_folder: str | None,
     image_url: str | None = None,
 ) -> str | None:
+    """Create a Google Form for voting.
+
+    Args:
+        title: Form title.
+        items: List of items to rate.
+        low_val: Minimum rating value.
+        high_val: Maximum rating value.
+        low_label: Label for low rating.
+        high_label: Label for high rating.
+        google_auth_file: Path to the Google service account auth file.
+        google_form_folder: Google Drive folder ID to move form to, or None.
+        image_url: Optional image URL to include at top of form.
+
+    Returns:
+        Form URL if successful, None otherwise.
+    """
     form_info = {
         "info": {
             "title": title,
@@ -90,7 +112,7 @@ def create_remote_form(
     }
 
     # get form service
-    form_service, drive_service = get_google_services()
+    form_service, drive_service = get_google_services(google_auth_file)
     if form_service is None or drive_service is None:
         return None
 
@@ -128,19 +150,20 @@ def create_remote_form(
             logger.error(f"Error adding image to form: {e}")
 
     # Move form to correct folder + rename
-    files = drive_service.files()
-    file = files.get(
-        fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents"
-    ).execute()
-    if file["capabilities"]["canMoveItemWithinDrive"]:
-        file_parent_id = file["parents"][0]
-        try:
-            files.update(
-                fileId=form_id,
-                removeParents=file_parent_id,
-                addParents=config.google_form_folder,
-            ).execute()
-        except Exception as e:
-            logger.error(f"Error moving form: {e}")
+    if google_form_folder:
+        files = drive_service.files()
+        file = files.get(
+            fileId=form_id, fields="capabilities/canMoveItemWithinDrive, parents"
+        ).execute()
+        if file["capabilities"]["canMoveItemWithinDrive"]:
+            file_parent_id = file["parents"][0]
+            try:
+                files.update(
+                    fileId=form_id,
+                    removeParents=file_parent_id,
+                    addParents=google_form_folder,
+                ).execute()
+            except Exception as e:
+                logger.error(f"Error moving form: {e}")
 
     return form_url

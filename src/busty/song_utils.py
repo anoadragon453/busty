@@ -14,7 +14,7 @@ from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
 from PIL import Image, UnidentifiedImageError
 
-from busty import config
+from busty.config import constants
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +32,13 @@ def embed_song(
     embed_title = f"{emoji} Now Playing {emoji}"
     embed_content = f"{user.mention}: [{escape_markdown(song_format(attachment_filepath, attachment.filename))}]({attachment.url}) [`↲jump`]({jump_url})"
     embed = Embed(
-        title=embed_title, description=embed_content, color=config.PLAY_EMBED_COLOR
+        title=embed_title, description=embed_content, color=constants.PLAY_EMBED_COLOR
     )
 
     if message_content:
-        if len(message_content) > config.EMBED_FIELD_VALUE_LIMIT:
+        if len(message_content) > constants.EMBED_FIELD_VALUE_LIMIT:
             message_content = (
-                message_content[: config.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
+                message_content[: constants.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
             )
         embed.add_field(name="More Info", value=message_content, inline=False)
 
@@ -153,9 +153,9 @@ def sanitize_tag(tag_value: str) -> str:
     # Remove any newlines
     tag_value = "".join(tag_value.splitlines())
 
-    if len(tag_value) > config.MAXIMUM_SONG_METADATA_CHARACTERS:
+    if len(tag_value) > constants.MAXIMUM_SONG_METADATA_CHARACTERS:
         # Cap the length of the string and append an ellipsis
-        tag_value = tag_value[: config.MAXIMUM_SONG_METADATA_CHARACTERS - 1] + "…"
+        tag_value = tag_value[: constants.MAXIMUM_SONG_METADATA_CHARACTERS - 1] + "…"
 
     return tag_value
 
@@ -226,7 +226,7 @@ def get_cover_art(filename: str) -> File | None:
 
     # Make sure it doesn't go over the maximum size allowed for a Discord attachment.
     # Important for when the bot later posts the image during a bust.
-    if image_data is None or len(image_data) > config.ATTACHMENT_BYTE_LIMIT:
+    if image_data is None or len(image_data) > constants.ATTACHMENT_BYTE_LIMIT:
         return None
 
     # Get a file pointer to the bytes

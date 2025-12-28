@@ -15,7 +15,7 @@ from discord import (
 )
 from discord.utils import DISCORD_EPOCH
 
-from busty import config
+from busty.config import constants
 
 logger = logging.getLogger(__name__)
 
@@ -36,30 +36,36 @@ async def try_set_pin(message: Message, pin_state: bool) -> None:
         logger.error(f"Altering message pin state failed: {e}")
 
 
-def build_filepath_for_attachment(guild_id: int, attachment: Attachment) -> str:
-    """Generate a unique, absolute filepath for a given attachment located in the configured attachment directory."""
+def build_filepath_for_attachment(
+    attachment_directory: str, guild_id: int, attachment: Attachment
+) -> str:
+    """Generate a unique, absolute filepath for a given attachment.
 
-    # Generate and return a filepath in the following format:
-    #     <attachment_directory>/<Discord guild ID>/<attachment ID>
-    # For example:
-    #     /home/user/busty/attachments/922994022916698154/625891304081063986
+    Args:
+        attachment_directory: Base directory for attachments.
+        guild_id: Discord guild ID.
+        attachment: Discord attachment object.
 
-    return path.join(
-        config.attachment_directory_filepath, str(guild_id), str(attachment.id)
-    )
+    Returns:
+        Absolute filepath in format: <attachment_directory>/<guild_id>/<attachment_id>
+    """
+    return path.join(attachment_directory, str(guild_id), str(attachment.id))
 
 
-def build_filepath_for_media(guild_id: int, media_filename: str) -> str:
-    """Generate a unique, absolute filepath for a given attachment located in the configured attachment directory."""
+def build_filepath_for_media(
+    attachment_directory: str, guild_id: int, media_filename: str
+) -> str:
+    """Generate a unique, absolute filepath for media files.
 
-    # Generate and return a filepath in the following format:
-    #     <attachment_directory>/<Discord guild ID>/<media filename>
-    # For example:
-    #     /home/user/busty/attachments/922994022916698154/temp_audio.ogg
+    Args:
+        attachment_directory: Base directory for attachments.
+        guild_id: Discord guild ID.
+        media_filename: Name of the media file.
 
-    return path.join(
-        config.attachment_directory_filepath, str(guild_id), media_filename
-    )
+    Returns:
+        Absolute filepath in format: <attachment_directory>/<guild_id>/<media_filename>
+    """
+    return path.join(attachment_directory, str(guild_id), media_filename)
 
 
 def is_valid_media(attachment_content_type: str | None) -> bool:
@@ -72,13 +78,25 @@ def is_valid_media(attachment_content_type: str | None) -> bool:
 
 async def scrape_channel_media(
     channel: TextChannel,
+    attachment_directory: str,
+    max_messages: int = constants.MAXIMUM_MESSAGES_TO_SCAN,
+    max_concurrent_downloads: int = constants.MAXIMUM_CONCURRENT_DOWNLOADS,
 ) -> list[tuple[Message, Attachment, str]]:
+    """Scrape media attachments from a Discord channel.
+
+    Args:
+        channel: Discord text channel to scrape.
+        attachment_directory: Base directory for storing attachments.
+        max_messages: Maximum number of messages to scan.
+        max_concurrent_downloads: Maximum concurrent download tasks.
+
+    Returns:
+        List of (message, attachment, filepath) tuples.
+    """
     # A list of (original message, message attachment, local filepath)
     channel_media_attachments: list[tuple[Message, Attachment, str]] = []
 
-    attachment_dir = path.join(
-        config.attachment_directory_filepath, str(channel.guild.id)
-    )
+    attachment_dir = path.join(attachment_directory, str(channel.guild.id))
 
     # Ensure attachment directory exists
     if not os.path.exists(attachment_dir):
@@ -89,7 +107,7 @@ async def scrape_channel_media(
     # bug: https://github.com/nextcord/nextcord/issues/1238
     after = Object(id=DISCORD_EPOCH)
     async for message in channel.history(
-        limit=config.MAXIMUM_MESSAGES_TO_SCAN, after=after, oldest_first=True
+        limit=max_messages, after=after, oldest_first=True
     ):
         if not message.attachments:
             # This message has no attached media
@@ -101,7 +119,7 @@ async def scrape_channel_media(
                 continue
 
             attachment_filepath = build_filepath_for_attachment(
-                channel.guild.id, attachment
+                attachment_directory, channel.guild.id, attachment
             )
 
             channel_media_attachments.append(
@@ -121,7 +139,7 @@ async def scrape_channel_media(
                 os.remove(filepath)
 
     # Download attachments
-    download_semaphore = asyncio.Semaphore(value=config.MAXIMUM_CONCURRENT_DOWNLOADS)
+    download_semaphore = asyncio.Semaphore(value=max_concurrent_downloads)
 
     # Save all files if not in cache
     async def dl_file(attachment: Attachment, attachment_filepath: str) -> None:
