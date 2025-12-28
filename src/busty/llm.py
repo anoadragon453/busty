@@ -3,13 +3,16 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import openai
 import tiktoken
-from discord import Client, ClientUser, Member, Message, User
+from discord import ClientUser, Member, Message, User
 
-from busty import bust, config
+from busty import config
+
+if TYPE_CHECKING:
+    from busty.main import BustyBot
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +21,7 @@ gpt_lock: asyncio.Lock | None = None
 context_data: dict | None = None
 encoding: tiktoken.Encoding | None = None
 self_user: User | Member | ClientUser | None = None
+self_client: "BustyBot | None" = None
 banned_word_pattern: re.Pattern | None = None
 word_trigger_pattern: re.Pattern | None = None
 user_trigger_pattern: re.Pattern | None = None
@@ -26,11 +30,12 @@ openai_async_client: openai.AsyncOpenAI | None = None
 
 
 # Initialize globals
-def initialize(client: Client) -> None:
+def initialize(client: "BustyBot") -> None:
     global gpt_lock
     global context_data
     global encoding
     global self_user
+    global self_client
     global banned_word_pattern
     global word_trigger_pattern
     global user_trigger_pattern
@@ -54,8 +59,9 @@ def initialize(client: Client) -> None:
 
     # Preload tokenizer
     encoding = tiktoken.encoding_for_model(config.openai_model)
-    # Store bot user
+    # Store bot user and client
     self_user = client.user
+    self_client = client
     # Cache regex for banned words
     if context_data is not None:
         banned_word_pattern = re.compile(
@@ -112,11 +118,13 @@ async def get_server_context(message: Message) -> list[str]:
     result = []
 
     # Detect if song is currently playing
-    if hasattr(message, "guild") and message.guild:
-        bc = bust.controllers.get(message.guild.id)
-        if bc and bc.is_active():
+    if hasattr(message, "guild") and message.guild and self_client:
+        bc = self_client.bust_registry.get(message.guild.id)
+        if bc and bc.is_playing:
             result.append("The bust is going on right now!")
-            result.append(f"Now playing: {bc.current_song()}")
+            current_track = bc.current_track
+            if current_track:
+                result.append(f"Now playing: {current_track.formatted_title}")
             result.append("Tell everyone you can't respond since you're busy busting.")
 
     # Load server event info
