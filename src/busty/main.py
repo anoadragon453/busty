@@ -5,6 +5,7 @@ import random
 import sys
 from pathlib import Path
 
+import colorlog
 import discord
 from discord import (
     Attachment,
@@ -19,20 +20,41 @@ from discord.app_commands import AppCommandError
 from discord.ext import commands
 from discord.ext.commands import has_role
 
-from busty import bust, config, discord_utils, llm, persistent_state, song_utils
-
 
 def setup_logging(log_level: int) -> None:
-    logger = logging.getLogger("discord")
-    logger.setLevel(log_level)
-    handler = logging.StreamHandler(stream=sys.stderr)
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s")
+    # Create colorized formatter with distinct colors
+    formatter = colorlog.ColoredFormatter(
+        "%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)-8s%(reset)s %(light_purple)s%(name)s:%(reset)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        log_colors={
+            "DEBUG": "purple",
+            "INFO": "blue",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red,bg_white",
+        },
     )
+
+    handler = logging.StreamHandler(stream=sys.stdout)
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger()
+    logger.setLevel(log_level)
     logger.addHandler(handler)
 
 
+# Setup logging BEFORE importing busty modules (so config.py warnings get formatted)
 setup_logging(logging.INFO)
+
+# Now import busty modules
+from busty import (  # noqa: E402
+    bust,
+    config,
+    discord_utils,
+    llm,
+    persistent_state,
+    song_utils,
+)
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -50,9 +72,16 @@ client = commands.Bot(intents=intents, command_prefix="!")
 
 @client.event
 async def on_ready() -> None:
-    logger.info(f"We have logged in as {client.user}.")
+    logger.info(f"We have logged in as {client.user}")
+
+    # Initialize LLM features if API key is configured
     if config.openai_api_key:
+        logger.info("OpenAI API key detected, initializing LLM features")
         llm.initialize(client)
+    else:
+        logger.info("OpenAI API key not configured, LLM features disabled")
+
+    # Sync slash commands
     try:
         synced = await client.tree.sync()
         logger.info(f"Synced {len(synced)} command(s)")
@@ -108,6 +137,8 @@ async def on_list(
             )
             return
         list_channel = interaction.channel
+
+    logger.info(f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}")
     async with list_task_control_lock:
         bc = await bust.create_controller(client, interaction, list_channel)
         if bc is not None:
@@ -141,6 +172,8 @@ async def on_bust(interaction: Interaction, index: int = 1) -> None:
             "There aren't that many tracks.", ephemeral=True
         )
         return
+
+    logger.info(f"User {interaction.user} issued /bust command in guild {interaction.guild_id}, starting at track {index}")
     await bc.play(interaction, index - 1)
     del bust.controllers[interaction.guild_id]
 
@@ -162,6 +195,7 @@ async def skip(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
+    logger.info(f"User {interaction.user} issued /skip command in guild {interaction.guild_id}")
     await interaction.response.send_message("I didn't like that track anyways.")
     if bc.playing_index is not None:
         bc.skip_to_track(bc.playing_index + 1)
@@ -199,6 +233,7 @@ async def seek(
         )
         return
 
+    logger.info(f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s")
     await interaction.response.send_message("Let's skip to the good part.")
     bc.seek_current_track(interaction, seek_to_seconds)
 
@@ -220,6 +255,7 @@ async def replay(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
+    logger.info(f"User {interaction.user} issued /replay command in guild {interaction.guild_id}")
     await interaction.response.send_message("Replaying this track.")
     if bc.playing_index is not None:
         bc.skip_to_track(bc.playing_index)
@@ -242,6 +278,7 @@ async def stop(interaction: Interaction) -> None:
         await interaction.response.send_message("Nothing is playing.", ephemeral=True)
         return
 
+    logger.info(f"User {interaction.user} issued /stop command in guild {interaction.guild_id}")
     await interaction.response.send_message("Alright I'll shut up.")
     bc.stop()
 
@@ -447,12 +484,15 @@ async def on_application_command_error(
 
 def run_bot() -> None:
     """Entry point for the busty script."""
+    logger.info("Starting Busty bot")
+
     # Load the bot state.
     persistent_state.load_state_from_disk()
 
     # Connect to discord
     if config.discord_token:
-        client.run(config.discord_token)
+        # Disable built-in log handler as we set our own
+        client.run(config.discord_token, log_handler=None)
     else:
         logger.error(
             "Please pass in a Discord bot token via the BUSTY_DISCORD_TOKEN environment variable."
