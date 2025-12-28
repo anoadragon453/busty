@@ -6,6 +6,7 @@ import random
 import subprocess
 import time
 from collections import defaultdict
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from io import BytesIO
 
@@ -101,9 +102,9 @@ class BustController:
     @asynccontextmanager
     async def _voice_session(
         self, voice_channel: VoiceChannel | StageChannel
-    ) -> VoiceClient:
+    ) -> AsyncIterator[VoiceClient]:
         """Connect to voice, yield client, then disconnect and restore nickname."""
-        voice_client = await voice_channel.connect()
+        voice_client: VoiceClient = await voice_channel.connect()
 
         # If stage channel, ensure bot is speaking
         if voice_channel.type == ChannelType.stage_voice:

@@ -3,13 +3,16 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import openai
 import tiktoken
-from discord import Client, ClientUser, Member, Message, User
+from discord import ClientUser, Member, Message, User
 
 from busty import config
+
+if TYPE_CHECKING:
+    from busty.main import BustyBot
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ gpt_lock: asyncio.Lock | None = None
 context_data: dict | None = None
 encoding: tiktoken.Encoding | None = None
 self_user: User | Member | ClientUser | None = None
-self_client: Client | None = None
+self_client: "BustyBot | None" = None
 banned_word_pattern: re.Pattern | None = None
 word_trigger_pattern: re.Pattern | None = None
 user_trigger_pattern: re.Pattern | None = None
@@ -27,7 +30,7 @@ openai_async_client: openai.AsyncOpenAI | None = None
 
 
 # Initialize globals
-def initialize(client: Client) -> None:
+def initialize(client: "BustyBot") -> None:
     global gpt_lock
     global context_data
     global encoding
