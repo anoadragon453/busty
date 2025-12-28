@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import random
 import subprocess
@@ -28,6 +29,8 @@ from discord import (
 from discord.voice_client import AudioSource
 
 from busty import config, discord_utils, forms, llm, persistent_state, song_utils
+
+logger = logging.getLogger(__name__)
 
 
 class BustController:
@@ -103,7 +106,7 @@ class BustController:
         song_len = song_utils.get_song_length(local_filepath)
         if song_len is None or timestamp >= song_len:
             timestamp = 0
-            print("Attempted to seek past length of song. Ignoring timestamp.")
+            logger.warning("Attempted to seek past length of song. Ignoring timestamp.")
 
         ffmpeg_command = [
             "ffmpeg",
@@ -133,10 +136,10 @@ class BustController:
     def seek_current_track(self, interaction: Interaction, timestamp: int) -> None:
         # Get seek offset
         if self.playing_index is None:
-            print("No track is currently playing. Ignoring seek.")
+            logger.warning("No track is currently playing. Ignoring seek.")
             return
         if interaction.guild is None:
-            print("No guild found for seek operation.")
+            logger.error("No guild found for seek operation.")
             return
         self._seek_to_seconds = timestamp
         self.temp_audio_file = discord_utils.build_filepath_for_media(
@@ -148,7 +151,7 @@ class BustController:
         self.seeking = True
         self.seek_and_convert_to_opus(timestamp, local_filepath)
         if not os.path.exists(self.temp_audio_file):
-            print("Failed to convert file for seeking. Cancelling seek.")
+            logger.error("Failed to convert file for seeking. Cancelling seek.")
             self._seek_to_seconds = None
         self.skip_to_track(self.playing_index)
         self.seeking = False
@@ -217,7 +220,7 @@ class BustController:
 
                 break
             except ClientException as e:
-                print("Unable to connect to voice channel:", e)
+                logger.error(f"Unable to connect to voice channel: {e}")
                 return
         else:
             # No voice channel was found
@@ -329,7 +332,7 @@ class BustController:
                     image_bytes_fp = BytesIO(image_data)
                     cover_art = File(image_bytes_fp, "ai_cover.png")
             except asyncio.TimeoutError:
-                print("Warning: cover art generation timed out")
+                logger.warning("Cover art generation timed out")
 
         # Wait any remaining time not taken by image generation
         waited = time.time() - start_album_generation
@@ -367,7 +370,7 @@ class BustController:
         # Called when song finishes playing
         def ffmpeg_post_hook(e: Exception | None = None) -> None:
             if e is not None:
-                print("Song playback quit with error:", e)
+                logger.error(f"Song playback quit with error: {e}")
             # Release the lock to allow play_song to continue
             # Note: We can't do async operations here since this runs in a different thread
             # The async cleanup will be handled in the main play_song method
@@ -432,7 +435,7 @@ class BustController:
             the URL of the Google Form, or None if form creation fails.
         """
         if config.google_form_folder is None:
-            print("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset...")
+            logger.info("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset")
             return None
 
         song_list = [
@@ -610,7 +613,7 @@ async def create_controller(
         try:
             form_url = bc.get_google_form_url(image_url)
         except Exception as e:
-            print("Unknown error generating form:", e)
+            logger.error(f"Unknown error generating form: {e}")
 
         if form_url is not None:
             vote_emoji = ":ballot_box_with_ballot:"

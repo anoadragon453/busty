@@ -1,10 +1,13 @@
 import copy
 import json
+import logging
 from typing import Any, Iterable, cast
 
 from discord import Interaction
 
 from busty.config import JSON_DATA_TYPE, bot_state_file
+
+logger = logging.getLogger(__name__)
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
@@ -22,7 +25,7 @@ def load_state_from_disk() -> None:
         # Expected on first run or after setting a new custom bot state filepath.
         bot_state_str = None
     except IOError:
-        print(f"Could not read state from {bot_state_file}")
+        logger.error(f"Could not read state from {bot_state_file}")
         raise
 
     if bot_state_str:
@@ -195,7 +198,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     try:
         set_state(["guilds", str(interaction.guild_id), "form_image_url"], image_url)
     except Exception as e:
-        print("Unable to set form image:", e)
+        logger.error(f"Unable to set form image: {e}")
 
         await interaction.response.send_message(
             f"Failed to upload image ({type(e)}). See the logs for more details.",

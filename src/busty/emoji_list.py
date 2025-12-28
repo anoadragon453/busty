@@ -1,4 +1,8 @@
+import logging
+
 from discord_emoji.table import DISCORD_TO_UNICODE as ORIGINAL_DISCORD_TO_UNICODE
+
+logger = logging.getLogger(__name__)
 
 # Remove some emoji from the list that we don't want to appear next to song names.
 emoji_to_remove = [
@@ -1156,6 +1160,6 @@ for removed_emoji in emoji_to_remove:
     try:
         DISCORD_TO_UNICODE.pop(removed_emoji)
     except KeyError:
-        print(
-            f"Warning: blacklisted emoji '{removed_emoji}' does not exist in emoji dictionary"
+        logger.warning(
+            f"Blacklisted emoji '{removed_emoji}' does not exist in emoji dictionary"
         )

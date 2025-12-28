@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import json
+import logging
 import re
 from typing import Any, cast
 
@@ -9,6 +10,8 @@ import tiktoken
 from discord import Client, ClientUser, Member, Message, User
 
 from busty import bust, config
+
+logger = logging.getLogger(__name__)
 
 # Global variables
 gpt_lock: asyncio.Lock | None = None
@@ -41,8 +44,8 @@ def initialize(client: Client) -> None:
         with open(config.llm_context_file) as f:
             context_data = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
-        print(
-            f"ERROR: Issue loading {config.llm_context_file}. GPT capabilities will be disabled.\n{e}"
+        logger.error(
+            f"Issue loading {config.llm_context_file}. GPT capabilities will be disabled: {e}"
         )
         context_data = None
         return
@@ -251,7 +254,7 @@ async def query_api(data: list[dict[str, str]]) -> str | None:
         return cast(str, response.choices[0].message.content)
 
     except Exception as e:
-        print("OpenAI API exception:", e)
+        logger.error(f"OpenAI API exception: {e}")
         return None
 
 
@@ -381,6 +384,6 @@ async def generate_image(prompt: str) -> str | None:
             n=1,
         )
     except Exception as e:
-        print("OpenAI API exception:", e)
+        logger.error(f"OpenAI API exception: {e}")
         return None
     return cast(str, response.data[0].url) if response.data else None
