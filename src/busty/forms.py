@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 import googleapiclient.discovery
 from googleapiclient.discovery import Resource
 from oauth2client.service_account import ServiceAccountCredentials

@@ -4,7 +4,6 @@ import os
 import random
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import discord
 from discord import (

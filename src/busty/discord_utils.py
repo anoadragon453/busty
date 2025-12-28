@@ -2,7 +2,6 @@ import asyncio
 import os
 from os import path
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from discord import (
     Attachment,

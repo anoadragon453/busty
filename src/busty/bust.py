@@ -5,7 +5,6 @@ import subprocess
 import time
 from collections import defaultdict
 from io import BytesIO
-from typing import TYPE_CHECKING
 
 import requests
 from discord import (
