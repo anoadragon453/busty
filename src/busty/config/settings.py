@@ -6,6 +6,7 @@ Settings loaded from environment variables and provided to components via depend
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -17,14 +18,24 @@ class BustySettings:
     dj_role_name: str
     testing_guild: str | None
 
-    # File paths
-    attachment_directory_filepath: str
-    bot_state_file: str
-    llm_context_file: str
+    # Base directories (Path objects)
+    data_dir: Path
+    auth_dir: Path
+
+    # Derived directory paths (Path objects)
+    state_dir: Path
+    config_dir: Path
+    cache_dir: Path
+    temp_dir: Path
+    attachment_cache_dir: Path
+
+    # File paths (Path objects)
+    bot_state_file: Path
+    llm_context_file: Path
+    google_auth_file: Path
 
     # Google Forms integration
     google_form_folder: str | None
-    google_auth_file: str
 
     # OpenAI integration
     openai_api_key: str | None
@@ -52,6 +63,22 @@ class BustySettings:
         emoji_module = __import__(emoji_filepath, fromlist=["DISCORD_TO_UNICODE"])
         emoji_list = list(emoji_module.DISCORD_TO_UNICODE.values())
 
+        # Determine base directories
+        data_dir = Path(os.environ.get("BUSTY_DATA_DIR", "data"))
+        auth_dir = Path(os.environ.get("BUSTY_AUTH_DIR", "auth"))
+
+        # Compute derived paths (hardcoded structure)
+        state_dir = data_dir / "state"
+        config_dir = data_dir / "config"
+        cache_dir = data_dir / "cache"
+        temp_dir = data_dir / "temp"
+        attachment_cache_dir = cache_dir / "attachments"
+
+        # Compute file paths (hardcoded structure)
+        bot_state_file = state_dir / "bot_state.json"
+        llm_context_file = config_dir / "llm_context.json"
+        google_auth_file = auth_dir / "oauth_token.json"
+
         # Load OpenAI model (used for both model and tokenizer by default)
         openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-4o")
 
@@ -59,17 +86,17 @@ class BustySettings:
             discord_token=os.environ.get("BUSTY_DISCORD_TOKEN"),
             dj_role_name=os.environ.get("BUSTY_DJ_ROLE", "bangermeister"),
             testing_guild=os.environ.get("BUSTY_TESTING_GUILD_ID", None),
-            attachment_directory_filepath=os.environ.get(
-                "BUSTY_ATTACHMENT_DIR", "attachments"
-            ),
-            bot_state_file=os.environ.get("BUSTY_BOT_STATE_FILE", "bot_state.json"),
-            llm_context_file=os.environ.get(
-                "BUSTY_LLM_CONTEXT_FILE", "llm_context.json"
-            ),
+            data_dir=data_dir,
+            auth_dir=auth_dir,
+            state_dir=state_dir,
+            config_dir=config_dir,
+            cache_dir=cache_dir,
+            temp_dir=temp_dir,
+            attachment_cache_dir=attachment_cache_dir,
+            bot_state_file=bot_state_file,
+            llm_context_file=llm_context_file,
+            google_auth_file=google_auth_file,
             google_form_folder=os.environ.get("BUSTY_GOOGLE_FORM_FOLDER"),
-            google_auth_file=os.environ.get(
-                "BUSTY_GOOGLE_AUTH_FILE", "auth/oauth_token.json"
-            ),
             openai_api_key=os.environ.get("BUSTY_OPENAI_API_KEY", None),
             openai_model=openai_model,
             openai_tokenizer_model=os.environ.get(
@@ -92,7 +119,7 @@ class BustySettings:
             logger.warning(
                 "BUSTY_GOOGLE_FORM_FOLDER is not set, Google Forms generation will be disabled"
             )
-        elif not os.path.isfile(self.google_auth_file):
+        elif not self.google_auth_file.is_file():
             logger.warning(
                 f"{self.google_auth_file} is not a valid file, Google Forms generation will be disabled"
             )

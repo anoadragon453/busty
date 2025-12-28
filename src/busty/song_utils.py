@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 from io import BytesIO
+from pathlib import Path
 from typing import cast
 
 from discord import Attachment, Embed, File, Member, User
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def embed_song(
     message_content: str,
-    attachment_filepath: str,
+    attachment_filepath: Path,
     attachment: Attachment,
     user: User | Member,
     emoji: str,
@@ -45,7 +46,7 @@ def embed_song(
     return embed
 
 
-def get_song_metadata(local_filepath: str, filename: str) -> tuple[str | None, str]:
+def get_song_metadata(local_filepath: Path, filename: str) -> tuple[str | None, str]:
     """
     Return nice artist and title names in a tuple (artist, title)
 
@@ -91,7 +92,7 @@ def get_song_metadata(local_filepath: str, filename: str) -> tuple[str | None, s
 
 
 def get_song_metadata_with_fallback(
-    local_filepath: str, filename: str, artist_fallback: str
+    local_filepath: Path, filename: str, artist_fallback: str
 ) -> tuple[str, str]:
     """Get song metadata with a fallback artist name.
 
@@ -110,7 +111,7 @@ def get_song_metadata_with_fallback(
 
 
 def song_format(
-    local_filepath: str, filename: str, artist_fallback: str | None = None
+    local_filepath: Path, filename: str, artist_fallback: str | None = None
 ) -> str:
     """
     Format a song as text nicely using artist/title tags if available
@@ -177,7 +178,7 @@ def format_time(seconds: int) -> str:
 
 
 # Get length of a song
-def get_song_length(filename: str) -> float | None:
+def get_song_length(filename: Path) -> float | None:
     try:
         audio = MutagenFile(filename)
         if audio is not None:
@@ -189,7 +190,7 @@ def get_song_length(filename: str) -> float | None:
     return None
 
 
-def get_cover_art(filename: str) -> File | None:
+def get_cover_art(filename: Path) -> File | None:
     # Get image data as bytes
     try:
         image_data = None

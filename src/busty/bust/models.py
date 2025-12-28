@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from enum import Enum, auto
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from discord import Attachment, Member, Message, User
@@ -28,7 +29,7 @@ class Track:
 
     message: Message
     attachment: Attachment
-    filepath: str
+    filepath: Path
 
     @property
     def submitter(self) -> User | Member:

@@ -46,8 +46,7 @@ result-*
 *.sqlite
 
 # Busty specific
-attachments/
-.image_state
+data/
 auth/
 
 # Bot state, google service keys, llm context

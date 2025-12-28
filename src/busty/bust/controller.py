@@ -2,8 +2,10 @@
 
 import asyncio
 import logging
+import os
 import random
 import subprocess
+import tempfile
 import time
 from collections import defaultdict
 from collections.abc import AsyncIterator
@@ -332,7 +334,7 @@ class BustController:
         if self._playback is None or self._playback.seek_timestamp is None:
             # Normal playback
             return FFmpegPCMAudio(
-                track.filepath,
+                str(track.filepath),
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
@@ -349,15 +351,19 @@ class BustController:
         if self.channel.guild is None:
             # Fallback to normal playback
             return FFmpegPCMAudio(
-                track.filepath,
+                str(track.filepath),
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
-        temp_file = discord_utils.build_filepath_for_media(
-            self.settings.attachment_directory_filepath,
-            self.channel.guild.id,
-            "temp_audio.ogg",
+        # Create guild-specific temp directory
+        guild_temp_dir = self.settings.temp_dir / str(self.channel.guild.id)
+        guild_temp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create unique temp file
+        fd, temp_file_str = tempfile.mkstemp(
+            suffix=".ogg", dir=guild_temp_dir, prefix="seek_"
         )
+        os.close(fd)  # Close fd, we just need the path
 
         # Convert to Opus starting at seek point
         ffmpeg_command = [
@@ -366,7 +372,7 @@ class BustController:
             "-loglevel",
             "error",
             "-i",
-            track.filepath,
+            str(track.filepath),
             "-ss",
             str(seek_to),
             "-c:a",
@@ -374,20 +380,27 @@ class BustController:
             "-b:a",
             "128k",
             "-y",
-            temp_file,
+            temp_file_str,
         ]
 
         try:
             subprocess.run(ffmpeg_command, check=True)
+            # Note: temp file will remain until manually cleaned or bot restarts
+            # Could add cleanup in finally block if needed
             return FFmpegOpusAudio(
-                temp_file,
+                temp_file_str,
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to seek audio: {e}")
+            # Clean up temp file on failure
+            try:
+                os.unlink(temp_file_str)
+            except OSError:
+                pass
             # Fallback to normal playback
             return FFmpegPCMAudio(
-                track.filepath,
+                str(track.filepath),
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
@@ -559,7 +572,7 @@ async def create_controller(
 
     # Scrape channel for media
     channel_media = await discord_utils.scrape_channel_media(
-        list_channel, settings.attachment_directory_filepath
+        list_channel, settings.attachment_cache_dir
     )
     if not channel_media:
         await interaction.edit_original_response(

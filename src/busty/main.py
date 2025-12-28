@@ -1,9 +1,7 @@
 import asyncio
 import logging
-import os
 import random
 import sys
-from pathlib import Path
 
 import colorlog
 import discord
@@ -29,6 +27,7 @@ from busty import (
 )
 from busty.config import constants
 from busty.config.settings import BustySettings
+from busty.config.validation import validate_and_setup_directories
 
 logger = logging.getLogger(__name__)
 
@@ -434,13 +433,13 @@ async def preview(
         return
 
     attachment_filepath = discord_utils.build_filepath_for_attachment(
-        client.settings.attachment_directory_filepath,
+        client.settings.attachment_cache_dir,
         interaction.guild_id,
         uploaded_file,
     )
 
     # Save attachment to disk for processing
-    await uploaded_file.save(fp=Path(attachment_filepath))
+    await uploaded_file.save(fp=attachment_filepath)
     random_emoji = random.choice(client.settings.emoji_list)
 
     embed = song_utils.embed_song(
@@ -464,7 +463,7 @@ async def preview(
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # Delete the attachment from disk after processing
-    os.remove(attachment_filepath)
+    attachment_filepath.unlink()
 
 
 @client.tree.command(name="announce")
@@ -526,7 +525,15 @@ def run_bot() -> None:
     """Entry point for the busty script."""
     logger.info("Starting Busty bot")
 
-    # Load the bot state.
+    # Validate directories
+    validation_errors = validate_and_setup_directories(client.settings)
+    if validation_errors:
+        for error in validation_errors:
+            logger.error(error)
+        logger.critical("Startup validation failed, exiting")
+        sys.exit(1)
+
+    # Load the bot state
     persistent_state.load_state_from_disk(client.settings.bot_state_file)
 
     # Connect to discord

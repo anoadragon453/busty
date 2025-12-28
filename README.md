@@ -110,14 +110,13 @@ Finally, add the bot to your desired Discord server.
 The complete list of environment variable configuration options is:
 
 1. `BUSTY_DISCORD_TOKEN` - Discord bot API token (required)
-1. `BUSTY_GOOGLE_FORM_FOLDER` - Google Drive folder ID for voting form (required for form generation)
-1. `BUSTY_GOOGLE_AUTH_FILE` - Path to Google OAuth token file (default = auth/oauth_token.json)
+1. `BUSTY_GOOGLE_FORM_FOLDER` - Google Drive folder ID for voting form (optional, enables form generation)
 1. `BUSTY_APPS_SCRIPT_URL` - Apps Script web app URL for automated sheet setup (optional)
 1. `BUSTY_COOLDOWN_SECS` - Number of seconds between songs (default = 10)
-1. `BUSTY_ATTACHMENT_DIR` - Directory to save attachments (default = attachments)
+1. `BUSTY_DATA_DIR` - Base directory for all bot data (default = data)
+1. `BUSTY_AUTH_DIR` - Directory for authentication files (default = auth)
 1. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
 1. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
-1. `BUSTY_BOT_STATE_FILE` - The location of the file to store persistent bot state in (default = bot_state.json)
 1. `BUSTY_OPENAI_API_KEY` - OpenAI API key for AI features (optional)
 1. `BUSTY_OPENAI_MODEL` - OpenAI model to use (default = gpt-3.5-turbo)
 1. `BUSTY_TESTING_GUILD_ID` - For developers only. Specify a testing guild id to avoid 1 hour command update delay (see [this Discord API issue](https://github.com/discord/discord-api-docs/issues/2372#issuecomment-761161082) for details) (default = None)

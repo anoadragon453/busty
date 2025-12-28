@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+from pathlib import Path
 from typing import Any, Iterable, cast
 
 from discord import Interaction
@@ -14,10 +15,10 @@ logger = logging.getLogger(__name__)
 _bot_state: dict[str, Any] = {}
 
 # Path to the bot state file. Set via load_state_from_disk().
-_bot_state_file: str | None = None
+_bot_state_file: Path | None = None
 
 
-def load_state_from_disk(state_file: str) -> None:
+def load_state_from_disk(state_file: Path) -> None:
     """Read the bot state from disk and store it in memory.
 
     Args:
