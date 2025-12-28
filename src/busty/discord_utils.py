@@ -2,7 +2,7 @@ import asyncio
 import os
 from os import path
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from discord import (
     Attachment,
@@ -60,7 +60,7 @@ def build_filepath_for_media(guild_id: int, media_filename: str) -> str:
     )
 
 
-def is_valid_media(attachment_content_type: Optional[str]) -> bool:
+def is_valid_media(attachment_content_type: str | None) -> bool:
     """Returns whether an attachment's content type is considered "media"."""
     return attachment_content_type is not None and (
         attachment_content_type.startswith("audio")
@@ -70,9 +70,9 @@ def is_valid_media(attachment_content_type: Optional[str]) -> bool:
 
 async def scrape_channel_media(
     channel: TextChannel,
-) -> List[Tuple[Message, Attachment, str]]:
+) -> list[tuple[Message, Attachment, str]]:
     # A list of (original message, message attachment, local filepath)
-    channel_media_attachments: List[Tuple[Message, Attachment, str]] = []
+    channel_media_attachments: list[tuple[Message, Attachment, str]] = []
 
     attachment_dir = path.join(
         config.attachment_directory_filepath, str(channel.guild.id)

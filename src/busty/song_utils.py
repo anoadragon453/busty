@@ -1,7 +1,7 @@
 import base64
 import os
 from io import BytesIO
-from typing import Optional, Tuple, Union, cast
+from typing import cast
 
 from discord import Attachment, Embed, File, Member, User
 from discord.utils import escape_markdown
@@ -20,7 +20,7 @@ def embed_song(
     message_content: str,
     attachment_filepath: str,
     attachment: Attachment,
-    user: Union[User, Member],
+    user: User | Member,
     emoji: str,
     jump_url: str,
 ) -> Embed:
@@ -48,7 +48,7 @@ def embed_song(
     return embed
 
 
-def get_song_metadata(local_filepath: str, filename: str) -> Tuple[Optional[str], str]:
+def get_song_metadata(local_filepath: str, filename: str) -> tuple[str | None, str]:
     """
     Return nice artist and title names in a tuple (artist, title)
 
@@ -95,7 +95,7 @@ def get_song_metadata(local_filepath: str, filename: str) -> Tuple[Optional[str]
 
 def get_song_metadata_with_fallback(
     local_filepath: str, filename: str, artist_fallback: str
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """Get song metadata with a fallback artist name.
 
     Args:
@@ -113,7 +113,7 @@ def get_song_metadata_with_fallback(
 
 
 def song_format(
-    local_filepath: str, filename: str, artist_fallback: Optional[str] = None
+    local_filepath: str, filename: str, artist_fallback: str | None = None
 ) -> str:
     """
     Format a song as text nicely using artist/title tags if available
@@ -180,7 +180,7 @@ def format_time(seconds: int) -> str:
 
 
 # Get length of a song
-def get_song_length(filename: str) -> Optional[float]:
+def get_song_length(filename: str) -> float | None:
     try:
         audio = MutagenFile(filename)
         if audio is not None:
@@ -192,7 +192,7 @@ def get_song_length(filename: str) -> Optional[float]:
     return None
 
 
-def get_cover_art(filename: str) -> Optional[File]:
+def get_cover_art(filename: str) -> File | None:
     # Get image data as bytes
     try:
         image_data = None
@@ -252,7 +252,7 @@ def get_cover_art(filename: str) -> Optional[File]:
     return File(image_bytes_fp, filename=cover_filename)
 
 
-def convert_timestamp_to_seconds(time_str: Optional[str]) -> Optional[int]:
+def convert_timestamp_to_seconds(time_str: str | None) -> int | None:
     # Converts a time string into seconds. Returns 0 if format is invalid.
     # Format is handled either in pure seconds (93, 180) or hh:mm:ss format (1:23:45).
     if time_str is None:

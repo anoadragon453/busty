@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 import googleapiclient.discovery
 from googleapiclient.discovery import Resource
@@ -7,7 +7,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from busty import config
 
 
-def get_google_services() -> Tuple[Optional[Resource], Optional[Resource]]:
+def get_google_services() -> tuple[Resource | None, Resource | None]:
     SCOPES = "https://www.googleapis.com/auth/drive"
 
     try:
@@ -31,13 +31,13 @@ def get_google_services() -> Tuple[Optional[Resource], Optional[Resource]]:
 
 def create_remote_form(
     title: str,
-    items: List[str],
+    items: list[str],
     low_val: int,
     high_val: int,
     low_label: str,
     high_label: str,
-    image_url: Optional[str] = None,
-) -> Optional[str]:
+    image_url: str | None = None,
+) -> str | None:
     form_info = {
         "info": {
             "title": title,

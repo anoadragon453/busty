@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Any, Dict, Iterable, Optional, cast
+from typing import Any, Iterable, cast
 
 from discord import Interaction
 
@@ -8,7 +8,7 @@ from busty.config import JSON_DATA_TYPE, bot_state_file
 
 # Global, persistent state of the bot. Not to be accessed directly. Instead, use the
 # getter and setter methods below.
-_bot_state: Dict[str, Any] = {}
+_bot_state: dict[str, Any] = {}
 
 
 def load_state_from_disk() -> None:
@@ -206,7 +206,7 @@ async def save_form_image_url(interaction: Interaction, image_url: str) -> bool:
     return True
 
 
-def get_form_image_url(interaction: Interaction) -> Optional[str]:
+def get_form_image_url(interaction: Interaction) -> str | None:
     """
     Retrieve a saved google form image url given an interaction in a guild.
 

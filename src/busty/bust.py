@@ -5,7 +5,7 @@ import subprocess
 import time
 from collections import defaultdict
 from io import BytesIO
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
 import requests
 from discord import (
@@ -35,26 +35,26 @@ class BustController:
     def __init__(
         self,
         client: Client,
-        bust_content: List[Tuple[Message, Attachment, str]],
+        bust_content: list[tuple[Message, Attachment, str]],
         message_channel: TextChannel,
     ):
         # The actively connected voice client
-        self.voice_client: Optional[VoiceClient] = None
+        self.voice_client: VoiceClient | None = None
         # Currently pinned "now playing" message ID
-        self.now_playing_msg: Optional[Message] = None
+        self.now_playing_msg: Message | None = None
         # Keep track of the coroutine used to play the next track, which is active while
         # waiting in the intermission between songs. This task should be interrupted if
         # stopping playback is requested.
-        self.play_song_task: Optional[asyncio.Task[None]] = None
+        self.play_song_task: asyncio.Task[None] | None = None
 
         # The nickname of the bot. We need to store it as it will be
         # changed while songs are being played.
-        self.original_bot_nickname: Optional[str] = None
+        self.original_bot_nickname: str | None = None
 
         # The channel to send messages in
         self.message_channel: TextChannel = message_channel
         # The media in the current channel
-        self.bust_content: List[Tuple[Message, Attachment, str]] = bust_content
+        self.bust_content: list[tuple[Message, Attachment, str]] = bust_content
         # Whether bust has been manually stopped
         self.bust_stopped: bool = False
         # Client object
@@ -70,15 +70,15 @@ class BustController:
                 self.total_song_len += song_len
 
         # None if no song is playing, otherwise formatted str "artist - title"
-        self.now_playing_str: Optional[str] = None
+        self.now_playing_str: str | None = None
 
         self._finished: bool = False
-        self.playing_index: Optional[int] = None
+        self.playing_index: int | None = None
 
         # Temp audio file to truncate seeks to
         self.temp_audio_file: str = ""
 
-        self._seek_to_seconds: Optional[int] = None
+        self._seek_to_seconds: int | None = None
 
     def is_active(self) -> bool:
         return bool(self.voice_client and self.voice_client.is_connected())
@@ -86,7 +86,7 @@ class BustController:
     def is_seeking(self) -> bool:
         return self.seeking
 
-    def current_song(self) -> Optional[str]:
+    def current_song(self) -> str | None:
         return self.now_playing_str
 
     def finished(self) -> bool:
@@ -180,7 +180,7 @@ class BustController:
             )
             return
 
-        voice_channels: List[Union[VoiceChannel, StageChannel]] = list(
+        voice_channels: list[VoiceChannel | StageChannel] = list(
             interaction.guild.voice_channels
         )
         voice_channels.extend(interaction.guild.stage_channels)
@@ -368,7 +368,7 @@ class BustController:
         await play_lock.acquire()
 
         # Called when song finishes playing
-        def ffmpeg_post_hook(e: Optional[Exception] = None) -> None:
+        def ffmpeg_post_hook(e: Exception | None = None) -> None:
             if e is not None:
                 print("Song playback quit with error:", e)
             # Release the lock to allow play_song to continue
@@ -376,7 +376,7 @@ class BustController:
             # The async cleanup will be handled in the main play_song method
             play_lock.release()
 
-        audio_to_play: Optional[AudioSource] = None
+        audio_to_play: AudioSource | None = None
         if self._seek_to_seconds is not None:
             audio_to_play = FFmpegOpusAudio(
                 self.temp_audio_file,
@@ -425,7 +425,7 @@ class BustController:
 
         self.now_playing_str = None
 
-    def get_google_form_url(self, image_url: Optional[str] = None) -> Optional[str]:
+    def get_google_form_url(self, image_url: str | None = None) -> str | None:
         """Create a Google form for voting on this bust
 
         Args:
@@ -473,8 +473,8 @@ class BustController:
         bust_len = songs_len + config.seconds_between_songs * num_songs
 
         # Compute map of submitter --> total length of all submissions
-        submitter_to_len: Dict[int, float] = defaultdict(lambda: 0.0)
-        submitter_map: Dict[int, Union[User, Member]] = {}
+        submitter_to_len: dict[int, float] = defaultdict(lambda: 0.0)
+        submitter_map: dict[int, User | Member] = {}
 
         errors = False
         for submit_message, attachment, local_filepath in self.bust_content:
@@ -525,7 +525,7 @@ async def create_controller(
     client: Client,
     interaction: Interaction,
     list_channel: TextChannel,
-) -> Optional[BustController]:
+) -> BustController | None:
     """Attempt to create a BustController listing a given channel.
 
     Args:
@@ -554,7 +554,7 @@ async def create_controller(
     embed_description_prefix = "**Track Listing**\n"
 
     # List of embed descriptions to circumvent the Discord character embed limit
-    embed_description_list: List[str] = []
+    embed_description_list: list[str] = []
     embed_description_current = ""
 
     for index, (
@@ -637,4 +637,4 @@ async def create_controller(
     return bc
 
 
-controllers: Dict[int, BustController] = {}
+controllers: dict[int, BustController] = {}
