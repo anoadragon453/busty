@@ -22,7 +22,6 @@ from discord.ext.commands import has_role
 
 
 def setup_logging(log_level: int) -> None:
-    # Create colorized formatter with distinct colors
     formatter = colorlog.ColoredFormatter(
         "%(cyan)s%(asctime)s%(reset)s %(log_color)s%(levelname)-8s%(reset)s %(light_purple)s%(name)s:%(reset)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -74,7 +73,6 @@ client = commands.Bot(intents=intents, command_prefix="!")
 async def on_ready() -> None:
     logger.info(f"We have logged in as {client.user}")
 
-    # Initialize LLM features if API key is configured
     if config.openai_api_key:
         logger.info("OpenAI API key detected, initializing LLM features")
         llm.initialize(client)
