@@ -72,7 +72,9 @@ class BustySettings:
             ),
             openai_api_key=os.environ.get("BUSTY_OPENAI_API_KEY", None),
             openai_model=openai_model,
-            openai_tokenizer_model=os.environ.get("BUSTY_OPENAI_TOKENIZER", openai_model),
+            openai_tokenizer_model=os.environ.get(
+                "BUSTY_OPENAI_TOKENIZER", openai_model
+            ),
             seconds_between_songs=int(os.environ.get("BUSTY_COOLDOWN_SECS", "10")),
             num_longest_submitters=int(
                 os.environ.get("BUSTY_NUM_LONGEST_SUBMITTERS", "3")
