@@ -1,16 +1,16 @@
 import googleapiclient.discovery
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource
-from oauth2client.service_account import ServiceAccountCredentials
 
 from busty import config
 
 
 def get_google_services() -> tuple[Resource | None, Resource | None]:
-    SCOPES = "https://www.googleapis.com/auth/drive"
+    SCOPES = ["https://www.googleapis.com/auth/drive"]
 
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name(
-            config.google_auth_file, SCOPES
+        creds = Credentials.from_service_account_file(
+            config.google_auth_file, scopes=SCOPES
         )
     except Exception as e:
         if isinstance(e, FileNotFoundError):
