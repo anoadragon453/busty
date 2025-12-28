@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 import openai
 import tiktoken
@@ -11,15 +11,15 @@ from discord import Client, ClientUser, Member, Message, User
 from busty import bust, config
 
 # Global variables
-gpt_lock: Optional[asyncio.Lock] = None
-context_data: Optional[Dict] = None
-encoding: Optional[tiktoken.Encoding] = None
-self_user: Optional[Union[User, Member, ClientUser]] = None
-banned_word_pattern: Optional[re.Pattern] = None
-word_trigger_pattern: Optional[re.Pattern] = None
-user_trigger_pattern: Optional[re.Pattern] = None
-user_info_map: Optional[Dict[str, str]] = None
-openai_async_client: Optional[openai.AsyncOpenAI] = None
+gpt_lock: asyncio.Lock | None = None
+context_data: dict | None = None
+encoding: tiktoken.Encoding | None = None
+self_user: User | Member | ClientUser | None = None
+banned_word_pattern: re.Pattern | None = None
+word_trigger_pattern: re.Pattern | None = None
+user_trigger_pattern: re.Pattern | None = None
+user_info_map: dict[str, str] | None = None
+openai_async_client: openai.AsyncOpenAI | None = None
 
 
 # Initialize globals
@@ -98,7 +98,7 @@ def disallowed_message(message: Message) -> bool:
 
 
 # Get the name we should call the user
-def get_name(user: Union[User, Member, ClientUser]) -> str:
+def get_name(user: User | Member | ClientUser) -> str:
     if context_data is None:
         return cast(str, user.name)
     user_info = context_data["user_info"]
@@ -109,7 +109,7 @@ def get_name(user: Union[User, Member, ClientUser]) -> str:
 
 
 # Get context about the server
-async def get_server_context(message: Message) -> List[str]:
+async def get_server_context(message: Message) -> list[str]:
     result = []
 
     # Detect if song is currently playing
@@ -182,7 +182,7 @@ def substitute_mentions(message: Message) -> str:
 # Fetch message content from history up to a certain token allowance
 async def fetch_history(
     token_limit: int, speaking_turn_limit: int, message: Message
-) -> List[Tuple[str, bool]]:
+) -> list[tuple[str, bool]]:
     total_tokens = 0
     # A list of (str, bool) tuples containing:
     #     - "{message author}: {message content}"
@@ -232,22 +232,22 @@ async def fetch_history(
 
 
 # Build context around a message
-async def get_message_context(message: Message) -> List[str]:
+async def get_message_context(message: Message) -> list[str]:
     if context_data is None:
         return []
     # build contexts
     static_context = context_data["static_context"]
     author_context = await get_server_context(message)
-    return cast(List[str], static_context + author_context)
+    return cast(list[str], static_context + author_context)
 
 
 # Query the OpenAI API and return response
-async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
+async def query_api(data: list[dict[str, str]]) -> str | None:
     if openai_async_client is None:
         return None
     try:
         # Convert the data to the proper format for OpenAI API
-        messages: List[Any] = []
+        messages: list[Any] = []
         for item in data:
             messages.append({"role": item["role"], "content": item["content"]})
 
@@ -263,7 +263,7 @@ async def query_api(data: List[Dict[str, str]]) -> Optional[str]:
         return None
 
 
-def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
+def get_history_context(history: list[tuple[str, bool]]) -> list[str]:
     if (
         context_data is None
         or word_trigger_pattern is None
@@ -286,7 +286,7 @@ def get_history_context(history: List[Tuple[str, bool]]) -> List[str]:
 
 
 # Make an api query
-async def get_response_text(message: Message) -> Optional[str]:
+async def get_response_text(message: Message) -> str | None:
     if context_data is None or self_user is None:
         return None
     context = await get_message_context(message)
@@ -360,8 +360,8 @@ async def respond(message: Message) -> None:
 
 
 async def generate_album_art(
-    artist: str, title: str, description: Optional[str]
-) -> Optional[str]:
+    artist: str, title: str, description: str | None
+) -> str | None:
     """Generate album art given song metadata"""
     prompt = [
         "Generate bizarre photorealistic album art for the following song.",
@@ -376,7 +376,7 @@ async def generate_album_art(
 
 
 # Generate any image with DALL-E 3 given a text prompt
-async def generate_image(prompt: str) -> Optional[str]:
+async def generate_image(prompt: str) -> str | None:
     """Generate any image with DALL-E 3 given a text prompt"""
     if openai_async_client is None:
         return None
