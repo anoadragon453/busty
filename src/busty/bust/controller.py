@@ -32,9 +32,10 @@ from discord import (
 from discord.voice_client import AudioSource
 
 from busty import discord_utils, forms, llm, song_utils
-from busty.bust.models import BustPhase, PlaybackState, Track
+from busty.bust.models import BustPhase, PlaybackState
 from busty.config import constants
 from busty.config.settings import BustySettings
+from busty.track import Track
 
 if TYPE_CHECKING:
     from busty.main import BustyBot
@@ -254,15 +255,15 @@ class BustController:
         start_time = time.time()
 
         # Get or generate cover art
-        cover_art = song_utils.get_cover_art(track.filepath)
+        cover_art = song_utils.get_cover_art(track.local_filepath)
         if cover_art is None and self.settings.openai_api_key:
             artist, title = song_utils.get_song_metadata_with_fallback(
-                track.filepath, track.attachment.filename, track.submitter.display_name
+                track.local_filepath, track.attachment_filename, track.submitter_name
             )
             try:
                 cover_art_url = await asyncio.wait_for(
                     llm.generate_album_art(
-                        artist or "Unknown Artist", title, track.message.content or ""
+                        artist or "Unknown Artist", title, track.message_content or ""
                     ),
                     timeout=20.0,
                 )
@@ -280,14 +281,7 @@ class BustController:
 
         # Build "Now Playing" embed
         random_emoji = random.choice(self.settings.emoji_list)
-        embed = song_utils.embed_song(
-            track.message.content,
-            track.filepath,
-            track.attachment,
-            track.submitter,
-            random_emoji,
-            track.message.jump_url,
-        )
+        embed = song_utils.embed_song(track, random_emoji)
 
         # Send embed with cover art
         if cover_art:
@@ -337,7 +331,7 @@ class BustController:
         if self._playback is None or self._playback.seek_timestamp is None:
             # Normal playback
             return FFmpegPCMAudio(
-                str(track.filepath),
+                str(track.local_filepath),
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
@@ -354,7 +348,7 @@ class BustController:
         if self.channel.guild is None:
             # Fallback to normal playback
             return FFmpegPCMAudio(
-                str(track.filepath),
+                str(track.local_filepath),
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
@@ -375,7 +369,7 @@ class BustController:
             "-loglevel",
             "error",
             "-i",
-            str(track.filepath),
+            str(track.local_filepath),
             "-ss",
             str(seek_to),
             "-c:a",
@@ -403,7 +397,7 @@ class BustController:
                 pass
             # Fallback to normal playback
             return FFmpegPCMAudio(
-                str(track.filepath),
+                str(track.local_filepath),
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
@@ -468,7 +462,7 @@ class BustController:
             return None
 
         song_list = [
-            f"{track.submitter.display_name}: {song_utils.song_format(track.filepath, track.attachment.filename)}"
+            f"{track.submitter_name}: {song_utils.song_format(track.local_filepath, track.attachment_filename)}"
             for track in self.tracks
         ]
 
@@ -506,7 +500,6 @@ class BustController:
 
         # Compute submitter statistics
         submitter_durations: dict[int, float] = defaultdict(lambda: 0.0)
-        submitter_map: dict[int, User | Member] = {}
 
         errors = False
         for track in self.tracks:
@@ -514,8 +507,7 @@ class BustController:
             if duration is None:
                 errors = True
                 duration = 0.0
-            submitter_durations[track.submitter.id] += duration
-            submitter_map[track.submitter.id] = track.submitter
+            submitter_durations[track.submitter_id] += duration
 
         # Sort submitters by total duration
         sorted_submitters = sorted(
@@ -524,7 +516,7 @@ class BustController:
         )
 
         longest_submitters = [
-            f"{i + 1}. {submitter_map[user_id].mention} - {song_utils.format_time(int(duration))}"
+            f"{i + 1}. <@{user_id}> - {song_utils.format_time(int(duration))}"
             for i, (duration, user_id) in enumerate(
                 sorted_submitters[: self.settings.num_longest_submitters]
             )
@@ -590,7 +582,19 @@ async def create_controller(
         return None
 
     # Convert to Track objects
-    tracks = [Track(msg, att, path) for msg, att, path in channel_media]
+    tracks = [
+        Track(
+            local_filepath=path,
+            attachment_filename=att.filename,
+            submitter_id=msg.author.id,
+            submitter_name=msg.author.display_name,
+            message_content=msg.content,
+            message_jump_url=msg.jump_url,
+            attachment_url=att.url,
+            duration=song_utils.get_song_length(path),
+        )
+        for msg, att, path in channel_media
+    ]
 
     # Create controller
     controller = BustController(client, settings, tracks, interaction.channel)
@@ -606,9 +610,9 @@ async def create_controller(
 
     for index, track in enumerate(tracks):
         entry = (
-            f"**{index + 1}.** {track.submitter.mention}: "
-            f"[{song_utils.song_format(track.filepath, track.attachment.filename)}]"
-            f"({track.attachment.url}) [`↲jump`]({track.message.jump_url})\n"
+            f"**{index + 1}.** <@{track.submitter_id}>: "
+            f"[{song_utils.song_format(track.local_filepath, track.attachment_filename)}]"
+            f"({track.attachment_url}) [`↲jump`]({track.message_jump_url})\n"
         )
 
         # Check if adding entry would exceed limit
