@@ -61,7 +61,9 @@ class BustyBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.settings = settings
         self.bust_registry = bust.BustRegistry()
-        self.persistent_state = persistent_state.PersistentState(settings.bot_state_file)
+        self.persistent_state = persistent_state.PersistentState(
+            settings.bot_state_file
+        )
 
 
 # This is necessary to query guild members
@@ -335,7 +337,9 @@ class ImageGroup(app_commands.Group):
         # TODO: Some basic validity filtering
         # Persist the image URL
         bot = cast(BustyBot, interaction.client)
-        if not await bot.persistent_state.save_form_image_url(interaction, image_file.url):
+        if not await bot.persistent_state.save_form_image_url(
+            interaction, image_file.url
+        ):
             return
 
         # No period so image preview shows

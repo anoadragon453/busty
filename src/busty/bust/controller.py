@@ -646,7 +646,9 @@ async def create_controller(
 
         # Generate Google Form
         try:
-            image_url = controller.client.persistent_state.get_form_image_url(interaction)
+            image_url = controller.client.persistent_state.get_form_image_url(
+                interaction
+            )
             form_url = controller.get_google_form_url(image_url)
 
             if form_url:

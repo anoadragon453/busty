@@ -185,7 +185,9 @@ class PersistentState:
 
         return True
 
-    async def save_form_image_url(self, interaction: Interaction, image_url: str) -> bool:
+    async def save_form_image_url(
+        self, interaction: Interaction, image_url: str
+    ) -> bool:
         """
         Safely save a Google form image url to disk.
 
@@ -199,7 +201,9 @@ class PersistentState:
             True if the image url saved correctly, False if not.
         """
         try:
-            self.set_state(["guilds", str(interaction.guild_id), "form_image_url"], image_url)
+            self.set_state(
+                ["guilds", str(interaction.guild_id), "form_image_url"], image_url
+            )
         except Exception as e:
             logger.error(f"Unable to set form image: {e}")
 
@@ -236,4 +240,6 @@ class PersistentState:
         Returns:
             True if there was an image to delete, False if not.
         """
-        return self.delete_state(["guilds", str(interaction.guild_id), "form_image_url"])
+        return self.delete_state(
+            ["guilds", str(interaction.guild_id), "form_image_url"]
+        )
