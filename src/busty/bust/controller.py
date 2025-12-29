@@ -11,11 +11,11 @@ from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 import requests
 from discord import (
     ChannelType,
-    Client,
     ClientException,
     Embed,
     FFmpegOpusAudio,
@@ -31,10 +31,13 @@ from discord import (
 )
 from discord.voice_client import AudioSource
 
-from busty import discord_utils, forms, llm, persistent_state, song_utils
+from busty import discord_utils, forms, llm, song_utils
 from busty.bust.models import BustPhase, PlaybackState, Track
 from busty.config import constants
 from busty.config.settings import BustySettings
+
+if TYPE_CHECKING:
+    from busty.main import BustyBot
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,7 @@ class BustController:
 
     def __init__(
         self,
-        client: Client,
+        client: "BustyBot",
         settings: BustySettings,
         tracks: list[Track],
         message_channel: TextChannel,
@@ -552,7 +555,7 @@ class BustController:
 
 
 async def create_controller(
-    client: Client,
+    client: "BustyBot",
     settings: BustySettings,
     interaction: Interaction,
     list_channel: TextChannel,
@@ -560,7 +563,7 @@ async def create_controller(
     """Create a BustController by scraping and listing a channel.
 
     Args:
-        client: Discord client.
+        client: Discord bot client.
         settings: Bot settings.
         interaction: An interaction which has not yet been responded to.
         list_channel: Channel to scrape for media.
@@ -643,7 +646,9 @@ async def create_controller(
 
         # Generate Google Form
         try:
-            image_url = persistent_state.get_form_image_url(interaction)
+            image_url = controller.client.persistent_state.get_form_image_url(
+                interaction
+            )
             form_url = controller.get_google_form_url(image_url)
 
             if form_url:

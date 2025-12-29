@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import sys
+from typing import cast
 
 import colorlog
 import discord
@@ -60,6 +61,9 @@ class BustyBot(commands.Bot):
         super().__init__(*args, **kwargs)
         self.settings = settings
         self.bust_registry = bust.BustRegistry()
+        self.persistent_state = persistent_state.PersistentState(
+            settings.bot_state_file
+        )
 
 
 # This is necessary to query guild members
@@ -332,7 +336,10 @@ class ImageGroup(app_commands.Group):
     ) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
-        if not await persistent_state.save_form_image_url(interaction, image_file.url):
+        bot = cast(BustyBot, interaction.client)
+        if not await bot.persistent_state.save_form_image_url(
+            interaction, image_file.url
+        ):
             return
 
         # No period so image preview shows
@@ -346,7 +353,8 @@ class ImageGroup(app_commands.Group):
     async def url(self, interaction: discord.Interaction, image_url: str) -> None:
         # TODO: Some basic validity filtering
         # Persist the image URL
-        if not await persistent_state.save_form_image_url(interaction, image_url):
+        bot = cast(BustyBot, interaction.client)
+        if not await bot.persistent_state.save_form_image_url(interaction, image_url):
             return
 
         # No period so image preview shows
@@ -358,7 +366,8 @@ class ImageGroup(app_commands.Group):
         name="clear", description="Clear the loaded Google Forms image."
     )
     async def clear(self, interaction: discord.Interaction) -> None:
-        image_existed = persistent_state.clear_form_image_url(interaction)
+        bot = cast(BustyBot, interaction.client)
+        image_existed = bot.persistent_state.clear_form_image_url(interaction)
         if not image_existed:
             await interaction.response.send_message(
                 "No image is loaded.", ephemeral=True
@@ -371,7 +380,8 @@ class ImageGroup(app_commands.Group):
         name="view", description="View the loaded Google Forms image."
     )
     async def view(self, interaction: discord.Interaction) -> None:
-        loaded_image_url = persistent_state.get_form_image_url(interaction)
+        bot = cast(BustyBot, interaction.client)
+        loaded_image_url = bot.persistent_state.get_form_image_url(interaction)
         if loaded_image_url is None:
             await interaction.response.send_message(
                 "No image is currently loaded.", ephemeral=True
@@ -532,9 +542,6 @@ def run_bot() -> None:
             logger.error(error)
         logger.critical("Startup validation failed, exiting")
         sys.exit(1)
-
-    # Load the bot state
-    persistent_state.load_state_from_disk(client.settings.bot_state_file)
 
     # Connect to discord
     if client.settings.discord_token:
