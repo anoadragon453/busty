@@ -1,5 +1,6 @@
 """Registry for managing BustController instances per guild."""
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from busty.bust.models import BustPhase
@@ -13,6 +14,7 @@ class BustRegistry:
 
     def __init__(self) -> None:
         self._controllers: dict[int, "BustController"] = {}
+        self._list_locks: dict[int, asyncio.Lock] = {}
 
     def get(self, guild_id: int) -> "BustController | None":
         """Get controller for guild, auto-removing finished ones.
@@ -48,3 +50,16 @@ class BustRegistry:
             guild_id: Discord guild ID.
         """
         self._controllers.pop(guild_id, None)
+
+    def get_list_lock(self, guild_id: int) -> asyncio.Lock:
+        """Get or create per-guild list lock.
+
+        Args:
+            guild_id: Discord guild ID.
+
+        Returns:
+            Lock for this guild's list operations.
+        """
+        if guild_id not in self._list_locks:
+            self._list_locks[guild_id] = asyncio.Lock()
+        return self._list_locks[guild_id]

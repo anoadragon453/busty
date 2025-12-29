@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import random
 import sys
@@ -137,9 +136,6 @@ async def on_message(message: Message) -> None:
         await llm.respond(message)
 
 
-list_task_control_lock = asyncio.Lock()
-
-
 # List command
 @client.tree.command(name="list")
 @has_dj_role()
@@ -157,7 +153,9 @@ async def on_list(
     if bc and bc.is_playing:
         await interaction.response.send_message("We're busy busting.", ephemeral=True)
         return
-    if list_task_control_lock.locked():
+
+    list_lock = client.bust_registry.get_list_lock(interaction.guild_id)
+    if list_lock.locked():
         await interaction.response.send_message(
             "A list is already in progress.", ephemeral=True
         )
@@ -173,7 +171,7 @@ async def on_list(
     logger.info(
         f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}"
     )
-    async with list_task_control_lock:
+    async with list_lock:
         bc = await bust.create_controller(
             client, client.settings, interaction, list_channel
         )
