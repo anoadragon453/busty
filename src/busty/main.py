@@ -374,11 +374,23 @@ class ImageGroup(app_commands.Group):
         self, interaction: discord.Interaction, image_file: discord.Attachment
     ) -> None:
         # TODO: Some basic validity filtering
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command must be used in a server.", ephemeral=True
+            )
+            return
+
         # Persist the image URL
         bot = cast(BustyBot, interaction.client)
-        if not await bot.persistent_state.save_form_image_url(
-            interaction, image_file.url
-        ):
+        try:
+            bot.persistent_state.save_form_image_url(
+                interaction.guild_id, image_file.url
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                f"Failed to upload image: ({e}).",
+                ephemeral=True,
+            )
             return
 
         # No period so image preview shows
@@ -391,9 +403,21 @@ class ImageGroup(app_commands.Group):
     )
     async def url(self, interaction: discord.Interaction, image_url: str) -> None:
         # TODO: Some basic validity filtering
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command must be used in a server.", ephemeral=True
+            )
+            return
+
         # Persist the image URL
         bot = cast(BustyBot, interaction.client)
-        if not await bot.persistent_state.save_form_image_url(interaction, image_url):
+        try:
+            bot.persistent_state.save_form_image_url(interaction.guild_id, image_url)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"Failed to save image URL: {e}",
+                ephemeral=True,
+            )
             return
 
         # No period so image preview shows
@@ -405,8 +429,14 @@ class ImageGroup(app_commands.Group):
         name="clear", description="Clear the loaded Google Forms image."
     )
     async def clear(self, interaction: discord.Interaction) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command must be used in a server.", ephemeral=True
+            )
+            return
+
         bot = cast(BustyBot, interaction.client)
-        image_existed = bot.persistent_state.clear_form_image_url(interaction)
+        image_existed = bot.persistent_state.clear_form_image_url(interaction.guild_id)
         if not image_existed:
             await interaction.response.send_message(
                 "No image is loaded.", ephemeral=True
@@ -419,8 +449,14 @@ class ImageGroup(app_commands.Group):
         name="view", description="View the loaded Google Forms image."
     )
     async def view(self, interaction: discord.Interaction) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command must be used in a server.", ephemeral=True
+            )
+            return
+
         bot = cast(BustyBot, interaction.client)
-        loaded_image_url = bot.persistent_state.get_form_image_url(interaction)
+        loaded_image_url = bot.persistent_state.get_form_image_url(interaction.guild_id)
         if loaded_image_url is None:
             await interaction.response.send_message(
                 "No image is currently loaded.", ephemeral=True
