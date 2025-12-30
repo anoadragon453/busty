@@ -1,10 +1,28 @@
 """Discord implementations of BustController protocols."""
 
+import asyncio
+import logging
+import os
 import random
+import subprocess
+import tempfile
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from discord import Embed, File, Message, TextChannel
+from discord import (
+    ChannelType,
+    Embed,
+    FFmpegOpusAudio,
+    FFmpegPCMAudio,
+    File,
+    Message,
+    StageChannel,
+    TextChannel,
+    VoiceChannel,
+    VoiceClient,
+)
+from discord.voice_client import AudioSource
 
 from busty import discord_utils, song_utils
 from busty.config import constants
@@ -13,6 +31,8 @@ from busty.track import Track
 
 if TYPE_CHECKING:
     from busty.main import BustyBot
+
+logger = logging.getLogger(__name__)
 
 
 class DiscordBustOutput:
@@ -110,3 +130,114 @@ class DiscordBustOutput:
             nickname = nickname[: constants.NICKNAME_CHAR_LIMIT - 1] + "…"
 
         await bot_member.edit(nick=nickname)
+
+
+class DiscordAudioPlayer:
+    """Discord implementation of AudioPlayer protocol.
+
+    Handles voice connection lifecycle and FFmpeg audio processing.
+    connect() and disconnect() are implementation details, not part of
+    the AudioPlayer protocol - the controller never sees them.
+    """
+
+    def __init__(self, guild_id: int, settings: BustySettings):
+        self._guild_id = guild_id
+        self._settings = settings
+        self._voice_client: VoiceClient | None = None
+        self._play_done: asyncio.Event = asyncio.Event()
+
+    async def connect(self, voice_channel: VoiceChannel | StageChannel) -> None:
+        """Connect to voice channel. Called by command layer, not controller."""
+        self._voice_client = await voice_channel.connect()
+
+        # If stage channel, ensure bot is speaking
+        if voice_channel.type == ChannelType.stage_voice:
+            if voice_channel.guild:
+                bot_member = voice_channel.guild.me
+                if bot_member:
+                    await bot_member.edit(suppress=False)
+
+    async def disconnect(self) -> None:
+        """Disconnect from voice. Called by command layer, not controller."""
+        if self._voice_client and self._voice_client.is_connected():
+            await self._voice_client.disconnect()
+
+    async def play(self, filepath: Path, seek_seconds: int | None = None) -> None:
+        """Play audio file. Awaits until complete or stop() called."""
+        if self._voice_client is None:
+            raise RuntimeError("AudioPlayer not connected")
+
+        audio_source = self._prepare_audio(filepath, seek_seconds)
+
+        self._play_done.clear()
+
+        def on_complete(error: Exception | None) -> None:
+            if error:
+                logger.error(f"Playback error: {error}")
+            self._play_done.set()
+
+        self._voice_client.play(audio_source, after=on_complete)
+        await self._play_done.wait()
+
+    def stop(self) -> None:
+        """Stop current playback (causes play() to return)."""
+        if self._voice_client and self._voice_client.is_playing():
+            self._voice_client.stop()  # Triggers on_complete callback
+
+    def _prepare_audio(self, filepath: Path, seek_seconds: int | None) -> AudioSource:
+        """Prepare audio source, handling seek if needed."""
+        # Normal playback
+        if seek_seconds is None:
+            return FFmpegPCMAudio(
+                str(filepath),
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
+            )
+
+        # Seek playback - convert to Opus at timestamp
+        # Create guild-specific temp directory
+        guild_temp_dir = self._settings.temp_dir / str(self._guild_id)
+        guild_temp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create unique temp file
+        fd, temp_file_str = tempfile.mkstemp(
+            suffix=".ogg", dir=guild_temp_dir, prefix="seek_"
+        )
+        os.close(fd)  # Close fd, we just need the path
+
+        # Convert to Opus starting at seek point
+        ffmpeg_command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(filepath),
+            "-ss",
+            str(seek_seconds),
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-y",
+            temp_file_str,
+        ]
+
+        try:
+            subprocess.run(ffmpeg_command, check=True)
+            # Note: temp file will remain until manually cleaned or bot restarts
+            return FFmpegOpusAudio(
+                temp_file_str,
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to seek audio: {e}")
+            # Clean up temp file on failure
+            try:
+                os.unlink(temp_file_str)
+            except OSError:
+                pass
+            # Fallback to normal playback
+            return FFmpegPCMAudio(
+                str(filepath),
+                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
+            )

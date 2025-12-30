@@ -1,5 +1,6 @@
 """Protocol definitions for dependency injection in BustController."""
 
+from pathlib import Path
 from typing import Protocol
 
 from busty.track import Track
@@ -62,5 +63,33 @@ class BustOutput(Protocol):
 
         Args:
             nickname: The nickname to set, or None to clear it.
+        """
+        ...
+
+
+class AudioPlayer(Protocol):
+    """Protocol for audio playback.
+
+    The controller interacts with this protocol without knowing about
+    Discord voice connections. Implementations handle connection lifecycle
+    separately (connect/disconnect are not part of the protocol).
+    """
+
+    async def play(self, filepath: Path, seek_seconds: int | None = None) -> None:
+        """Play an audio file, awaiting until playback completes.
+
+        Args:
+            filepath: Path to the audio file to play.
+            seek_seconds: Optional timestamp to start playback from.
+
+        Returns when playback finishes naturally or stop() is called.
+        """
+        ...
+
+    def stop(self) -> None:
+        """Stop current playback immediately.
+
+        Calling this causes any pending play() call to return.
+        Safe to call when nothing is playing.
         """
         ...

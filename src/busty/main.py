@@ -7,12 +7,15 @@ import colorlog
 import discord
 from discord import (
     Attachment,
+    ClientException,
     Embed,
     Intents,
     Interaction,
     Member,
     Message,
+    StageChannel,
     TextChannel,
+    VoiceChannel,
     app_commands,
 )
 from discord.app_commands import AppCommandError
@@ -25,6 +28,7 @@ from busty import (
     persistent_state,
     song_utils,
 )
+from busty.bust.discord_impl import DiscordAudioPlayer
 from busty.config import constants
 from busty.config.settings import BustySettings
 from busty.config.validation import validate_and_setup_directories
@@ -184,33 +188,72 @@ async def on_list(
 @has_dj_role()
 async def on_bust(interaction: Interaction, index: int = 1) -> None:
     """Begin a bust."""
-    if interaction.guild_id is None:
-        await interaction.response.send_message(
+    await interaction.response.defer(ephemeral=True)
+
+    # Validate context
+    if not isinstance(interaction.channel, TextChannel):
+        await interaction.followup.send(
+            "This command can only be used in a text channel.", ephemeral=True
+        )
+        return
+    if interaction.guild is None:
+        await interaction.followup.send(
             "This command can only be used in a server.", ephemeral=True
         )
         return
 
-    bc = client.bust_registry.get(interaction.guild_id)
+    # Get controller
+    bc = client.bust_registry.get(interaction.guild.id)
     if bc is None:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "You need to use `/list` first.", ephemeral=True
         )
         return
     elif bc.is_playing:
-        await interaction.response.send_message(
-            "We're already busting.", ephemeral=True
-        )
+        await interaction.followup.send("We're already busting.", ephemeral=True)
         return
     if index > len(bc.tracks):
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "There aren't that many tracks.", ephemeral=True
         )
         return
 
-    logger.info(
-        f"User {interaction.user} issued /bust command in guild {interaction.guild_id}, starting at track {index}"
+    # Find user's voice channel
+    voice_channels: list[VoiceChannel | StageChannel] = list(
+        interaction.guild.voice_channels
     )
-    await bc.play(interaction, index - 1)
+    voice_channels.extend(interaction.guild.stage_channels)
+
+    target_channel = None
+    for voice_channel in voice_channels:
+        if interaction.user in voice_channel.members:
+            target_channel = voice_channel
+            break
+
+    if target_channel is None:
+        await interaction.followup.send(
+            "You need to be in an active voice channel.", ephemeral=True
+        )
+        return
+
+    logger.info(
+        f"User {interaction.user} issued /bust command in guild {interaction.guild.id}, starting at track {index}"
+    )
+
+    # Create and connect audio player
+    audio_player = DiscordAudioPlayer(interaction.guild.id, settings)
+    try:
+        await audio_player.connect(target_channel)
+        await interaction.delete_original_response()
+
+        await bc.play(audio_player, index - 1)
+    except ClientException as e:
+        logger.error(f"Failed to connect to voice channel: {e}")
+        await interaction.followup.send(
+            "Failed to connect to voice channel.", ephemeral=True
+        )
+    finally:
+        await audio_player.disconnect()
     # Registry auto-cleans finished controllers
 
 
