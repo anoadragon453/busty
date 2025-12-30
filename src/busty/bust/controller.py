@@ -2,34 +2,17 @@
 
 import asyncio
 import logging
-import os
-import subprocess
-import tempfile
 import time
 from collections import defaultdict
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 import requests
-from discord import (
-    ChannelType,
-    ClientException,
-    Embed,
-    FFmpegOpusAudio,
-    FFmpegPCMAudio,
-    Interaction,
-    StageChannel,
-    TextChannel,
-    VoiceChannel,
-    VoiceClient,
-)
-from discord.voice_client import AudioSource
+from discord import Embed, Interaction, TextChannel
 
 from busty import discord_utils, forms, llm, song_utils
 from busty.bust.discord_impl import DiscordBustOutput
 from busty.bust.models import BustPhase, PlaybackState
-from busty.bust.protocols import BustOutput
+from busty.bust.protocols import AudioPlayer, BustOutput
 from busty.config import constants
 from busty.config.settings import BustySettings
 from busty.track import Track
@@ -45,13 +28,11 @@ class BustController:
 
     def __init__(
         self,
-        client: "BustyBot",
         settings: BustySettings,
         tracks: list[Track],
         message_channel: TextChannel,
         output: BustOutput,
     ):
-        self.client = client
         self.settings = settings
         self.tracks = tracks
         self.channel = message_channel
@@ -108,127 +89,61 @@ class BustController:
         # Skip to current track (will restart with seek timestamp)
         self.skip_to(self._playback.current_index)
 
-    @asynccontextmanager
-    async def _voice_session(
-        self, voice_channel: VoiceChannel | StageChannel
-    ) -> AsyncIterator[VoiceClient]:
-        """Connect to voice, yield client, then disconnect and restore nickname."""
-        voice_client: VoiceClient = await voice_channel.connect()
+    async def play(self, audio_player: AudioPlayer, start_index: int = 0) -> None:
+        """Begin playback starting from the specified track index (0-indexed).
 
-        # If stage channel, ensure bot is speaking
-        if voice_channel.type == ChannelType.stage_voice:
-            if self.client.user and voice_channel.guild:
-                bot_member = voice_channel.guild.get_member(self.client.user.id)
-                if bot_member:
-                    await bot_member.edit(suppress=False)
-
+        Args:
+            audio_player: An already-connected AudioPlayer instance.
+            start_index: Track index to start playback from.
+        """
         # Save original nickname for restoration
         original_nickname = await self.output.get_bot_nickname()
 
         try:
-            yield voice_client
-        finally:
-            # Disconnect from voice
-            if voice_client.is_connected():
-                await voice_client.disconnect()
+            await self.output.send_bust_started()
 
+            guild_id = self.channel.guild.id if self.channel.guild else "unknown"
+            logger.info(
+                f"Starting bust playback in guild {guild_id}, "
+                f"{len(self.tracks)} tracks total, starting at track {start_index + 1}"
+            )
+
+            # Initialize playback state
+            self._playback = PlaybackState(
+                current_index=start_index,
+            )
+            self.phase = BustPhase.PLAYING
+
+            # Main playback loop
+            while self._playback.current_index < len(self.tracks):
+                if self._playback.stop_requested:
+                    break
+
+                # Wrap play_track in a task so it can be cancelled for skip/seek
+                self._playback.current_task = asyncio.create_task(
+                    self._play_track(self._playback.current_index, audio_player)
+                )
+
+                try:
+                    await self._playback.current_task
+                except asyncio.CancelledError:
+                    # Stop audio playback when task cancelled
+                    audio_player.stop()
+
+                self._playback.current_index += 1
+
+            # Playback finished
+            await self._finish_playback(say_goodbye=not self._playback.stop_requested)
+        finally:
             # Restore original nickname
             await self.output.set_bot_nickname(original_nickname)
 
-    async def play(self, interaction: Interaction, start_index: int = 0) -> None:
-        """Begin playback starting from the specified track index (0-indexed).
-
-        Args:
-            interaction: An interaction which has not yet been responded to.
-            start_index: Track index to start playback from.
-        """
-        await interaction.response.defer(ephemeral=True)
-
-        # Update message channel to where command was issued
-        if not isinstance(interaction.channel, TextChannel):
-            await interaction.followup.send(
-                "This command can only be used in a text channel.", ephemeral=True
-            )
-            return
-        self.channel = interaction.channel
-
-        # Find the voice channel the user is in
-        if interaction.guild is None:
-            await interaction.followup.send(
-                "This command can only be used in a server.", ephemeral=True
-            )
-            return
-
-        voice_channels: list[VoiceChannel | StageChannel] = list(
-            interaction.guild.voice_channels
-        )
-        voice_channels.extend(interaction.guild.stage_channels)
-
-        target_voice_channel = None
-        for voice_channel in voice_channels:
-            if interaction.user in voice_channel.members:
-                target_voice_channel = voice_channel
-                break
-
-        if target_voice_channel is None:
-            await interaction.followup.send(
-                "You need to be in an active voice channel.", ephemeral=True
-            )
-            return
-
-        # Connect to voice and play
-        try:
-            async with self._voice_session(target_voice_channel) as voice_client:
-                await self.output.send_bust_started()
-                await interaction.delete_original_response()
-
-                logger.info(
-                    f"Starting bust playback in guild {interaction.guild_id}, "
-                    f"{len(self.tracks)} tracks total, starting at track {start_index + 1}"
-                )
-
-                # Initialize playback state
-                self._playback = PlaybackState(
-                    voice_client=voice_client,
-                    current_index=start_index,
-                )
-                self.phase = BustPhase.PLAYING
-
-                # Main playback loop
-                while self._playback.current_index < len(self.tracks):
-                    if self._playback.stop_requested:
-                        break
-
-                    # Wrap play_track in a task so it can be cancelled for skip/seek
-                    self._playback.current_task = asyncio.create_task(
-                        self._play_track(self._playback.current_index)
-                    )
-
-                    try:
-                        await self._playback.current_task
-                    except asyncio.CancelledError:
-                        # Stop voice playback when task cancelled
-                        if voice_client.is_playing():
-                            voice_client.stop()
-
-                    self._playback.current_index += 1
-
-                # Playback finished
-                await self._finish_playback(
-                    say_goodbye=not self._playback.stop_requested
-                )
-
-        except ClientException as e:
-            logger.error(f"Failed to connect to voice channel: {e}")
-            await interaction.followup.send(
-                "Failed to connect to voice channel.", ephemeral=True
-            )
-
-    async def _play_track(self, index: int) -> None:
+    async def _play_track(self, index: int, audio_player: AudioPlayer) -> None:
         """Play a single track.
 
         Args:
             index: Index of track to play.
+            audio_player: AudioPlayer instance to use for playback.
         """
         if self._playback is None:
             return
@@ -267,107 +182,15 @@ class BustController:
         # Display track as now playing (updates message and bot nickname)
         await self.output.display_now_playing(track, cover_art_data)
 
-        # Prepare audio source
-        audio_source = await self._prepare_audio(track)
+        # Get seek timestamp if set
+        seek = self._playback.seek_timestamp
+        self._playback.seek_timestamp = None  # Clear for next track
 
-        # Play the track
-        play_lock = asyncio.Lock()
-        await play_lock.acquire()
-
-        def on_playback_complete(error: Exception | None = None) -> None:
-            if error:
-                logger.error(f"Song playback error: {error}")
-            play_lock.release()
-
-        self._playback.voice_client.play(audio_source, after=on_playback_complete)
-
-        # Wait for playback to complete
-        await play_lock.acquire()
+        # Play track (AudioPlayer handles all FFmpeg/Discord details)
+        await audio_player.play(track.local_filepath, seek)
 
         # Clean up after track
         await self.output.unpin_now_playing()
-
-    async def _prepare_audio(self, track: Track) -> AudioSource:
-        """Prepare audio source for playback, handling seek if needed.
-
-        Args:
-            track: Track to prepare.
-
-        Returns:
-            Audio source ready for playback.
-        """
-        if self._playback is None or self._playback.seek_timestamp is None:
-            # Normal playback
-            return FFmpegPCMAudio(
-                str(track.local_filepath),
-                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
-            )
-
-        # Seek playback - convert to Opus at timestamp
-        seek_to = self._playback.seek_timestamp
-        self._playback.seek_timestamp = None  # Clear for next track
-
-        # Validate seek timestamp
-        if track.duration and seek_to >= track.duration:
-            logger.warning("Seek timestamp beyond track duration, seeking to start")
-            seek_to = 0
-
-        # Create temp file for seeked audio
-        if self.channel.guild is None:
-            # Fallback to normal playback
-            return FFmpegPCMAudio(
-                str(track.local_filepath),
-                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
-            )
-
-        # Create guild-specific temp directory
-        guild_temp_dir = self.settings.temp_dir / str(self.channel.guild.id)
-        guild_temp_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create unique temp file
-        fd, temp_file_str = tempfile.mkstemp(
-            suffix=".ogg", dir=guild_temp_dir, prefix="seek_"
-        )
-        os.close(fd)  # Close fd, we just need the path
-
-        # Convert to Opus starting at seek point
-        ffmpeg_command = [
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-            str(track.local_filepath),
-            "-ss",
-            str(seek_to),
-            "-c:a",
-            "libopus",
-            "-b:a",
-            "128k",
-            "-y",
-            temp_file_str,
-        ]
-
-        try:
-            subprocess.run(ffmpeg_command, check=True)
-            # Note: temp file will remain until manually cleaned or bot restarts
-            # Could add cleanup in finally block if needed
-            return FFmpegOpusAudio(
-                temp_file_str,
-                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to seek audio: {e}")
-            # Clean up temp file on failure
-            try:
-                os.unlink(temp_file_str)
-            except OSError:
-                pass
-            # Fallback to normal playback
-            return FFmpegPCMAudio(
-                str(track.local_filepath),
-                options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
-            )
 
     async def _finish_playback(self, say_goodbye: bool = True) -> None:
         """Finish playback and transition to FINISHED phase.
@@ -534,7 +357,7 @@ async def create_controller(
 
     # Create output implementation and controller
     output = DiscordBustOutput(interaction.channel, client, settings)
-    controller = BustController(client, settings, tracks, interaction.channel, output)
+    controller = BustController(settings, tracks, interaction.channel, output)
 
     # Build list embeds
     bust_emoji = ":heart_on_fire:"
@@ -587,9 +410,7 @@ async def create_controller(
 
         # Generate Google Form
         try:
-            image_url = controller.client.persistent_state.get_form_image_url(
-                interaction
-            )
+            image_url = client.persistent_state.get_form_image_url(interaction)
             form_url = controller.get_google_form_url(image_url)
 
             if form_url:
