@@ -450,14 +450,21 @@ async def preview(
     await uploaded_file.save(fp=attachment_filepath)
     random_emoji = random.choice(client.settings.emoji_list)
 
-    embed = song_utils.embed_song(
-        submit_message or "",
-        attachment_filepath,
-        uploaded_file,
-        interaction.user,
-        random_emoji,
-        constants.PREVIEW_JUMP_URL,
+    # Create a temporary Track for preview
+    from busty.track import Track
+
+    preview_track = Track(
+        local_filepath=attachment_filepath,
+        attachment_filename=uploaded_file.filename,
+        submitter_id=interaction.user.id,
+        submitter_name=interaction.user.display_name,
+        message_content=submit_message,
+        message_jump_url=constants.PREVIEW_JUMP_URL,
+        attachment_url=uploaded_file.url,
+        duration=song_utils.get_song_length(attachment_filepath),
     )
+
+    embed = song_utils.embed_song(preview_track, random_emoji)
 
     cover_art = song_utils.get_cover_art(attachment_filepath)
 

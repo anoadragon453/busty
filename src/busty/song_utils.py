@@ -3,9 +3,9 @@ import logging
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-from discord import Attachment, Embed, File, Member, User
+from discord import Embed, File
 from discord.utils import escape_markdown
 from mutagen import File as MutagenFile
 from mutagen import MutagenError
@@ -17,26 +17,23 @@ from PIL import Image, UnidentifiedImageError
 
 from busty.config import constants
 
+if TYPE_CHECKING:
+    from busty.track import Track
+
 logger = logging.getLogger(__name__)
 
 
-def embed_song(
-    message_content: str,
-    attachment_filepath: Path,
-    attachment: Attachment,
-    user: User | Member,
-    emoji: str,
-    jump_url: str,
-) -> Embed:
-    """Build and return a "Now Playing" embed"""
+def embed_song(track: "Track", emoji: str) -> Embed:
+    """Build and return a "Now Playing" embed."""
 
     embed_title = f"{emoji} Now Playing {emoji}"
-    embed_content = f"{user.mention}: [{escape_markdown(song_format(attachment_filepath, attachment.filename))}]({attachment.url}) [`↲jump`]({jump_url})"
+    embed_content = f"<@{track.submitter_id}>: [{escape_markdown(song_format(track.local_filepath, track.attachment_filename))}]({track.attachment_url}) [`↲jump`]({track.message_jump_url})"
     embed = Embed(
         title=embed_title, description=embed_content, color=constants.PLAY_EMBED_COLOR
     )
 
-    if message_content:
+    if track.message_content:
+        message_content = track.message_content
         if len(message_content) > constants.EMBED_FIELD_VALUE_LIMIT:
             message_content = (
                 message_content[: constants.EMBED_FIELD_VALUE_LIMIT - 1] + "…"
