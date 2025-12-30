@@ -313,7 +313,7 @@ async def seek(
         f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s"
     )
     await interaction.response.send_message("Let's skip to the good part.")
-    bc.seek(interaction, seek_to_seconds)
+    bc.seek(seek_to_seconds)
 
 
 # Replay command

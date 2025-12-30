@@ -75,14 +75,10 @@ class BustController:
         self._playback.current_index = max(0, track_index - 1)
         self._playback.current_task.cancel()
 
-    def seek(self, interaction: Interaction, timestamp: int) -> None:
+    def seek(self, timestamp: int) -> None:
         """Seek current track to timestamp in seconds."""
         if self._playback is None:
             logger.warning("No track is currently playing. Ignoring seek.")
-            return
-
-        if interaction.guild is None:
-            logger.error("No guild found for seek operation.")
             return
 
         self._playback.seek_timestamp = timestamp
