@@ -1,4 +1,4 @@
-.PHONY: run lint format type-check help
+.PHONY: run lint format type-check test test-verbose help
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -15,3 +15,9 @@ format: ## Format the code with ruff
 
 type-check: ## Type check the code with mypy
 	mypy src/
+
+test: ## Run tests with pytest
+	uv run pytest
+
+test-verbose: ## Run tests with verbose output
+	uv run pytest -v
