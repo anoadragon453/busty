@@ -187,7 +187,8 @@ def get_song_length(filename: Path) -> float | None:
     return None
 
 
-def get_cover_art(filename: Path) -> File | None:
+def get_cover_art_bytes(filename: Path) -> bytes | None:
+    """Extract cover art from audio file as raw bytes."""
     # Get image data as bytes
     try:
         image_data = None
@@ -223,8 +224,24 @@ def get_cover_art(filename: Path) -> File | None:
         return None
 
     # Make sure it doesn't go over the maximum size allowed for a Discord attachment.
-    # Important for when the bot later posts the image during a bust.
     if image_data is None or len(image_data) > constants.ATTACHMENT_BYTE_LIMIT:
+        return None
+
+    # Validate that it's a readable image format
+    try:
+        image_bytes_fp = BytesIO(image_data)
+        Image.open(image_bytes_fp)
+    except UnidentifiedImageError:
+        logger.warning(f"Skipping unidentifiable cover art field in {filename}")
+        return None
+
+    return image_data
+
+
+def get_cover_art(filename: Path) -> File | None:
+    """Extract cover art from audio file as a Discord File object."""
+    image_data = get_cover_art_bytes(filename)
+    if image_data is None:
         return None
 
     # Get a file pointer to the bytes
@@ -234,7 +251,7 @@ def get_cover_art(filename: Path) -> File | None:
     try:
         image = Image.open(image_bytes_fp)
     except UnidentifiedImageError:
-        logger.warning(f"Skipping unidentifiable cover art field in {filename}")
+        # Should not happen since get_cover_art_bytes validates this
         return None
     image_file_extension = image.format
 

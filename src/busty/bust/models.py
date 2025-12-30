@@ -6,7 +6,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from discord import Message, VoiceClient
+    from discord import VoiceClient
 
 
 class BustPhase(Enum):
@@ -22,9 +22,7 @@ class PlaybackState:
     """Mutable playback state that only exists during PLAYING phase."""
 
     voice_client: "VoiceClient"
-    original_nickname: str | None
     current_index: int
     current_task: asyncio.Task[None] | None = None
-    now_playing_msg: "Message | None" = None
     stop_requested: bool = False
     seek_timestamp: int | None = None

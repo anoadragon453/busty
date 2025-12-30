@@ -1,0 +1,66 @@
+"""Protocol definitions for dependency injection in BustController."""
+
+from typing import Protocol
+
+from busty.track import Track
+
+
+class BustOutput(Protocol):
+    """Protocol for bust session output and user interface management.
+
+    Implementations handle all user-visible output during a bust session,
+    including messages, pinned content, and bot nickname updates.
+    """
+
+    async def send_bust_started(self) -> None:
+        """Notify users that the bust session is beginning."""
+        ...
+
+    async def send_cooldown_notice(self) -> None:
+        """Display a notice during the cooldown period before a track plays."""
+        ...
+
+    async def display_now_playing(
+        self,
+        track: Track,
+        cover_art_data: bytes | None,
+    ) -> None:
+        """Update all UI elements to show the track is now playing.
+
+        Displays track metadata with album artwork, pins the message, and updates
+        the bot's nickname to show the current track. Handles all presentation
+        details internally (emoji selection, formatting, etc.).
+
+        Args:
+            track: The track currently being played.
+            cover_art_data: Optional album art image data as raw bytes.
+        """
+        ...
+
+    async def unpin_now_playing(self) -> None:
+        """Unpin the currently pinned now-playing message."""
+        ...
+
+    async def send_bust_finished(self, total_duration: float) -> None:
+        """Notify users that the bust session has completed.
+
+        Args:
+            total_duration: Total playback time of all tracks in seconds.
+        """
+        ...
+
+    async def get_bot_nickname(self) -> str | None:
+        """Get the bot's current display nickname.
+
+        Returns:
+            The bot's current nickname, or None if unable to retrieve.
+        """
+        ...
+
+    async def set_bot_nickname(self, nickname: str | None) -> None:
+        """Set the bot's display nickname.
+
+        Args:
+            nickname: The nickname to set, or None to clear it.
+        """
+        ...
