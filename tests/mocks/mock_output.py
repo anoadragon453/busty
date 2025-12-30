@@ -4,13 +4,17 @@ from busty.track import Track
 
 
 class MockAIService:
-    """Test double for AIService protocol.
-
-    Always returns None (no cover art generation).
-    """
+    """Test double for AIService protocol."""
 
     async def get_cover_art(self, track: Track) -> bytes | None:
-        """Mock cover art generation (always returns None)."""
+        return None
+
+    async def complete_chat(
+        self, messages: list[dict[str, str]], max_tokens: int = 512
+    ) -> str | None:
+        return None
+
+    async def generate_image(self, prompt: str) -> str | None:
         return None
 
 

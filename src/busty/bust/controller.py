@@ -6,8 +6,9 @@ import time
 from collections import defaultdict
 
 from busty import song_utils
+from busty.ai.protocols import AIService
 from busty.bust.models import BustPhase, BustStats, PlaybackState, SubmitterStat
-from busty.bust.protocols import AIService, AudioPlayer, BustOutput
+from busty.bust.protocols import AudioPlayer, BustOutput
 from busty.config.settings import BustySettings
 from busty.track import Track
 

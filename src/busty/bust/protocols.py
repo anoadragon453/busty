@@ -6,22 +6,6 @@ from typing import Protocol
 from busty.track import Track
 
 
-class AIService(Protocol):
-    """Protocol for AI-powered features."""
-
-    async def get_cover_art(self, track: Track) -> bytes | None:
-        """Generate cover art for a track using AI.
-
-        Args:
-            track: The track to generate cover art for.
-
-        Returns:
-            Generated cover art image data as bytes, or None if AI is not
-            configured, generation fails, or times out.
-        """
-        ...
-
-
 class BustOutput(Protocol):
     """Protocol for bust session output and user interface management.
 

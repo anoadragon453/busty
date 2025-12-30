@@ -10,7 +10,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import requests
 from discord import (
     ChannelType,
     Embed,
@@ -25,7 +24,7 @@ from discord import (
 )
 from discord.voice_client import AudioSource
 
-from busty import discord_utils, llm, song_utils
+from busty import discord_utils, song_utils
 from busty.config import constants
 from busty.config.settings import BustySettings
 from busty.track import Track
@@ -34,53 +33,6 @@ if TYPE_CHECKING:
     from busty.main import BustyBot
 
 logger = logging.getLogger(__name__)
-
-
-class OpenAIService:
-    """OpenAI implementation of AIService protocol."""
-
-    def __init__(self, settings: BustySettings):
-        self.settings = settings
-
-    async def get_cover_art(self, track: Track) -> bytes | None:
-        """Generate cover art for a track using OpenAI.
-
-        Returns None if OpenAI is not configured, generation fails, or times out.
-        """
-        # Skip if OpenAI is not configured
-        if not self.settings.openai_api_key:
-            return None
-
-        # Extract metadata for generation
-        artist, title = song_utils.get_song_metadata_with_fallback(
-            track.local_filepath, track.attachment_filename, track.submitter_name
-        )
-
-        try:
-            # Generate cover art URL using OpenAI
-            cover_art_url = await asyncio.wait_for(
-                llm.generate_album_art(
-                    artist or "Unknown Artist", title, track.message_content or ""
-                ),
-                timeout=constants.COVER_ART_GENERATE_TIMEOUT,
-            )
-
-            # Fetch the generated image
-            if cover_art_url:
-                response = requests.get(
-                    cover_art_url, timeout=constants.COVER_ART_FETCH_TIMEOUT
-                )
-                response.raise_for_status()
-                return response.content
-
-            return None
-
-        except asyncio.TimeoutError:
-            logger.warning("Cover art generation timed out")
-            return None
-        except requests.RequestException as e:
-            logger.error(f"Failed to fetch generated cover art: {e}")
-            return None
 
 
 class DiscordBustOutput:

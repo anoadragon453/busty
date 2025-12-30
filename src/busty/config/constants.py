@@ -27,6 +27,7 @@ PREVIEW_JUMP_URL: Final = "https://youtu.be/J45GvH2_Ato"
 RESPOND_TO_MESSAGE_PROBABILITY: Final = 1 / 150
 COVER_ART_FETCH_TIMEOUT: Final = 10.0  # seconds
 COVER_ART_GENERATE_TIMEOUT: Final = 20.0  # seconds
+LLM_RESPONSE_TIMEOUT: Final = 10.0  # seconds
 
 # Type aliases
 JSON_DATA_TYPE = str | int | float | bool | Mapping[str, Any] | Iterable[Any] | None

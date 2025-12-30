@@ -6,7 +6,7 @@ import random
 from discord import Interaction, Message
 from discord.app_commands import AppCommandError
 
-from busty import llm
+from busty.ai import ChatService
 from busty.bot import BustyBot
 from busty.config import constants
 
@@ -21,10 +21,13 @@ def register_events(client: BustyBot) -> None:
         logger.info(f"We have logged in as {client.user}")
 
         if client.settings.openai_api_key:
-            logger.info("OpenAI API key detected, initializing LLM features")
-            llm.initialize(client, client.settings)
+            logger.info("OpenAI API key detected, initializing chat service")
+            client.chat_service = ChatService(
+                client.ai_service, client, client.settings
+            )
+            logger.info("Chat service initialized")
         else:
-            logger.info("OpenAI API key not configured, LLM features disabled")
+            logger.info("OpenAI API key not configured, chat features disabled")
 
         # Sync slash commands
         try:
@@ -36,7 +39,7 @@ def register_events(client: BustyBot) -> None:
     @client.event
     async def on_message(message: Message) -> None:
         if (
-            client.settings.openai_api_key
+            client.chat_service is not None
             and message.guild
             and client.user
             and (
@@ -46,7 +49,7 @@ def register_events(client: BustyBot) -> None:
             )
             and message.author != client.user
         ):
-            await llm.respond(message)
+            await client.chat_service.respond(message)
 
     @client.event
     async def on_application_command_error(
