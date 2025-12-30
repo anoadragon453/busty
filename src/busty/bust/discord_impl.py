@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import requests
-
 from discord import (
     ChannelType,
     Embed,
