@@ -3,14 +3,12 @@
 import asyncio
 import logging
 import os
-import random
 import subprocess
 import tempfile
 import time
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from io import BytesIO
 from typing import TYPE_CHECKING
 
 import requests
@@ -20,7 +18,6 @@ from discord import (
     Embed,
     FFmpegOpusAudio,
     FFmpegPCMAudio,
-    File,
     Interaction,
     StageChannel,
     TextChannel,
@@ -30,7 +27,9 @@ from discord import (
 from discord.voice_client import AudioSource
 
 from busty import discord_utils, forms, llm, song_utils
+from busty.bust.discord_impl import DiscordBustOutput
 from busty.bust.models import BustPhase, PlaybackState
+from busty.bust.protocols import BustOutput
 from busty.config import constants
 from busty.config.settings import BustySettings
 from busty.track import Track
@@ -50,11 +49,13 @@ class BustController:
         settings: BustySettings,
         tracks: list[Track],
         message_channel: TextChannel,
+        output: BustOutput,
     ):
         self.client = client
         self.settings = settings
         self.tracks = tracks
         self.channel = message_channel
+        self.output = output
         self.phase = BustPhase.LISTED
         self._playback: PlaybackState | None = None
 
@@ -121,12 +122,8 @@ class BustController:
                 if bot_member:
                     await bot_member.edit(suppress=False)
 
-        # Save original nickname
-        original_nickname = None
-        if self.client.user and voice_channel.guild:
-            bot_member = voice_channel.guild.get_member(self.client.user.id)
-            if bot_member:
-                original_nickname = bot_member.display_name
+        # Save original nickname for restoration
+        original_nickname = await self.output.get_bot_nickname()
 
         try:
             yield voice_client
@@ -136,10 +133,7 @@ class BustController:
                 await voice_client.disconnect()
 
             # Restore original nickname
-            if original_nickname and self.client.user and voice_channel.guild:
-                bot_member = voice_channel.guild.get_member(self.client.user.id)
-                if bot_member:
-                    await bot_member.edit(nick=original_nickname)
+            await self.output.set_bot_nickname(original_nickname)
 
     async def play(self, interaction: Interaction, start_index: int = 0) -> None:
         """Begin playback starting from the specified track index (0-indexed).
@@ -185,7 +179,7 @@ class BustController:
         # Connect to voice and play
         try:
             async with self._voice_session(target_voice_channel) as voice_client:
-                await self.channel.send("Let's get **BUSTY**.")
+                await self.output.send_bust_started()
                 await interaction.delete_original_response()
 
                 logger.info(
@@ -196,7 +190,6 @@ class BustController:
                 # Initialize playback state
                 self._playback = PlaybackState(
                     voice_client=voice_client,
-                    original_nickname=None,  # Managed by context manager
                     current_index=start_index,
                 )
                 self.phase = BustPhase.PLAYING
@@ -242,19 +235,15 @@ class BustController:
 
         track = self.tracks[index]
 
-        # Send chilling message
-        embed = Embed(
-            title="Currently Chilling",
-            description="The track will start soon...\n\n**REMEMBER TO VOTE ON THE GOOGLE FORM!**",
-        )
-        await self.channel.send(embed=embed)
+        # Send cooldown notice
+        await self.output.send_cooldown_notice()
 
         # Begin album art generation timer
         start_time = time.time()
 
-        # Get or generate cover art
-        cover_art = song_utils.get_cover_art(track.local_filepath)
-        if cover_art is None and self.settings.openai_api_key:
+        # Get or generate cover art as bytes
+        cover_art_data = song_utils.get_cover_art_bytes(track.local_filepath)
+        if cover_art_data is None and self.settings.openai_api_key:
             artist, title = song_utils.get_song_metadata_with_fallback(
                 track.local_filepath, track.attachment_filename, track.submitter_name
             )
@@ -266,9 +255,7 @@ class BustController:
                     timeout=20.0,
                 )
                 if cover_art_url:
-                    image_data = requests.get(cover_art_url).content
-                    image_bytes_fp = BytesIO(image_data)
-                    cover_art = File(image_bytes_fp, "ai_cover.png")
+                    cover_art_data = requests.get(cover_art_url).content
             except asyncio.TimeoutError:
                 logger.warning("Cover art generation timed out")
 
@@ -277,23 +264,8 @@ class BustController:
         remaining = max(0, self.settings.seconds_between_songs - elapsed)
         await asyncio.sleep(remaining)
 
-        # Build "Now Playing" embed
-        random_emoji = random.choice(self.settings.emoji_list)
-        embed = song_utils.embed_song(track, random_emoji)
-
-        # Send embed with cover art
-        if cover_art:
-            embed.set_image(url=f"attachment://{cover_art.filename}")
-            self._playback.now_playing_msg = await self.channel.send(
-                file=cover_art, embed=embed
-            )
-        else:
-            self._playback.now_playing_msg = await self.channel.send(embed=embed)
-
-        await discord_utils.try_set_pin(self._playback.now_playing_msg, True)
-
-        # Update bot nickname to show current track
-        await self._set_bot_nickname(random_emoji, track.formatted_title)
+        # Display track as now playing (updates message and bot nickname)
+        await self.output.display_now_playing(track, cover_art_data)
 
         # Prepare audio source
         audio_source = await self._prepare_audio(track)
@@ -313,9 +285,7 @@ class BustController:
         await play_lock.acquire()
 
         # Clean up after track
-        if self._playback.now_playing_msg:
-            await discord_utils.try_set_pin(self._playback.now_playing_msg, False)
-            self._playback.now_playing_msg = None
+        await self.output.unpin_now_playing()
 
     async def _prepare_audio(self, track: Track) -> AudioSource:
         """Prepare audio source for playback, handling seek if needed.
@@ -399,28 +369,6 @@ class BustController:
                 options=f"-filter:a volume={constants.VOLUME_MULTIPLIER}",
             )
 
-    async def _set_bot_nickname(self, emoji: str, title: str) -> None:
-        """Update bot's nickname to show current track.
-
-        Args:
-            emoji: Random emoji to prefix.
-            title: Formatted track title.
-        """
-        if not self.client.user or not self.channel.guild:
-            return
-
-        bot_member = self.channel.guild.get_member(self.client.user.id)
-        if not bot_member:
-            return
-
-        new_nick = f"{emoji}{title}"
-
-        # Truncate to Discord's limit
-        if len(new_nick) > constants.NICKNAME_CHAR_LIMIT:
-            new_nick = new_nick[: constants.NICKNAME_CHAR_LIMIT - 1] + "…"
-
-        await bot_member.edit(nick=new_nick)
-
     async def _finish_playback(self, say_goodbye: bool = True) -> None:
         """Finish playback and transition to FINISHED phase.
 
@@ -431,17 +379,7 @@ class BustController:
         self._playback = None
 
         if say_goodbye:
-            goodbye_emoji = ":heart_on_fire:"
-            embed = Embed(
-                title=f"{goodbye_emoji} That's it everyone {goodbye_emoji}",
-                description=(
-                    "Hope ya had a good **BUST!**\n"
-                    f"*Total length of all submissions: {song_utils.format_time(int(self.total_duration))}*"
-                ),
-                color=constants.LIST_EMBED_COLOR,
-            )
-            await self.channel.send(embed=embed)
-
+            await self.output.send_bust_finished(self.total_duration)
             logger.info(f"Bust playback completed in guild {self.channel.guild.id}")
         else:
             logger.info(f"Bust playback stopped early in guild {self.channel.guild.id}")
@@ -594,8 +532,9 @@ async def create_controller(
         for msg, att, path in channel_media
     ]
 
-    # Create controller
-    controller = BustController(client, settings, tracks, interaction.channel)
+    # Create output implementation and controller
+    output = DiscordBustOutput(interaction.channel, client, settings)
+    controller = BustController(client, settings, tracks, interaction.channel, output)
 
     # Build list embeds
     bust_emoji = ":heart_on_fire:"
