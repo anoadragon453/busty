@@ -186,10 +186,7 @@ async def _handle_form_generation(
     try:
         image_url = client.persistent_state.get_form_image_url(interaction)
         form_url = _create_google_form(
-            controller.tracks,
-            interaction.channel.name,
-            settings,
-            image_url
+            controller.tracks, interaction.channel.name, settings, image_url
         )
 
         if form_url:

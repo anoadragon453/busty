@@ -13,9 +13,7 @@ class BustOutput(Protocol):
     including messages, pinned content, and bot nickname updates.
     """
 
-    async def send_bust_started(
-        self, total_tracks: int, start_index: int
-    ) -> None:
+    async def send_bust_started(self, total_tracks: int, start_index: int) -> None:
         """Notify users that the bust session is beginning.
 
         Args:

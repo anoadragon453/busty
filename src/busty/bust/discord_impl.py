@@ -46,9 +46,7 @@ class DiscordBustOutput:
         self.settings = settings
         self._now_playing_msg: Message | None = None
 
-    async def send_bust_started(
-        self, total_tracks: int, start_index: int
-    ) -> None:
+    async def send_bust_started(self, total_tracks: int, start_index: int) -> None:
         """Notify users that the bust session is beginning."""
         guild_id = self.channel.guild.id if self.channel.guild else "unknown"
         logger.info(
