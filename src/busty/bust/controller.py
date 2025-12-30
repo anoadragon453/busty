@@ -11,7 +11,7 @@ from discord import Embed, Interaction, TextChannel
 
 from busty import discord_utils, forms, llm, song_utils
 from busty.bust.discord_impl import DiscordBustOutput
-from busty.bust.models import BustPhase, PlaybackState
+from busty.bust.models import BustPhase, BustStats, PlaybackState, SubmitterStat
 from busty.bust.protocols import AudioPlayer, BustOutput
 from busty.config import constants
 from busty.config.settings import BustySettings
@@ -75,14 +75,10 @@ class BustController:
         self._playback.current_index = max(0, track_index - 1)
         self._playback.current_task.cancel()
 
-    def seek(self, interaction: Interaction, timestamp: int) -> None:
+    def seek(self, timestamp: int) -> None:
         """Seek current track to timestamp in seconds."""
         if self._playback is None:
             logger.warning("No track is currently playing. Ignoring seek.")
-            return
-
-        if interaction.guild is None:
-            logger.error("No guild found for seek operation.")
             return
 
         self._playback.seek_timestamp = timestamp
@@ -243,15 +239,13 @@ class BustController:
         )
         return form_url
 
-    async def send_stats(self, interaction: Interaction) -> None:
-        """Send statistics about current bust.
+    def get_stats(self) -> BustStats:
+        """Get statistics about current bust.
 
-        Args:
-            interaction: An interaction which has not yet been responded to.
+        Returns:
+            BustStats object containing session statistics.
         """
-        await interaction.response.defer()
-
-        total_duration = int(self.total_duration)
+        total_duration = self.total_duration
         num_tracks = len(self.tracks)
         total_bust_time = (
             total_duration + self.settings.seconds_between_songs * num_tracks
@@ -260,49 +254,31 @@ class BustController:
         # Compute submitter statistics
         submitter_durations: dict[int, float] = defaultdict(lambda: 0.0)
 
-        errors = False
+        has_errors = False
         for track in self.tracks:
             duration = track.duration
             if duration is None:
-                errors = True
+                has_errors = True
                 duration = 0.0
             submitter_durations[track.submitter_id] += duration
 
-        # Sort submitters by total duration
-        sorted_submitters = sorted(
-            [(duration, user_id) for user_id, duration in submitter_durations.items()],
-            reverse=True,
-        )
-
-        longest_submitters = [
-            f"{i + 1}. <@{user_id}> - {song_utils.format_time(int(duration))}"
-            for i, (duration, user_id) in enumerate(
-                sorted_submitters[: self.settings.num_longest_submitters]
+        # Sort submitters by total duration (descending)
+        submitter_stats = [
+            SubmitterStat(user_id=user_id, total_duration=duration)
+            for user_id, duration in sorted(
+                submitter_durations.items(),
+                key=lambda item: item[1],
+                reverse=True,
             )
         ]
 
-        embed_text = "\n".join(
-            [
-                f"*Number of tracks:* {num_tracks}",
-                f"*Total track length:* {song_utils.format_time(total_duration)}",
-                f"*Total bust length:* {song_utils.format_time(total_bust_time)}",
-                f"*Unique submitters:* {len(submitter_durations)}",
-                "*Longest submitters:*",
-            ]
-            + longest_submitters
+        return BustStats(
+            num_tracks=num_tracks,
+            total_duration=total_duration,
+            total_bust_time=total_bust_time,
+            submitter_stats=submitter_stats,
+            has_errors=has_errors,
         )
-
-        if errors:
-            embed_text += (
-                "\n\n**There were some errors. Statistics may be inaccurate.**"
-            )
-
-        embed = Embed(
-            title="Listed Statistics",
-            description=embed_text,
-            color=constants.INFO_EMBED_COLOR,
-        )
-        await interaction.followup.send(embed=embed)
 
 
 async def create_controller(

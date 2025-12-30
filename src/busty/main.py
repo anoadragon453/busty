@@ -313,7 +313,7 @@ async def seek(
         f"User {interaction.user} issued /seek command in guild {interaction.guild_id}, timestamp {seek_to_seconds}s"
     )
     await interaction.response.send_message("Let's skip to the good part.")
-    bc.seek(interaction, seek_to_seconds)
+    bc.seek(seek_to_seconds)
 
 
 # Replay command
@@ -457,7 +457,40 @@ async def info(interaction: Interaction) -> None:
         )
         return
 
-    await bc.send_stats(interaction)
+    await interaction.response.defer()
+
+    # Get statistics from controller
+    stats = bc.get_stats()
+
+    # Format submitter statistics
+    longest_submitters = [
+        f"{i + 1}. <@{stat.user_id}> - {song_utils.format_time(int(stat.total_duration))}"
+        for i, stat in enumerate(
+            stats.submitter_stats[: settings.num_longest_submitters]
+        )
+    ]
+
+    # Build embed text
+    embed_text = "\n".join(
+        [
+            f"*Number of tracks:* {stats.num_tracks}",
+            f"*Total track length:* {song_utils.format_time(int(stats.total_duration))}",
+            f"*Total bust length:* {song_utils.format_time(int(stats.total_bust_time))}",
+            f"*Unique submitters:* {len(stats.submitter_stats)}",
+            "*Longest submitters:*",
+        ]
+        + longest_submitters
+    )
+
+    if stats.has_errors:
+        embed_text += "\n\n**There were some errors. Statistics may be inaccurate.**"
+
+    embed = Embed(
+        title="Listed Statistics",
+        description=embed_text,
+        color=constants.INFO_EMBED_COLOR,
+    )
+    await interaction.followup.send(embed=embed)
 
 
 # Preview command
