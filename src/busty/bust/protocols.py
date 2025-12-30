@@ -13,8 +13,13 @@ class BustOutput(Protocol):
     including messages, pinned content, and bot nickname updates.
     """
 
-    async def send_bust_started(self) -> None:
-        """Notify users that the bust session is beginning."""
+    async def send_bust_started(self, total_tracks: int, start_index: int) -> None:
+        """Notify users that the bust session is beginning.
+
+        Args:
+            total_tracks: Total number of tracks in the session.
+            start_index: Index of the track to start from (0-based).
+        """
         ...
 
     async def send_cooldown_notice(self) -> None:
@@ -42,11 +47,14 @@ class BustOutput(Protocol):
         """Unpin the currently pinned now-playing message."""
         ...
 
-    async def send_bust_finished(self, total_duration: float) -> None:
-        """Notify users that the bust session has completed.
+    async def send_bust_finished(
+        self, total_duration: float, completed_naturally: bool
+    ) -> None:
+        """Notify users that the bust session has ended.
 
         Args:
             total_duration: Total playback time of all tracks in seconds.
+            completed_naturally: True if all tracks played, False if stopped early.
         """
         ...
 
