@@ -5,11 +5,9 @@ import logging
 import time
 from collections import defaultdict
 
-import requests
-
-from busty import llm, song_utils
+from busty import song_utils
 from busty.bust.models import BustPhase, BustStats, PlaybackState, SubmitterStat
-from busty.bust.protocols import AudioPlayer, BustOutput
+from busty.bust.protocols import AIService, AudioPlayer, BustOutput
 from busty.config.settings import BustySettings
 from busty.track import Track
 
@@ -24,10 +22,12 @@ class BustController:
         settings: BustySettings,
         tracks: list[Track],
         output: BustOutput,
+        ai_service: AIService,
     ):
         self.settings = settings
         self.tracks = tracks
         self.output = output
+        self.ai_service = ai_service
         self.phase = BustPhase.LISTED
         self._playback: PlaybackState | None = None
 
@@ -155,23 +155,10 @@ class BustController:
         # Begin album art generation timer
         start_time = time.time()
 
-        # Get or generate cover art as bytes
+        # Get cover art from file, or generate with AI if not present
         cover_art_data = song_utils.get_cover_art_bytes(track.local_filepath)
-        if cover_art_data is None and self.settings.openai_api_key:
-            artist, title = song_utils.get_song_metadata_with_fallback(
-                track.local_filepath, track.attachment_filename, track.submitter_name
-            )
-            try:
-                cover_art_url = await asyncio.wait_for(
-                    llm.generate_album_art(
-                        artist or "Unknown Artist", title, track.message_content or ""
-                    ),
-                    timeout=20.0,
-                )
-                if cover_art_url:
-                    cover_art_data = requests.get(cover_art_url).content
-            except asyncio.TimeoutError:
-                logger.warning("Cover art generation timed out")
+        if cover_art_data is None:
+            cover_art_data = await self.ai_service.get_cover_art(track)
 
         # Wait remaining cooldown time
         elapsed = time.time() - start_time

@@ -11,14 +11,22 @@ from tests.conftest import make_track
 class TestBustController:
     """Tests for BustController core logic."""
 
-    def test_initial_phase_is_listed(self, settings, sample_tracks, mock_output):
+    def test_initial_phase_is_listed(
+        self, settings, sample_tracks, mock_output, mock_ai_service
+    ):
         """Controller starts in LISTED phase."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
         assert controller.phase == BustPhase.LISTED
 
-    def test_tracks_stored_correctly(self, settings, sample_tracks, mock_output):
+    def test_tracks_stored_correctly(
+        self, settings, sample_tracks, mock_output, mock_ai_service
+    ):
         """Controller stores track list."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
         assert len(controller.tracks) == 3
         assert controller.tracks[0].attachment_filename == "track1.mp3"
         assert controller.tracks[2].submitter_name == "Charlie"
@@ -28,10 +36,12 @@ class TestPlaybackSequence:
     """Tests for sequential track playback."""
 
     async def test_plays_all_tracks_in_sequence(
-        self, settings, sample_tracks, mock_output, mock_audio
+        self, settings, sample_tracks, mock_output, mock_audio, mock_ai_service
     ):
         """All tracks play in order from start to finish."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         # Start playback in background
         play_task = asyncio.create_task(controller.play(mock_audio, start_index=0))
@@ -66,10 +76,12 @@ class TestPlaybackSequence:
         assert controller.phase == BustPhase.FINISHED
 
     async def test_emits_correct_event_sequence(
-        self, settings, sample_tracks, mock_output, mock_audio_auto
+        self, settings, sample_tracks, mock_output, mock_audio_auto, mock_ai_service
     ):
         """Verify BustOutput protocol calls in correct order."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         await controller.play(mock_audio_auto, start_index=0)
 
@@ -89,10 +101,12 @@ class TestPlaybackSequence:
         assert events[-1] == "set_bot_nickname"
 
     async def test_play_from_middle_index(
-        self, settings, sample_tracks, mock_output, mock_audio_auto
+        self, settings, sample_tracks, mock_output, mock_audio_auto, mock_ai_service
     ):
         """Starting from non-zero index skips earlier tracks."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         await controller.play(mock_audio_auto, start_index=1)  # Start from track 2
 
@@ -106,10 +120,12 @@ class TestSkip:
     """Tests for skip_to() functionality."""
 
     async def test_skip_advances_to_next_track(
-        self, settings, sample_tracks, mock_output, mock_audio
+        self, settings, sample_tracks, mock_output, mock_audio, mock_ai_service
     ):
         """skip_to() cancels current track and starts specified track."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         play_task = asyncio.create_task(controller.play(mock_audio, start_index=0))
 
@@ -132,10 +148,12 @@ class TestSkip:
         assert len(mock_audio.played) == 2
 
     async def test_replay_current_track(
-        self, settings, sample_tracks, mock_output, mock_audio
+        self, settings, sample_tracks, mock_output, mock_audio, mock_ai_service
     ):
         """skip_to(current_index) replays current track from start."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         play_task = asyncio.create_task(controller.play(mock_audio, start_index=1))
 
@@ -167,10 +185,12 @@ class TestStop:
     """Tests for stop() functionality."""
 
     async def test_stop_ends_playback_early(
-        self, settings, sample_tracks, mock_output, mock_audio
+        self, settings, sample_tracks, mock_output, mock_audio, mock_ai_service
     ):
         """stop() terminates playback without finishing remaining tracks."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         play_task = asyncio.create_task(controller.play(mock_audio, start_index=0))
 
@@ -187,10 +207,12 @@ class TestStop:
         assert controller.phase == BustPhase.FINISHED
 
     async def test_stop_sends_finished_with_completed_naturally_false(
-        self, settings, sample_tracks, mock_output, mock_audio
+        self, settings, sample_tracks, mock_output, mock_audio, mock_ai_service
     ):
         """stop() calls send_bust_finished with completed_naturally=False."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         play_task = asyncio.create_task(controller.play(mock_audio, start_index=0))
         await asyncio.sleep(0.01)
@@ -212,10 +234,12 @@ class TestPhaseTransitions:
     """Tests for BustPhase state management."""
 
     async def test_phase_transitions_listed_to_playing_to_finished(
-        self, settings, sample_tracks, mock_output, mock_audio
+        self, settings, sample_tracks, mock_output, mock_audio, mock_ai_service
     ):
         """Verify phase: LISTED → PLAYING → FINISHED."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         # Starts in LISTED
         assert controller.phase == BustPhase.LISTED
@@ -234,9 +258,13 @@ class TestPhaseTransitions:
         await play_task
         assert controller.phase == BustPhase.FINISHED
 
-    def test_is_playing_property(self, settings, sample_tracks, mock_output):
+    def test_is_playing_property(
+        self, settings, sample_tracks, mock_output, mock_ai_service
+    ):
         """is_playing property reflects PLAYING phase."""
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         assert controller.is_playing is False
 
@@ -251,7 +279,9 @@ class TestPhaseTransitions:
 class TestStats:
     """Tests for get_stats() functionality."""
 
-    def test_get_stats_returns_correct_totals(self, settings, mock_output):
+    def test_get_stats_returns_correct_totals(
+        self, settings, mock_output, mock_ai_service
+    ):
         """get_stats() calculates track counts and durations."""
         tracks = [
             make_track(
@@ -263,7 +293,7 @@ class TestStats:
             ),
         ]
 
-        controller = BustController(settings, tracks, mock_output)
+        controller = BustController(settings, tracks, mock_output, mock_ai_service)
         stats = controller.get_stats()
 
         assert stats.num_tracks == 3
@@ -273,7 +303,9 @@ class TestStats:
         assert stats.total_bust_time == 450.0
         assert stats.has_errors is False
 
-    def test_get_stats_groups_by_submitter(self, settings, mock_output):
+    def test_get_stats_groups_by_submitter(
+        self, settings, mock_output, mock_ai_service
+    ):
         """get_stats() aggregates tracks by submitter."""
         tracks = [
             make_track(
@@ -286,7 +318,7 @@ class TestStats:
             make_track("4.mp3", submitter_id=222, submitter_name="Bob", duration=50.0),
         ]
 
-        controller = BustController(settings, tracks, mock_output)
+        controller = BustController(settings, tracks, mock_output, mock_ai_service)
         stats = controller.get_stats()
 
         submitter_map = {s.user_id: s for s in stats.submitter_stats}

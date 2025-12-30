@@ -7,7 +7,7 @@ import pytest
 from busty.config.settings import BustySettings
 from busty.track import Track
 from tests.mocks.mock_audio import MockAudioPlayer
-from tests.mocks.mock_output import MockBustOutput
+from tests.mocks.mock_output import MockAIService, MockBustOutput
 
 
 @pytest.fixture
@@ -41,6 +41,12 @@ def settings() -> BustySettings:
 def mock_output() -> MockBustOutput:
     """Fresh MockBustOutput instance."""
     return MockBustOutput()
+
+
+@pytest.fixture
+def mock_ai_service() -> MockAIService:
+    """Fresh MockAIService instance."""
+    return MockAIService()
 
 
 @pytest.fixture

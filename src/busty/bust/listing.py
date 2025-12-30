@@ -16,7 +16,7 @@ from discord import Embed, Interaction, TextChannel
 
 from busty import discord_utils, forms, song_utils
 from busty.bust.controller import BustController
-from busty.bust.discord_impl import DiscordBustOutput
+from busty.bust.discord_impl import DiscordBustOutput, OpenAIService
 from busty.config import constants
 from busty.config.settings import BustySettings
 from busty.track import Track
@@ -85,9 +85,10 @@ async def list_bust(
         for msg, att, path in channel_media
     ]
 
-    # Create Discord output implementation and controller
+    # Create Discord implementations and controller
     output = DiscordBustOutput(interaction.channel, client, settings)
-    controller = BustController(settings, tracks, output)
+    ai_service = OpenAIService(settings)
+    controller = BustController(settings, tracks, output, ai_service)
 
     # Build and send list embeds
     await _send_list_embeds(interaction.channel, tracks)

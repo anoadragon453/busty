@@ -1,6 +1,17 @@
-"""Mock implementation of BustOutput protocol for testing."""
+"""Mock implementations of protocols for testing."""
 
 from busty.track import Track
+
+
+class MockAIService:
+    """Test double for AIService protocol.
+
+    Always returns None (no cover art generation).
+    """
+
+    async def get_cover_art(self, track: Track) -> bytes | None:
+        """Mock cover art generation (always returns None)."""
+        return None
 
 
 class MockBustOutput:

@@ -9,11 +9,13 @@ class TestBustRegistry:
     """Tests for BustRegistry controller lifecycle management."""
 
     def test_register_and_retrieve_controller(
-        self, settings, sample_tracks, mock_output
+        self, settings, sample_tracks, mock_output, mock_ai_service
     ):
         """Can register and retrieve a controller by guild_id."""
         registry = BustRegistry()
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         registry.register(123, controller)
 
@@ -26,11 +28,13 @@ class TestBustRegistry:
         assert registry.get(999) is None
 
     def test_auto_cleans_finished_controllers(
-        self, settings, sample_tracks, mock_output
+        self, settings, sample_tracks, mock_output, mock_ai_service
     ):
         """Registry removes FINISHED controllers when accessed."""
         registry = BustRegistry()
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         # Register controller in FINISHED state
         controller.phase = BustPhase.FINISHED
@@ -43,11 +47,13 @@ class TestBustRegistry:
         assert registry.get(123) is None
 
     def test_does_not_clean_listed_controllers(
-        self, settings, sample_tracks, mock_output
+        self, settings, sample_tracks, mock_output, mock_ai_service
     ):
         """Registry keeps LISTED controllers."""
         registry = BustRegistry()
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         # Controller starts in LISTED phase
         assert controller.phase == BustPhase.LISTED
@@ -57,11 +63,13 @@ class TestBustRegistry:
         assert registry.get(123) is controller
 
     def test_does_not_clean_playing_controllers(
-        self, settings, sample_tracks, mock_output
+        self, settings, sample_tracks, mock_output, mock_ai_service
     ):
         """Registry keeps PLAYING controllers."""
         registry = BustRegistry()
-        controller = BustController(settings, sample_tracks, mock_output)
+        controller = BustController(
+            settings, sample_tracks, mock_output, mock_ai_service
+        )
 
         controller.phase = BustPhase.PLAYING
         registry.register(123, controller)
