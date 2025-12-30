@@ -22,10 +22,8 @@ from discord import (
     FFmpegPCMAudio,
     File,
     Interaction,
-    Member,
     StageChannel,
     TextChannel,
-    User,
     VoiceChannel,
     VoiceClient,
 )

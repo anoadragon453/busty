@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from discord import Attachment, Embed, File, Member, User
+from discord import Embed, File
 from discord.utils import escape_markdown
 from mutagen import File as MutagenFile
 from mutagen import MutagenError
