@@ -6,9 +6,8 @@ import time
 from collections import defaultdict
 
 import requests
-from discord import TextChannel
 
-from busty import forms, llm, song_utils
+from busty import llm, song_utils
 from busty.bust.models import BustPhase, BustStats, PlaybackState, SubmitterStat
 from busty.bust.protocols import AudioPlayer, BustOutput
 from busty.config.settings import BustySettings
@@ -24,12 +23,10 @@ class BustController:
         self,
         settings: BustySettings,
         tracks: list[Track],
-        message_channel: TextChannel,
         output: BustOutput,
     ):
         self.settings = settings
         self.tracks = tracks
-        self.channel = message_channel
         self.output = output
         self.phase = BustPhase.LISTED
         self._playback: PlaybackState | None = None
@@ -90,13 +87,7 @@ class BustController:
         original_nickname = await self.output.get_bot_nickname()
 
         try:
-            await self.output.send_bust_started()
-
-            guild_id = self.channel.guild.id if self.channel.guild else "unknown"
-            logger.info(
-                f"Starting bust playback in guild {guild_id}, "
-                f"{len(self.tracks)} tracks total, starting at track {start_index + 1}"
-            )
+            await self.output.send_bust_started(len(self.tracks), start_index)
 
             # Initialize playback state
             self._playback = PlaybackState(
@@ -123,7 +114,7 @@ class BustController:
                 self._playback.current_index += 1
 
             # Playback finished
-            await self._finish_playback(say_goodbye=not self._playback.stop_requested)
+            await self._finish_playback()
         finally:
             # Restore original nickname
             await self.output.set_bot_nickname(original_nickname)
@@ -182,56 +173,19 @@ class BustController:
         # Clean up after track
         await self.output.unpin_now_playing()
 
-    async def _finish_playback(self, say_goodbye: bool = True) -> None:
-        """Finish playback and transition to FINISHED phase.
+    async def _finish_playback(self) -> None:
+        """Finish playback and transition to FINISHED phase."""
+        if self._playback is None:
+            return
 
-        Args:
-            say_goodbye: Whether to post goodbye message.
-        """
         self.phase = BustPhase.FINISHED
         self._playback = None
 
-        if say_goodbye:
-            await self.output.send_bust_finished(self.total_duration)
-            logger.info(f"Bust playback completed in guild {self.channel.guild.id}")
-        else:
-            logger.info(f"Bust playback stopped early in guild {self.channel.guild.id}")
-
-    def get_google_form_url(self, image_url: str | None = None) -> str | None:
-        """Create a Google form for voting on this bust.
-
-        Args:
-            image_url: Optional image URL to display at start of form.
-
-        Returns:
-            Form URL, or None if form creation fails.
-        """
-        if self.settings.google_form_folder is None:
-            logger.info("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset")
-            return None
-
-        song_list = [
-            f"{track.submitter_name}: {song_utils.song_format(track.local_filepath, track.attachment_filename)}"
-            for track in self.tracks
-        ]
-
-        # Extract bust number from channel name
-        bust_number = "".join([c for c in self.channel.name if c.isdigit()])
-        if bust_number:
-            bust_number = bust_number + " "
-
-        form_url = forms.create_remote_form(
-            f"Busty's {bust_number}Voting",
-            song_list,
-            low_val=0,
-            high_val=7,
-            low_label="OK",
-            high_label="Masterpiece",
-            google_auth_file=self.settings.google_auth_file,
-            google_form_folder=self.settings.google_form_folder,
-            image_url=image_url,
-        )
-        return form_url
+        # Determine completion status from playback position
+        # If we reached the end of the track list, we completed naturally
+        # If we stopped before the end, we were stopped early
+        completed_naturally = self._playback.current_index >= len(self.tracks)
+        await self.output.send_bust_finished(self.total_duration, completed_naturally)
 
     def get_stats(self) -> BustStats:
         """Get statistics about current bust.

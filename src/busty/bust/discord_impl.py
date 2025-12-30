@@ -46,8 +46,15 @@ class DiscordBustOutput:
         self.settings = settings
         self._now_playing_msg: Message | None = None
 
-    async def send_bust_started(self) -> None:
+    async def send_bust_started(
+        self, total_tracks: int, start_index: int
+    ) -> None:
         """Notify users that the bust session is beginning."""
+        guild_id = self.channel.guild.id if self.channel.guild else "unknown"
+        logger.info(
+            f"Starting bust playback in guild {guild_id}, "
+            f"{total_tracks} tracks total, starting at track {start_index + 1}"
+        )
         await self.channel.send("Let's get **BUSTY**.")
 
     async def send_cooldown_notice(self) -> None:
@@ -95,18 +102,27 @@ class DiscordBustOutput:
             await discord_utils.try_set_pin(self._now_playing_msg, False)
             self._now_playing_msg = None
 
-    async def send_bust_finished(self, total_duration: float) -> None:
-        """Notify users that the bust session has completed."""
-        goodbye_emoji = ":heart_on_fire:"
-        embed = Embed(
-            title=f"{goodbye_emoji} That's it everyone {goodbye_emoji}",
-            description=(
-                "Hope ya had a good **BUST!**\n"
-                f"*Total length of all submissions: {song_utils.format_time(int(total_duration))}*"
-            ),
-            color=constants.LIST_EMBED_COLOR,
-        )
-        await self.channel.send(embed=embed)
+    async def send_bust_finished(
+        self, total_duration: float, completed_naturally: bool
+    ) -> None:
+        """Notify users that the bust session has ended."""
+        guild_id = self.channel.guild.id if self.channel.guild else "unknown"
+
+        if completed_naturally:
+            logger.info(f"Bust playback completed in guild {guild_id}")
+            goodbye_emoji = ":heart_on_fire:"
+            embed = Embed(
+                title=f"{goodbye_emoji} That's it everyone {goodbye_emoji}",
+                description=(
+                    "Hope ya had a good **BUST!**\n"
+                    f"*Total length of all submissions: {song_utils.format_time(int(total_duration))}*"
+                ),
+                color=constants.LIST_EMBED_COLOR,
+            )
+            await self.channel.send(embed=embed)
+        else:
+            logger.info(f"Bust playback stopped early in guild {guild_id}")
+            # Don't send a goodbye message when stopped early
 
     async def get_bot_nickname(self) -> str | None:
         """Get the bot's current display nickname."""

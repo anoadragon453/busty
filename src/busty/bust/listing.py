@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from discord import Embed, Interaction, TextChannel
 
-from busty import discord_utils, song_utils
+from busty import discord_utils, forms, song_utils
 from busty.bust.controller import BustController
 from busty.bust.discord_impl import DiscordBustOutput
 from busty.config import constants
@@ -87,7 +87,7 @@ async def list_bust(
 
     # Create Discord output implementation and controller
     output = DiscordBustOutput(interaction.channel, client, settings)
-    controller = BustController(settings, tracks, interaction.channel, output)
+    controller = BustController(settings, tracks, output)
 
     # Build and send list embeds
     await _send_list_embeds(interaction.channel, tracks)
@@ -185,7 +185,12 @@ async def _handle_form_generation(
 
     try:
         image_url = client.persistent_state.get_form_image_url(interaction)
-        form_url = controller.get_google_form_url(image_url)
+        form_url = _create_google_form(
+            controller.tracks,
+            interaction.channel.name,
+            settings,
+            image_url
+        )
 
         if form_url:
             vote_emoji = ":ballot_box_with_ballot:"
@@ -195,3 +200,48 @@ async def _handle_form_generation(
             await discord_utils.try_set_pin(form_message, True)
     except Exception as e:
         logger.error(f"Failed to generate Google Form: {e}")
+
+
+def _create_google_form(
+    tracks: list[Track],
+    channel_name: str,
+    settings: BustySettings,
+    image_url: str | None = None,
+) -> str | None:
+    """Create a Google form for voting on tracks.
+
+    Args:
+        tracks: List of tracks to include in the form.
+        channel_name: Name of the Discord channel (used to extract bust number).
+        settings: Bot settings (for Google auth and folder config).
+        image_url: Optional image URL to display at start of form.
+
+    Returns:
+        Form URL, or None if form creation fails or is not configured.
+    """
+    if settings.google_form_folder is None:
+        logger.info("Skipping form generation as BUSTY_GOOGLE_FORM_FOLDER is unset")
+        return None
+
+    song_list = [
+        f"{track.submitter_name}: {song_utils.song_format(track.local_filepath, track.attachment_filename)}"
+        for track in tracks
+    ]
+
+    # Extract bust number from channel name
+    bust_number = "".join([c for c in channel_name if c.isdigit()])
+    if bust_number:
+        bust_number = bust_number + " "
+
+    form_url = forms.create_remote_form(
+        f"Busty's {bust_number}Voting",
+        song_list,
+        low_val=0,
+        high_val=7,
+        low_label="OK",
+        high_label="Masterpiece",
+        google_auth_file=settings.google_auth_file,
+        google_form_folder=settings.google_form_folder,
+        image_url=image_url,
+    )
+    return form_url
