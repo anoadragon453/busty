@@ -276,9 +276,8 @@ async def skip(interaction: Interaction) -> None:
         f"User {interaction.user} issued /skip command in guild {interaction.guild_id}"
     )
     await interaction.response.send_message("I didn't like that track anyways.")
-    # Skip to next track (current_index will be incremented in playback loop)
-    if bc._playback:
-        bc.skip_to(bc._playback.current_index + 1)
+    # Skip to next track
+    bc.skip_next()
 
 
 # Seek command
@@ -335,8 +334,7 @@ async def replay(interaction: Interaction) -> None:
         f"User {interaction.user} issued /replay command in guild {interaction.guild_id}"
     )
     await interaction.response.send_message("Replaying this track.")
-    if bc._playback:
-        bc.skip_to(bc._playback.current_index)
+    bc.replay()
 
 
 # Stop command

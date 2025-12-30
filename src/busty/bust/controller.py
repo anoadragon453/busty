@@ -66,6 +66,24 @@ class BustController:
         self._playback.current_index = max(0, track_index - 1)
         self._playback.current_task.cancel()
 
+    def skip_next(self) -> None:
+        """Skip to the next track in the playlist."""
+        if self._playback is None:
+            return
+
+        # Skip to the track after current (current_index + 1)
+        # skip_to will handle the case where current_task is None
+        self.skip_to(self._playback.current_index + 1)
+
+    def replay(self) -> None:
+        """Replay the current track from the beginning."""
+        if self._playback is None:
+            return
+
+        # Skip to the current track (will restart it)
+        # skip_to will handle the case where current_task is None
+        self.skip_to(self._playback.current_index)
+
     def seek(self, timestamp: int) -> None:
         """Seek current track to timestamp in seconds."""
         if self._playback is None:
