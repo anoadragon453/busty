@@ -1,6 +1,7 @@
 """Bust package for managing music competition sessions."""
 
-from busty.bust.controller import BustController, create_controller
+from busty.bust.controller import BustController
+from busty.bust.listing import list_bust
 from busty.bust.models import BustPhase, PlaybackState
 from busty.bust.registry import BustRegistry
 
@@ -9,5 +10,5 @@ __all__ = [
     "BustRegistry",
     "BustPhase",
     "PlaybackState",
-    "create_controller",
+    "list_bust",
 ]

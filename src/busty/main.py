@@ -176,9 +176,7 @@ async def on_list(
         f"User {interaction.user} issued /list command in guild {interaction.guild_id}, channel {list_channel.name}"
     )
     async with list_lock:
-        bc = await bust.create_controller(
-            client, client.settings, interaction, list_channel
-        )
+        bc = await bust.list_bust(client, client.settings, interaction, list_channel)
         if bc is not None:
             client.bust_registry.register(interaction.guild_id, bc)
 
