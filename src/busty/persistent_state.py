@@ -4,8 +4,6 @@ import logging
 from pathlib import Path
 from typing import Any, Iterable, cast
 
-from discord import Interaction
-
 from busty.config.constants import JSON_DATA_TYPE
 
 logger = logging.getLogger(__name__)
@@ -185,61 +183,46 @@ class PersistentState:
 
         return True
 
-    async def save_form_image_url(
-        self, interaction: Interaction, image_url: str
-    ) -> bool:
+    def save_form_image_url(self, guild_id: int, image_url: str) -> None:
         """
-        Safely save a Google form image url to disk.
-
-        If saving the URL fails, the interaction is responded to.
+        Save a Google form image url to disk.
 
         Args:
-            interaction: The Nextcord interaction that triggered the image being saved.
+            guild_id: The guild ID to save the image URL for.
             image_url: The image url to save.
 
-        Returns:
-            True if the image url saved correctly, False if not.
+        Raises:
+            Exception: If saving the URL fails.
         """
         try:
-            self.set_state(
-                ["guilds", str(interaction.guild_id), "form_image_url"], image_url
-            )
+            self.set_state(["guilds", str(guild_id), "form_image_url"], image_url)
         except Exception as e:
             logger.error(f"Unable to set form image: {e}")
+            raise
 
-            await interaction.response.send_message(
-                f"Failed to upload image ({type(e)}). See the logs for more details.",
-                ephemeral=True,
-            )
-            return False
-
-        return True
-
-    def get_form_image_url(self, interaction: Interaction) -> str | None:
+    def get_form_image_url(self, guild_id: int) -> str | None:
         """
-        Retrieve a saved google form image url given an interaction in a guild.
+        Retrieve a saved google form image url for a guild.
 
         Args:
-            interaction: The interaction that triggered this call.
+            guild_id: The guild ID to retrieve the image URL for.
 
         Returns:
             The image form URL if it was found, otherwise None.
         """
-        result = self.get_state(["guilds", str(interaction.guild_id), "form_image_url"])
+        result = self.get_state(["guilds", str(guild_id), "form_image_url"])
         if isinstance(result, str):
             return result
         return None
 
-    def clear_form_image_url(self, interaction: Interaction) -> bool:
+    def clear_form_image_url(self, guild_id: int) -> bool:
         """
-        Clear a saved google form image url given an interaction in a guild.
+        Clear a saved google form image url for a guild.
 
         Args:
-            The interaction that triggered this call.
+            guild_id: The guild ID to clear the image URL for.
 
         Returns:
             True if there was an image to delete, False if not.
         """
-        return self.delete_state(
-            ["guilds", str(interaction.guild_id), "form_image_url"]
-        )
+        return self.delete_state(["guilds", str(guild_id), "form_image_url"])

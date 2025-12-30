@@ -184,7 +184,11 @@ async def _handle_form_generation(
         return
 
     try:
-        image_url = client.persistent_state.get_form_image_url(interaction)
+        if interaction.guild_id is None:
+            logger.warning("Cannot create form without guild context")
+            return
+
+        image_url = client.persistent_state.get_form_image_url(interaction.guild_id)
         form_url = _create_google_form(
             controller.tracks,
             interaction.channel.name,
