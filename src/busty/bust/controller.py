@@ -178,13 +178,14 @@ class BustController:
         if self._playback is None:
             return
 
-        self.phase = BustPhase.FINISHED
-        self._playback = None
-
         # Determine completion status from playback position
         # If we reached the end of the track list, we completed naturally
         # If we stopped before the end, we were stopped early
         completed_naturally = self._playback.current_index >= len(self.tracks)
+
+        self.phase = BustPhase.FINISHED
+        self._playback = None
+
         await self.output.send_bust_finished(self.total_duration, completed_naturally)
 
     def get_stats(self) -> BustStats:
