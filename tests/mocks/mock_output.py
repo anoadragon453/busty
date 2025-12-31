@@ -3,6 +3,27 @@
 from busty.track import Track
 
 
+class MockUserPreferences:
+    """Test double for UserPreferences."""
+
+    def __init__(self, guild_id: int = 123456789):
+        """Initialize mock user preferences.
+
+        Args:
+            guild_id: Mock guild ID (default for testing).
+        """
+        self.guild_id = guild_id
+        self._preferences: dict[int, bool] = {}
+
+    def should_generate_ai_album_art(self, user_id: int) -> bool:
+        """Check if AI art should be generated - defaults to True."""
+        return self._preferences.get(user_id, True)
+
+    def set_ai_album_art_enabled(self, user_id: int, enabled: bool) -> None:
+        """Set AI art preference for testing."""
+        self._preferences[user_id] = enabled
+
+
 class MockAIService:
     """Test double for AIService protocol."""
 

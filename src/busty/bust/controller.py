@@ -11,6 +11,7 @@ from busty.bust.models import BustPhase, BustStats, PlaybackState, SubmitterStat
 from busty.bust.protocols import AudioPlayer, BustOutput
 from busty.config.settings import BustySettings
 from busty.track import Track
+from busty.user_preferences import UserPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,13 @@ class BustController:
         tracks: list[Track],
         output: BustOutput,
         ai_service: AIService,
+        user_preferences: UserPreferences,
     ):
         self.settings = settings
         self.tracks = tracks
         self.output = output
         self.ai_service = ai_service
+        self.user_preferences = user_preferences
         self.phase = BustPhase.LISTED
         self._playback: PlaybackState | None = None
 
@@ -158,7 +161,10 @@ class BustController:
 
         # Get cover art from file, or generate with AI if not present
         cover_art_data = song_utils.get_cover_art_bytes(track.local_filepath)
-        if cover_art_data is None:
+        if (
+            cover_art_data is None
+            and self.user_preferences.should_generate_ai_album_art(track.submitter_id)
+        ):
             cover_art_data = await self.ai_service.get_cover_art(track)
 
         # Wait remaining cooldown time

@@ -7,7 +7,7 @@ import pytest
 from busty.config.settings import BustySettings
 from busty.track import Track
 from tests.mocks.mock_audio import MockAudioPlayer
-from tests.mocks.mock_output import MockAIService, MockBustOutput
+from tests.mocks.mock_output import MockAIService, MockBustOutput, MockUserPreferences
 
 
 @pytest.fixture
@@ -59,6 +59,12 @@ def mock_audio() -> MockAudioPlayer:
 def mock_audio_auto() -> MockAudioPlayer:
     """MockAudioPlayer in auto-complete mode."""
     return MockAudioPlayer(auto_complete=True)
+
+
+@pytest.fixture
+def mock_user_preferences() -> MockUserPreferences:
+    """Fresh MockUserPreferences instance."""
+    return MockUserPreferences()
 
 
 def make_track(
