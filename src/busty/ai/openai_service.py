@@ -106,8 +106,10 @@ class OpenAIService:
 
             # Fetch the generated image
             if cover_art_url:
-                response = requests.get(
-                    cover_art_url, timeout=constants.COVER_ART_FETCH_TIMEOUT
+                response = await asyncio.to_thread(
+                    requests.get,
+                    cover_art_url,
+                    timeout=constants.COVER_ART_FETCH_TIMEOUT,
                 )
                 response.raise_for_status()
                 return response.content
