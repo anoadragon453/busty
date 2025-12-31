@@ -20,6 +20,7 @@ from busty.bust.discord_impl import DiscordBustOutput
 from busty.config import constants
 from busty.config.settings import BustySettings
 from busty.track import Track
+from busty.user_preferences import UserPreferences
 
 if TYPE_CHECKING:
     from busty.main import BustyBot
@@ -87,7 +88,10 @@ async def list_bust(
 
     # Create Discord implementations and controller
     output = DiscordBustOutput(interaction.channel, client, settings)
-    controller = BustController(settings, tracks, output, client.ai_service)
+    user_preferences = UserPreferences(list_channel.guild.id, client.persistent_state)
+    controller = BustController(
+        settings, tracks, output, client.ai_service, user_preferences
+    )
 
     # Build and send list embeds
     await _send_list_embeds(interaction.channel, tracks)

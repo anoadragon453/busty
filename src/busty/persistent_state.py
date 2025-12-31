@@ -226,3 +226,55 @@ class PersistentState:
             True if there was an image to delete, False if not.
         """
         return self.delete_state(["guilds", str(guild_id), "form_image_url"])
+
+    def get_ai_art_enabled(self, guild_id: int, user_id: int) -> bool:
+        """
+        Check if AI-generated album art is enabled for a user in a guild.
+
+        Args:
+            guild_id: The guild ID to check the preference for.
+            user_id: The user ID to check the preference for.
+
+        Returns:
+            True if AI art is enabled (default), False if user has opted out.
+        """
+        result = self.get_state(
+            [
+                "guilds",
+                str(guild_id),
+                "user_preferences",
+                str(user_id),
+                "ai_art_enabled",
+            ]
+        )
+        # Default to True (opt-out system)
+        if result is None:
+            return True
+        return bool(result)
+
+    def set_ai_art_enabled(self, guild_id: int, user_id: int, enabled: bool) -> None:
+        """
+        Set whether AI-generated album art is enabled for a user in a guild.
+
+        Args:
+            guild_id: The guild ID to set the preference for.
+            user_id: The user ID to set the preference for.
+            enabled: True to enable AI art, False to disable.
+
+        Raises:
+            Exception: If saving the preference fails.
+        """
+        try:
+            self.set_state(
+                [
+                    "guilds",
+                    str(guild_id),
+                    "user_preferences",
+                    str(user_id),
+                    "ai_art_enabled",
+                ],
+                enabled,
+            )
+        except Exception as e:
+            logger.error(f"Unable to set AI art preference: {e}")
+            raise
