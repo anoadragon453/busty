@@ -12,17 +12,28 @@ def guild_only():
 
     Note: After using this decorator, you should add `assert interaction.guild_id is not None`
     in the function body to help the type checker understand that guild_id is guaranteed to be non-None.
+
+    Works with both standalone commands and commands in app_commands.Group classes.
     """
 
     def decorator(func):
         @wraps(func)
-        async def wrapper(interaction: Interaction, *args, **kwargs):
+        async def wrapper(first_arg, *args, **kwargs):
+            # Handle both standalone commands and Group methods
+            # If first_arg is an Interaction, it's a standalone command
+            # Otherwise, it's 'self' from a Group method, and interaction is in args[0]
+            if isinstance(first_arg, Interaction):
+                interaction = first_arg
+            else:
+                # first_arg is 'self', interaction is args[0]
+                interaction = args[0]
+
             if interaction.guild_id is None:
                 await interaction.response.send_message(
                     "This command can only be used in a server.", ephemeral=True
                 )
                 return
-            return await func(interaction, *args, **kwargs)
+            return await func(first_arg, *args, **kwargs)
 
         return wrapper
 
@@ -36,17 +47,28 @@ def text_channel_only():
 
     Note: After using this decorator, you should add `assert isinstance(interaction.channel, TextChannel)`
     in the function body to help the type checker understand the channel type is guaranteed.
+
+    Works with both standalone commands and commands in app_commands.Group classes.
     """
 
     def decorator(func):
         @wraps(func)
-        async def wrapper(interaction: Interaction, *args, **kwargs):
+        async def wrapper(first_arg, *args, **kwargs):
+            # Handle both standalone commands and Group methods
+            # If first_arg is an Interaction, it's a standalone command
+            # Otherwise, it's 'self' from a Group method, and interaction is in args[0]
+            if isinstance(first_arg, Interaction):
+                interaction = first_arg
+            else:
+                # first_arg is 'self', interaction is args[0]
+                interaction = args[0]
+
             if not isinstance(interaction.channel, TextChannel):
                 await interaction.response.send_message(
                     "This command can only be used in a text channel.", ephemeral=True
                 )
                 return
-            return await func(interaction, *args, **kwargs)
+            return await func(first_arg, *args, **kwargs)
 
         return wrapper
 
