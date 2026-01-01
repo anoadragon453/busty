@@ -12,6 +12,7 @@ from busty.ai import ChatService
 from busty.bot import BustyBot
 from busty.config import constants
 from busty.track import Track
+from busty.user_preferences import UserPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,11 @@ async def _send_preview_dm_for_attachment(
         # guild is guaranteed to exist by caller check
         assert message.guild is not None
 
+        # Create UserPreferences instance for this guild
+        user_prefs = UserPreferences(message.guild.id, client.persistent_state)
+
         # Check if user has enabled preview DMs
-        if not client.persistent_state.get_mailbox_preview_enabled(
-            message.guild.id, message.author.id
-        ):
+        if not user_prefs.should_show_mailbox_preview(message.author.id):
             logger.debug(
                 f"Skipping preview for user {message.author.id} - preference disabled"
             )
@@ -70,6 +72,14 @@ async def _send_preview_dm_for_attachment(
         # Send DM preview using new utility function
         random_emoji = random.choice(client.settings.emoji_list)
         dm_content = f"Here's what your submission {message.jump_url} will look like when playing:"
+
+        # Add nag message if no cover art
+        if cover_art_bytes is None:
+            # Check if AI art will be generated during the bust
+            if user_prefs.should_generate_ai_album_art(message.author.id):
+                dm_content += "\n\n**Note**: AI-generated art will be used during the bust. Consider adding custom album art to your track!"
+            else:
+                dm_content += "\n\n**Tip**: Consider adding custom album art to your track, it will show up during the bust!"
 
         await song_utils.send_track_embed_with_cover_art(
             message.author,  # Send to DM
