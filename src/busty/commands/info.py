@@ -2,12 +2,12 @@
 
 import random
 
-from discord import Attachment, Embed, Interaction
+from discord import Attachment, Embed, Interaction, app_commands
 
 from busty import discord_utils, song_utils
 from busty.bot import BustyBot
 from busty.config import constants
-from busty.decorators import guild_only, has_dj_role
+from busty.decorators import has_dj_role
 from busty.track import Track
 
 
@@ -16,7 +16,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="info")
     @has_dj_role()
-    @guild_only()
+    @app_commands.guild_only()
     async def info(interaction: Interaction) -> None:
         """Get info about currently listed songs."""
         assert interaction.guild_id is not None  # Guaranteed by @guild_only()
@@ -66,14 +66,13 @@ def register_commands(client: BustyBot) -> None:
         await interaction.followup.send(embed=embed)
 
     @client.tree.command(name="preview")
-    @guild_only()
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def preview(
         interaction: Interaction,
         uploaded_file: Attachment,
         submit_message: str | None = None,
     ) -> None:
         """Show a preview of a submission's 'Now Playing' embed."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
         await interaction.response.defer(ephemeral=True)
 
         if not discord_utils.is_valid_media(uploaded_file.content_type):
@@ -83,9 +82,11 @@ def register_commands(client: BustyBot) -> None:
             )
             return
 
+        # Use guild_id if in guild, otherwise use user_id for DM preview cache
+        cache_id = interaction.guild_id if interaction.guild_id is not None else interaction.user.id
         attachment_filepath = discord_utils.build_filepath_for_attachment(
             client.settings.attachment_cache_dir,
-            interaction.guild_id,
+            cache_id,
             uploaded_file,
         )
 

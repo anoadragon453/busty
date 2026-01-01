@@ -1,10 +1,9 @@
 """User preference commands for the Discord bot."""
 
 import discord
-from discord import Interaction
+from discord import Interaction, app_commands
 
 from busty.bot import BustyBot
-from busty.decorators import guild_only
 
 
 def register_commands(client: BustyBot) -> None:
@@ -14,10 +13,12 @@ def register_commands(client: BustyBot) -> None:
     preferences_group = discord.app_commands.Group(
         name="preferences",
         description="Manage your personal Busty preferences",
+        allowed_contexts=app_commands.AppCommandContext(
+            guilds=True, dms=False, private_channels=False
+        ),
     )
 
     @preferences_group.command(name="ai-art")
-    @guild_only()
     async def ai_art(
         interaction: Interaction,
         enabled: bool,
@@ -43,7 +44,6 @@ def register_commands(client: BustyBot) -> None:
         )
 
     @preferences_group.command(name="mailbox-preview")
-    @guild_only()
     async def mailbox_preview(
         interaction: Interaction,
         enabled: bool,

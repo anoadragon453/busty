@@ -6,19 +6,23 @@ import discord
 from discord import app_commands
 
 from busty.bot import BustyBot
-from busty.decorators import guild_only
 
 
 class ImageGroup(app_commands.Group):
     """Command group for managing Google Forms images."""
 
     def __init__(self) -> None:
-        super().__init__(name="image", description="Manage saved Google Forms image.")
+        super().__init__(
+            name="image",
+            description="Manage saved Google Forms image.",
+            allowed_contexts=app_commands.AppCommandContext(
+                guilds=True, dms=False, private_channels=False
+            ),
+        )
 
     @app_commands.command(
         name="upload", description="Upload a Google Forms image as attachment."
     )
-    @guild_only()
     async def upload(
         self, interaction: discord.Interaction, image_file: discord.Attachment
     ) -> None:
@@ -45,7 +49,6 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="url", description="Set a Google Forms image by pasting a URL."
     )
-    @guild_only()
     async def url(self, interaction: discord.Interaction, image_url: str) -> None:
         assert interaction.guild_id is not None  # Guaranteed by @guild_only()
         # TODO: Some basic validity filtering
@@ -69,7 +72,6 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="clear", description="Clear the loaded Google Forms image."
     )
-    @guild_only()
     async def clear(self, interaction: discord.Interaction) -> None:
         assert interaction.guild_id is not None  # Guaranteed by @guild_only()
         bot = cast(BustyBot, interaction.client)
@@ -85,7 +87,6 @@ class ImageGroup(app_commands.Group):
     @app_commands.command(
         name="view", description="View the loaded Google Forms image."
     )
-    @guild_only()
     async def view(self, interaction: discord.Interaction) -> None:
         assert interaction.guild_id is not None  # Guaranteed by @guild_only()
         bot = cast(BustyBot, interaction.client)

@@ -8,12 +8,13 @@ from discord import (
     StageChannel,
     TextChannel,
     VoiceChannel,
+    app_commands,
 )
 
 from busty import bust, song_utils
 from busty.bot import BustyBot
 from busty.bust.discord_impl import DiscordAudioPlayer
-from busty.decorators import guild_only, has_dj_role, text_channel_only
+from busty.decorators import has_dj_role, text_channel_only
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="list")
     @has_dj_role()
-    @guild_only()
+    @app_commands.guild_only()
     async def on_list(
         interaction: Interaction, list_channel: TextChannel | None = None
     ) -> None:
@@ -63,7 +64,7 @@ def register_commands(client: BustyBot) -> None:
     @client.tree.command(name="bust")
     @has_dj_role()
     @text_channel_only()
-    @guild_only()
+    @app_commands.guild_only()
     async def on_bust(interaction: Interaction, index: int = 1) -> None:
         """Begin a bust."""
         # Type narrowing assertions (guaranteed by decorators)
@@ -128,7 +129,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="skip")
     @has_dj_role()
-    @guild_only()
+    @app_commands.guild_only()
     async def skip(interaction: Interaction) -> None:
         """Skip currently playing song."""
         assert interaction.guild_id is not None  # Guaranteed by @guild_only
@@ -149,7 +150,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="seek")
     @has_dj_role()
-    @guild_only()
+    @app_commands.guild_only()
     async def seek(
         interaction: Interaction,
         timestamp: str | None = None,
@@ -180,7 +181,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="replay")
     @has_dj_role()
-    @guild_only()
+    @app_commands.guild_only()
     async def replay(interaction: Interaction) -> None:
         """Replay currently playing song from the beginning."""
         assert interaction.guild_id is not None  # Guaranteed by @guild_only
@@ -200,7 +201,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="stop")
     @has_dj_role()
-    @guild_only()
+    @app_commands.guild_only()
     async def stop(interaction: Interaction) -> None:
         """Stop playback."""
         assert interaction.guild_id is not None  # Guaranteed by @guild_only
