@@ -14,7 +14,7 @@ def register_commands(client: BustyBot) -> None:
         name="preferences",
         description="Manage your personal Busty preferences",
         allowed_contexts=app_commands.AppCommandContext(
-            guilds=True, dms=False, private_channels=False
+            guild=True, dm_channel=False, private_channel=False
         ),
     )
 

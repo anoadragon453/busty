@@ -16,7 +16,7 @@ class ImageGroup(app_commands.Group):
             name="image",
             description="Manage saved Google Forms image.",
             allowed_contexts=app_commands.AppCommandContext(
-                guilds=True, dms=False, private_channels=False
+                guild=True, dm_channel=False, private_channel=False
             ),
         )
 

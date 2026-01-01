@@ -4,8 +4,7 @@ import logging
 import random
 
 import discord
-from discord import Interaction, Message, TextChannel
-from discord.app_commands import AppCommandError, CheckFailure
+from discord import Interaction, Message, TextChannel, app_commands
 
 from busty import discord_utils, song_utils
 from busty.ai import ChatService
@@ -166,16 +165,18 @@ def register_events(client: BustyBot) -> None:
         ):
             await client.chat_service.respond(message)
 
-    @client.event
-    async def on_application_command_error(
-        interaction: Interaction, error: Exception
+    @client.tree.error
+    async def on_app_command_error(
+        interaction: Interaction, error: app_commands.AppCommandError
     ) -> None:
         """Handle errors from application commands."""
         # Get the command name if available
         command_name = interaction.command.name if interaction.command else "unknown"
 
+        logger.info(f"Error handler called for /{command_name}: {type(error).__name__}")
+
         # Handle check failures (e.g., missing DJ role, wrong channel type)
-        if isinstance(error, CheckFailure):
+        if isinstance(error, app_commands.CheckFailure):
             # Use the error message from the CheckFailure exception
             # This allows each check to provide its own specific error message
             error_msg = str(error) if str(error) else "You don't have permission to use this command."
@@ -192,7 +193,7 @@ def register_events(client: BustyBot) -> None:
                 )
 
         # Handle other app command errors
-        elif isinstance(error, AppCommandError):
+        elif isinstance(error, app_commands.AppCommandError):
             error_msg = f"An error occurred while running `/{command_name}`. Please try again."
 
             try:

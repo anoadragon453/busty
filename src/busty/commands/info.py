@@ -90,6 +90,9 @@ def register_commands(client: BustyBot) -> None:
             uploaded_file,
         )
 
+        # Ensure cache directory exists
+        attachment_filepath.parent.mkdir(parents=True, exist_ok=True)
+
         # Save attachment to disk for processing
         await uploaded_file.save(fp=attachment_filepath)
 
