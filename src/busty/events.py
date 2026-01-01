@@ -171,7 +171,7 @@ def register_events(client: BustyBot) -> None:
     ) -> None:
         """Handle errors from application commands."""
         # Get the command name if available
-        command_name = interaction.command.name if interaction.command else "unknown"
+        command_name = interaction.command.name if interaction.command else "<unknown>"
 
         logger.info(f"Error handler called for /{command_name}: {type(error).__name__}")
 
