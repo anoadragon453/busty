@@ -8,6 +8,7 @@ from busty import discord_utils, song_utils
 from busty.bot import BustyBot
 from busty.config import constants
 from busty.decorators import guild_only, has_dj_role
+from busty.track import Track
 
 
 def register_commands(client: BustyBot) -> None:
@@ -91,8 +92,8 @@ def register_commands(client: BustyBot) -> None:
         # Save attachment to disk for processing
         await uploaded_file.save(fp=attachment_filepath)
 
-        # Create Track using new utility function
-        preview_track = song_utils.create_track_from_attachment(
+        # Create Track
+        preview_track = Track.from_attachment(
             attachment_filepath,
             uploaded_file,
             interaction.user.id,

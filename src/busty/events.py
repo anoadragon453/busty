@@ -11,6 +11,7 @@ from busty import discord_utils, song_utils
 from busty.ai import ChatService
 from busty.bot import BustyBot
 from busty.config import constants
+from busty.track import Track
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +51,8 @@ async def _send_preview_dm_for_attachment(
         # Download attachment
         await attachment.save(fp=attachment_filepath)
 
-        # Create Track using new utility function
-        preview_track = song_utils.create_track_from_attachment(
+        # Create Track
+        preview_track = Track.from_attachment(
             attachment_filepath,
             attachment,
             message.author.id,

@@ -304,41 +304,6 @@ def convert_timestamp_to_seconds(time_str: str | None) -> int | None:
     return (hours * 3600) + (minutes * 60) + seconds
 
 
-def create_track_from_attachment(
-    attachment_filepath: Path,
-    attachment: discord.Attachment,
-    submitter_id: int,
-    submitter_name: str,
-    message_content: str | None,
-    message_jump_url: str,
-) -> "Track":
-    """Create a Track object from a Discord attachment.
-
-    Args:
-        attachment_filepath: Local path where attachment was saved
-        attachment: Discord attachment object
-        submitter_id: User ID of submitter
-        submitter_name: Display name of submitter
-        message_content: Optional message text
-        message_jump_url: URL to jump to message
-
-    Returns:
-        Track object with extracted metadata
-    """
-    from busty.track import Track  # Import here to avoid circular dependency
-
-    return Track(
-        local_filepath=attachment_filepath,
-        attachment_filename=attachment.filename,
-        submitter_id=submitter_id,
-        submitter_name=submitter_name,
-        message_content=message_content,
-        message_jump_url=message_jump_url,
-        attachment_url=attachment.url,
-        duration=get_song_length(attachment_filepath),
-    )
-
-
 async def send_track_embed_with_cover_art(
     destination: discord.abc.Messageable,
     track: "Track",
