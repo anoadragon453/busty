@@ -29,6 +29,9 @@ async def _send_preview_dm_for_attachment(
         attachment: The attachment to preview.
     """
     try:
+        # guild is guaranteed to exist by caller check
+        assert message.guild is not None
+
         # Check if user has enabled preview DMs
         if not client.persistent_state.get_mailbox_preview_enabled(
             message.guild.id, message.author.id
@@ -66,10 +69,7 @@ async def _send_preview_dm_for_attachment(
 
         # Send DM preview using new utility function
         random_emoji = random.choice(client.settings.emoji_list)
-        dm_content = (
-            f"Here's what your submission in **{message.guild.name}** "
-            f"(#{message.channel.name}) will look like:"
-        )
+        dm_content = f"Here's what your submission {message.jump_url} will look like when playing:"
 
         await song_utils.send_track_embed_with_cover_art(
             message.author,  # Send to DM

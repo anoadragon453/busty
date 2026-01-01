@@ -107,8 +107,9 @@ def register_commands(client: BustyBot) -> None:
 
         # Send preview using new utility function
         random_emoji = random.choice(client.settings.emoji_list)
+        # interaction.followup is a Webhook which implements Messageable protocol
         await song_utils.send_track_embed_with_cover_art(
-            interaction.followup,
+            interaction.followup,  # type: ignore[arg-type]
             preview_track,
             random_emoji,
             cover_art_bytes,
