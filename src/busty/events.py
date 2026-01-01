@@ -4,8 +4,7 @@ import logging
 import random
 
 import discord
-from discord import Interaction, Message, TextChannel
-from discord.app_commands import AppCommandError
+from discord import Interaction, Message, TextChannel, app_commands
 
 from busty import discord_utils, song_utils
 from busty.ai import ChatService
@@ -166,14 +165,55 @@ def register_events(client: BustyBot) -> None:
         ):
             await client.chat_service.respond(message)
 
-    @client.event
-    async def on_application_command_error(
-        interaction: Interaction, error: Exception
+    @client.tree.error
+    async def on_app_command_error(
+        interaction: Interaction, error: app_commands.AppCommandError
     ) -> None:
-        # Catch insufficient permissions exception, ignore all others
-        if isinstance(error, AppCommandError):
-            await interaction.response.send_message(
-                "You don't have permission to use this command.", ephemeral=True
+        """Handle errors from application commands."""
+        # Get the command name if available
+        command_name = interaction.command.name if interaction.command else "<unknown>"
+
+        logger.info(f"Error handler called for /{command_name}: {type(error).__name__}")
+
+        # Handle check failures (e.g., missing DJ role, wrong channel type)
+        if isinstance(error, app_commands.CheckFailure):
+            # Use the error message from the CheckFailure exception
+            # This allows each check to provide its own specific error message
+            error_msg = (
+                str(error)
+                if str(error)
+                else "You don't have permission to use this command."
             )
+
+            # Try to respond or followup depending on interaction state
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(error_msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+            except discord.HTTPException:
+                logger.warning(
+                    f"Could not send error message for /{command_name} to user {interaction.user}"
+                )
+
+        # Handle other app command errors
+        elif isinstance(error, app_commands.AppCommandError):
+            error_msg = (
+                f"An error occurred while running `/{command_name}`. Please try again."
+            )
+
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(error_msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+            except discord.HTTPException:
+                pass
+
+            logger.error(f"AppCommandError in /{command_name}: {error}", exc_info=error)
+
+        # Handle unexpected errors
         else:
-            logger.error(error)
+            logger.error(
+                f"Unexpected error in /{command_name}: {error}", exc_info=error
+            )

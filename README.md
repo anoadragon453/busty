@@ -158,7 +158,7 @@ The expected flow for running a bust is:
 1. `/list [<channel>]` - Download and list all media sent in the current text channel. Specifying a channel will cause songs to be pulled from that channel instead. This must be run before `/bust`.
 1. `/bust [<song_num>]` - Join the vc/stage that the user who ran this command is currently in, and plays the tracks in the channel in order. The user must be in a vc or stage for this to work. Specifying a song index will skip to that index before playing.
 1. `/info` - Show some statistics about currently listed songs.
-1. `/preview <attachment> [<submit_message>]` - Show a preview of the attachment's artist, title and artwork.
+1. `/preview <attachment> [<submit_message>]` - Show a preview of the attachment's artist, title and artwork. Works in DMs and servers.
 1. `/image upload <attachment>` - Upload an image to be used in the Google Form generated when running `/list`.
 1. `/image url <url>` - Queue an image to be used in the Google Form generated when running `/list`.
 1. `/image view` - View currently loaded image to be used in the Google Form generated when running `/list`.
@@ -167,9 +167,10 @@ The expected flow for running a bust is:
 1. `/stop` - Stop busting early :scream: :scream: :scream:
 
 Users must have the `bangermeister` role to use commands by default, though this role can
-be modified by passing the `BUSTY_DJ_ROLE` environment variable. It is highly recommended that
-you disable command visibility for those without permissions to run them in the Integrations
-section of your server's settings.
+be modified by passing the `BUSTY_DJ_ROLE` environment variable. Most commands are restricted
+to servers only (won't appear in DMs), except `/preview` which works in both servers and DMs.
+It is highly recommended that you disable command visibility for those without permissions to
+run them in the Integrations section of your server's settings.
 
 ## Development
 

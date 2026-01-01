@@ -4,7 +4,6 @@ from discord import Embed, Interaction, TextChannel, app_commands
 
 from busty.bot import BustyBot
 from busty.config import constants
-from busty.decorators import guild_only
 
 
 def register_commands(client: BustyBot) -> None:
@@ -12,7 +11,7 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="announce")
     @app_commands.default_permissions(administrator=True)
-    @guild_only()
+    @app_commands.guild_only()
     async def announce(
         interaction: Interaction,
         title: str,
@@ -20,7 +19,9 @@ def register_commands(client: BustyBot) -> None:
         channel: TextChannel | None = None,
     ) -> None:
         """Send a message as the bot into a channel wrapped in an embed."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert (
+            interaction.guild_id is not None
+        )  # Guaranteed by @app_commands.guild_only()
         await interaction.response.defer(ephemeral=True)
         if channel is None:
             if not isinstance(interaction.channel, TextChannel):
@@ -55,14 +56,16 @@ def register_commands(client: BustyBot) -> None:
 
     @client.tree.command(name="say")
     @app_commands.default_permissions(administrator=True)
-    @guild_only()
+    @app_commands.guild_only()
     async def say(
         interaction: Interaction,
         message: str,
         channel: TextChannel | None = None,
     ) -> None:
         """Send a message as the bot into a channel."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert (
+            interaction.guild_id is not None
+        )  # Guaranteed by @app_commands.guild_only()
         await interaction.response.defer(ephemeral=True)
         if channel is None:
             if not isinstance(interaction.channel, TextChannel):
