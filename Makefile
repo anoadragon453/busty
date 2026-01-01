@@ -14,7 +14,7 @@ format: ## Format the code with ruff
 	ruff format .
 
 type-check: ## Type check the code with mypy
-	mypy src/
+	uv run mypy src/
 
 test: ## Run tests with pytest
 	uv run pytest

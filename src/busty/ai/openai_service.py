@@ -54,6 +54,52 @@ class OpenAIService:
             logger.error(f"OpenAI API exception: {e}")
             return None
 
+    async def complete_chat_with_tools(
+        self, messages: list[dict[str, str]], tools: list[dict]
+    ) -> dict:
+        """Send messages to OpenAI with tool/function calling.
+
+        Args:
+            messages: List of {"role": ..., "content": ...} dicts.
+            tools: List of tool definitions for function calling.
+
+        Returns:
+            Response dict with 'content' and 'tool_calls' keys.
+
+        Raises:
+            Exception: If client not configured or API error occurs.
+        """
+        if self._client is None:
+            raise RuntimeError("OpenAI client not configured")
+
+        response = await self._client.chat.completions.create(
+            model=self.settings.openai_model,
+            messages=messages,  # type: ignore
+            tools=tools,  # type: ignore
+            tool_choice="required",  # Force the model to call a function
+            timeout=constants.LLM_RESPONSE_TIMEOUT,
+        )
+
+        message = response.choices[0].message
+
+        # Convert to dict format for easier handling
+        result = {"content": message.content, "tool_calls": []}
+
+        if message.tool_calls:
+            result["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in message.tool_calls
+            ]
+
+        return result
+
     async def generate_image(self, prompt: str) -> str | None:
         """Generate an image from a text prompt.
 

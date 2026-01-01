@@ -79,7 +79,7 @@ class BustySettings:
 
         # Compute file paths (hardcoded structure)
         bot_state_file = state_dir / "bot_state.json"
-        llm_context_file = config_dir / "llm_context.json"
+        llm_context_file = config_dir / "llm_context.yaml"
         google_auth_file = auth_dir / "oauth_token.json"
 
         # Load OpenAI model (used for both model and tokenizer by default)

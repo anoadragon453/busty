@@ -29,6 +29,11 @@ COVER_ART_FETCH_TIMEOUT: Final = 10.0  # seconds
 COVER_ART_GENERATE_TIMEOUT: Final = 20.0  # seconds
 LLM_RESPONSE_TIMEOUT: Final = 10.0  # seconds
 
+# Chat service constants
+CHAT_BUSY_EMOJI: Final = "\N{RAISED HAND}"  # No skin tone modifier for neutrality
+CHAT_MESSAGE_TOO_LONG_REPLY: Final = "I'm not reading all that."
+CHAT_ERROR_REPLY: Final = "busy rn"
+
 # User preference defaults
 AI_ART_ENABLED_DEFAULT: Final = True  # opt-out system
 MAILBOX_PREVIEW_ENABLED_DEFAULT: Final = True  # opt-out system

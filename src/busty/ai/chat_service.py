@@ -1,7 +1,8 @@
 """Chat service for Discord bot LLM interactions.
 
 This module handles high-level chat orchestration including:
-- Message context building
+- Message context building with inline metadata
+- Function calling for action selection (respond/react/both/ignore)
 - History fetching and token management
 - Response formatting and delivery
 - Concurrent request handling
@@ -12,9 +13,11 @@ import datetime
 import json
 import logging
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 import tiktoken
+import yaml
 from discord import ClientUser, Member, Message, User
 
 from busty.ai.protocols import AIService
@@ -25,6 +28,152 @@ if TYPE_CHECKING:
     from busty.bot import BustyBot
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class UserInfo:
+    """Information about a Discord user."""
+
+    name: str
+    info: str | None = None
+
+
+@dataclass(frozen=True)
+class LLMContextData:
+    """Structured context data loaded from llm_context.yaml."""
+
+    static_context: list[str]
+    word_triggers: dict[str, str]
+    user_info: dict[str, UserInfo]
+
+    @staticmethod
+    def from_dict(data: dict) -> "LLMContextData":
+        """Parse raw YAML dict into structured context data.
+
+        Args:
+            data: Raw dict loaded from YAML file.
+
+        Returns:
+            Structured LLMContextData instance.
+
+        Raises:
+            ValueError: If required fields are missing or invalid.
+        """
+        # Validate required fields
+        required_fields = [
+            "static_context",
+            "word_triggers",
+            "user_info",
+        ]
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            raise ValueError(
+                f"Missing required fields in llm_context.yaml: {', '.join(missing)}"
+            )
+
+        # Parse user_info dict
+        user_info = {}
+        for user_id, user_data in data["user_info"].items():
+            if not isinstance(user_data, dict):
+                logger.warning(
+                    f"Invalid user_info entry for {user_id}: expected dict, got {type(user_data)}"
+                )
+                continue
+
+            # User must have a name
+            if "name" not in user_data:
+                logger.warning(f"User {user_id} missing 'name' field, skipping")
+                continue
+
+            user_info[user_id] = UserInfo(
+                name=user_data["name"], info=user_data.get("info")
+            )
+
+        return LLMContextData(
+            static_context=data["static_context"],
+            word_triggers=data["word_triggers"],
+            user_info=user_info,
+        )
+
+
+# Tool definitions for function calling
+CHAT_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "send_message",
+            "strict": True,
+            "description": "Send a text message to the channel",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "The message content to send",
+                    }
+                },
+                "required": ["content"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_reactions",
+            "strict": True,
+            "description": "React to the message with emoji(s). Use this for quick acknowledgment or when words aren't needed.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "emojis": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of emoji to react with (e.g., ['👍', '❤️'])",
+                        "minItems": 1,
+                    }
+                },
+                "required": ["emojis"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_message_and_react",
+            "strict": True,
+            "description": "Both send a message AND add reaction(s). Use when you want to emphasize your response.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string", "description": "The message to send"},
+                    "emojis": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of emoji to react with",
+                        "minItems": 1,
+                    },
+                },
+                "required": ["content", "emojis"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ignore",
+            "strict": True,
+            "description": "Don't respond or react to this message. Use when the conversation doesn't need your input.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        },
+    },
+]
 
 
 class ChatService:
@@ -57,7 +206,6 @@ class ChatService:
         self._context_data = self._load_context_data()
 
         # Compile regex patterns
-        self._banned_word_pattern: re.Pattern | None = None
         self._word_trigger_pattern: re.Pattern | None = None
         self._user_trigger_pattern: re.Pattern | None = None
         self._user_info_map: dict[str, str] = {}
@@ -70,15 +218,38 @@ class ChatService:
         """Check if chat service is properly configured."""
         return self._context_data is not None
 
-    def _load_context_data(self) -> dict | None:
-        """Load context data from configuration file."""
+    def _load_context_data(self) -> LLMContextData | None:
+        """Load and parse context data from YAML configuration file.
+
+        Returns:
+            Structured LLMContextData if successful, None if loading/parsing failed.
+        """
         try:
             with open(self._settings.llm_context_file) as f:
-                return json.load(f)
-        except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+                raw_data = yaml.safe_load(f)
+
+            if raw_data is None:
+                logger.error(f"{self._settings.llm_context_file} is empty")
+                return None
+
+            return LLMContextData.from_dict(raw_data)
+
+        except FileNotFoundError:
             logger.error(
-                f"Issue loading {self._settings.llm_context_file}. "
-                f"Chat capabilities will be disabled: {e}"
+                f"Config file not found: {self._settings.llm_context_file}. "
+                "Chat capabilities will be disabled."
+            )
+            return None
+        except yaml.YAMLError as e:
+            logger.error(
+                f"YAML parsing error in {self._settings.llm_context_file}: {e}. "
+                "Chat capabilities will be disabled."
+            )
+            return None
+        except ValueError as e:
+            logger.error(
+                f"Invalid config format in {self._settings.llm_context_file}: {e}. "
+                "Chat capabilities will be disabled."
             )
             return None
 
@@ -87,22 +258,25 @@ class ChatService:
         if self._context_data is None:
             return
 
-        self._banned_word_pattern = re.compile(
-            rf"\b{'|'.join(self._context_data['banned_phrases'])}\b"
-        )
-
         self._word_trigger_pattern = re.compile(
-            rf"\b({'|'.join(self._context_data['word_triggers'].keys())})\b"
+            rf"\b({'|'.join(self._context_data.word_triggers.keys())})\b"
         )
 
-        self._user_trigger_pattern = re.compile(
-            rf"\b({'|'.join([user['name'].lower() for user in self._context_data['user_info'].values() if 'info' in user])})\b"
-        )
+        # Build pattern for user names that have info
+        user_names_with_info = [
+            user.name.lower()
+            for user in self._context_data.user_info.values()
+            if user.info is not None
+        ]
+        if user_names_with_info:
+            self._user_trigger_pattern = re.compile(
+                rf"\b({'|'.join(user_names_with_info)})\b"
+            )
 
         self._user_info_map = {
-            user["name"].lower(): user["info"].lower()
-            for user in self._context_data["user_info"].values()
-            if "info" in user and "name" in user
+            user.name.lower(): user.info.lower()
+            for user in self._context_data.user_info.values()
+            if user.info is not None
         }
 
     async def respond(self, message: Message) -> None:
@@ -110,67 +284,115 @@ class ChatService:
 
         Handles concurrency (only one response at a time) and
         all the Discord-specific response formatting.
+        Uses function calling to decide action: message, reaction, both, or ignore.
         """
         if not self.is_configured:
             return
 
         # React with "stop" hand if we're already responding
         if self._lock.locked():
-            raised_hand_emoji = "\N{RAISED HAND}\U0001f3ff"
-            await message.add_reaction(raised_hand_emoji)
+            await message.add_reaction(constants.CHAT_BUSY_EMOJI)
             return
 
         async with self._lock:
             async with message.channel.typing():
-                response = await self._get_response_text(message)
-            if response:
-                await self._send_response(message, response)
+                message_content, reaction_emojis = await self._get_response_action(
+                    message
+                )
 
-    async def _get_response_text(self, message: Message) -> str | None:
-        """Generate response text for a message."""
+            # Execute the action(s)
+            if message_content:
+                await self._send_response(message, message_content)
+
+            if reaction_emojis:
+                for emoji in reaction_emojis:
+                    try:
+                        await message.add_reaction(emoji)
+                    except Exception as e:
+                        logger.warning(f"Failed to add reaction {emoji}: {e}")
+
+    async def _get_response_action(
+        self, message: Message
+    ) -> tuple[str | None, list[str] | None]:
+        """Generate response action via function calling.
+
+        Error handling pattern:
+        - User-visible errors (context too long, API failures): Reply to user and return (None, None)
+        - Internal errors (missing config): Log warning and return (None, None) silently
+
+        Returns:
+            Tuple of (message_content, reaction_emojis) where either can be None.
+            Returns (None, None) if should ignore or if error occurs.
+        """
         if self._context_data is None or self._client.user is None:
-            return None
+            logger.debug(
+                "LLM response disabled: context data or client user not available"
+            )
+            return None, None
 
-        context = await self._get_message_context(message)
+        # Fetch conversation history with inline metadata
+        history = await self._fetch_history(512, 5, message)
 
-        if self._disallowed_message(message):
-            # If message is disallowed, pass a special instruction
-            user = self._get_name(message.author)
-            if self._user_info_map and user.lower() in self._user_info_map:
-                context.append(f"{user}: {self._user_info_map[user.lower()]}")
-            # Pass special instruction
-            context.append(self._context_data["banned_phrase_instruction"])
-            # Make up empty history so the bot understands how to format the response
-            history = [(f"{self._client.user.name}:", True), (f"{user}:", False)]
-        else:
-            # Load history with 512 token limit and 5 speaking turn limit
-            history = await self._fetch_history(512, 5, message)
-            # We couldn't fit even a single message in history
-            if not history:
-                await message.reply("I'm not reading all that.")
-                return None
+        # Check if we got any history
+        if not history:
+            # Message too long to fit in context
+            await message.reply(constants.CHAT_MESSAGE_TOO_LONG_REPLY)
+            return None, None
 
-            context += self._get_history_context(history)
+        # Build system message with markdown formatting, filtered by conversation context
+        system_msg = await self._build_system_message(message, history)
+        if system_msg is None:
+            logger.warning("Cannot generate response: failed to build system message")
+            return None, None
 
-        # Send data to API
-        data = []
-        data.append({"role": "system", "content": "\n".join(context)})
+        # Build messages array
+        messages = [system_msg] + list(reversed(history))
 
-        for msg, is_self in reversed(history):
-            role = "assistant" if is_self else "user"
-            data.append({"role": role, "content": msg})
+        # Call OpenAI with function calling
+        try:
+            response = await self._ai_service.complete_chat_with_tools(
+                messages, CHAT_TOOLS
+            )
 
-        response = await self._ai_service.complete_chat(data)
-        if response:
-            # Remove "Busty: " prefix (or bot's custom name prefix)
-            prefix = f"{self._get_name(self._client.user)}: "
-            if response.startswith(prefix):
-                response = response[len(prefix) :]
+            # Safety check: model shouldn't generate content when calling tools
+            if response.get("content"):
+                logger.warning(
+                    f"Model generated unexpected content alongside tool call: {response['content']}"
+                )
 
-            return response
+            # Extract tool call
+            tool_calls = response.get("tool_calls")
+            if not tool_calls:
+                logger.error(
+                    "Model didn't call any tools despite tool_choice='required'"
+                )
+                return None, None
 
-        await message.reply("busy rn")
-        return None
+            tool_call = tool_calls[0]
+            function_name = tool_call["function"]["name"]
+            arguments = json.loads(tool_call["function"]["arguments"])
+
+            # Handle different action types
+            if function_name == "send_message":
+                return arguments["content"], None
+
+            elif function_name == "add_reactions":
+                return None, arguments["emojis"]
+
+            elif function_name == "send_message_and_react":
+                return arguments["content"], arguments["emojis"]
+
+            elif function_name == "ignore":
+                return None, None
+
+            else:
+                logger.error(f"Unknown function call: {function_name}")
+                return None, None
+
+        except Exception as e:
+            logger.error(f"Error calling LLM with tools: {e}", exc_info=True)
+            await message.reply(constants.CHAT_ERROR_REPLY)
+            return None, None
 
     async def _send_response(self, message: Message, response: str) -> None:
         """Send response to Discord, handling length limits."""
@@ -187,24 +409,23 @@ class ChatService:
             else:
                 await message.channel.send(text)
 
-    def _disallowed_message(self, message: Message) -> bool:
-        """Check if message content is disallowed.
-
-        Currently checks if it contains banned phrases.
-        """
-        if self._banned_word_pattern is None:
-            return False
-        return self._banned_word_pattern.search(message.content.lower()) is not None
-
     def _get_name(self, user: User | Member | ClientUser) -> str:
-        """Get the name we should call the user."""
+        """Get the name we should call the user.
+
+        Always returns "Busty" for the bot itself, regardless of actual Discord username.
+        This ensures consistency between the bot's persona name in static_context and
+        how she appears in conversation history.
+        """
+        # Always use "Busty" for the bot itself
+        if user == self._client.user:
+            return "Busty"
+
         if self._context_data is None:
             return cast(str, user.name)
 
-        user_info = self._context_data["user_info"]
         user_id = str(user.id)
-        if user_id in user_info and "name" in user_info[user_id]:
-            return cast(str, user_info[user_id]["name"])
+        if user_id in self._context_data.user_info:
+            return self._context_data.user_info[user_id].name
         return cast(str, user.name)
 
     async def _get_server_context(self, message: Message) -> list[str]:
@@ -220,7 +441,7 @@ class ChatService:
                 if current_track:
                     result.append(f"Now playing: {current_track.formatted_title}")
                 result.append(
-                    "Tell everyone you can't respond since you're busy busting."
+                    "Tell anyone who tries to speak to you that you can't respond since you're busy busting."
                 )
 
         # Load server event info
@@ -268,7 +489,13 @@ class ChatService:
     def _token_count(self, data: str) -> int:
         """Count tokens in a string."""
         if self._encoding is None:
-            return len(data.split())  # Fallback to word count
+            # NOTE: This is a poor estimate - word count can be 2-3x off from actual token count.
+            # Tokens often split words (e.g., "running" → ["run", "ning"]) and include punctuation.
+            # This may cause context window issues if encoding is unavailable.
+            logger.warning(
+                "Token encoding not available, using word count as fallback (inaccurate estimate)"
+            )
+            return len(data.split())
         return len(self._encoding.encode(data))
 
     def _substitute_mentions(self, message: Message) -> str:
@@ -284,8 +511,10 @@ class ChatService:
 
     async def _fetch_history(
         self, token_limit: int, speaking_turn_limit: int, message: Message
-    ) -> list[tuple[str, bool]]:
+    ) -> list[dict[str, str]]:
         """Fetch message content from history up to a certain token allowance.
+
+        Uses inline metadata format: [Name] or [Name → Target] content [img: file]
 
         Args:
             token_limit: Maximum tokens to include from history.
@@ -293,7 +522,7 @@ class ChatService:
             message: The message being responded to.
 
         Returns:
-            List of (message_text, is_self) tuples.
+            List of message dicts with 'role' and 'content' keys.
         """
         total_tokens = 0
         history = []
@@ -307,10 +536,6 @@ class ChatService:
             # Skip messages newer than what we're replying to
             seen_message = seen_message or (msg == message)
             if not seen_message:
-                continue
-
-            # Skip if message is disallowed
-            if self._disallowed_message(msg):
                 continue
 
             # Don't include messages which are both more than 3 back and an hour old
@@ -328,46 +553,182 @@ class ChatService:
                     break
                 last_author = msg.author
 
-            # Add this message's author and content to the returned history
-            msg_text = f"{self._get_name(msg.author)}: {self._substitute_mentions(msg)}"
+            # Build message with inline metadata format
+            msg_text = await self._format_message_with_metadata(msg)
             total_tokens += self._token_count(msg_text)
             if total_tokens > token_limit:
                 break
 
-            is_self = msg.author == self._client.user
-            history.append((msg_text, is_self))
+            # Determine role
+            role = "assistant" if msg.author == self._client.user else "user"
+            history.append({"role": role, "content": msg_text})
 
         return history
 
-    async def _get_message_context(self, message: Message) -> list[str]:
-        """Build full context for a message."""
+    async def _format_message_with_metadata(self, msg: Message) -> str:
+        """Format a Discord message with inline metadata tags.
+
+        Format: [Name] content or [Name → Target] content [img: file]
+
+        Args:
+            msg: Discord message to format.
+
+        Returns:
+            Formatted message string with inline metadata.
+        """
+        content_parts = []
+
+        # Build name/reply prefix
+        name = self._get_name(msg.author)
+        prefix = f"[{name}"
+
+        # Add reply indicator if replying to someone
+        if msg.reference and msg.reference.message_id:
+            try:
+                replied_msg = await msg.channel.fetch_message(msg.reference.message_id)
+                replied_to = self._get_name(replied_msg.author)
+                prefix += f" → {replied_to}"
+            except Exception:
+                # If we can't fetch the referenced message, just skip the reply indicator
+                pass
+
+        prefix += "]"
+        content_parts.append(prefix)
+
+        # Add main message content
+        msg_content = self._substitute_mentions(msg)
+        if msg_content.strip():
+            content_parts.append(msg_content)
+
+        # Add attachment metadata
+        for att in msg.attachments:
+            if att.content_type:
+                if att.content_type.startswith("image/"):
+                    content_parts.append(f"[img: {att.filename}]")
+                elif att.content_type.startswith("audio/"):
+                    content_parts.append(f"[audio: {att.filename}]")
+                elif att.content_type.startswith("video/"):
+                    content_parts.append(f"[video: {att.filename}]")
+
+        # Add reaction metadata (limit to top 3 most common)
+        if msg.reactions:
+            reaction_strs = []
+            for reaction in sorted(msg.reactions, key=lambda r: r.count, reverse=True)[
+                :3
+            ]:
+                if reaction.count > 1:
+                    reaction_strs.append(f"{reaction.emoji}({reaction.count})")
+                else:
+                    reaction_strs.append(str(reaction.emoji))
+
+            if reaction_strs:
+                content_parts.append(f"[reactions: {' '.join(reaction_strs)}]")
+
+        return " ".join(content_parts)
+
+    async def _build_system_message(
+        self, message: Message, history: list[dict[str, str]]
+    ) -> dict[str, str] | None:
+        """Build structured system message with markdown formatting.
+
+        Only includes user info and word triggers that are relevant to the
+        current conversation (mentioned in history), reducing token usage.
+
+        Args:
+            message: The message being responded to.
+            history: Conversation history to extract relevant context from.
+
+        Returns:
+            System message dict with markdown-formatted context, or None if
+            context data is not available.
+        """
         if self._context_data is None:
-            return []
+            logger.warning("Cannot build system message: context data not loaded")
+            return None
 
-        static_context = self._context_data["static_context"]
-        author_context = await self._get_server_context(message)
-        return cast(list[str], static_context + author_context)
+        sections = []
 
-    def _get_history_context(self, history: list[tuple[str, bool]]) -> list[str]:
-        """Extract additional context from history (word triggers, user triggers)."""
-        if (
-            self._context_data is None
-            or self._word_trigger_pattern is None
-            or self._user_trigger_pattern is None
-            or self._user_info_map is None
-        ):
-            return []
+        # Identity and personality (from static_context) - always included
+        identity_section = "# Identity and Personality\n" + "\n".join(
+            f"- {line}" if not line.startswith("You are") else line
+            for line in self._context_data.static_context
+        )
+        sections.append(identity_section)
 
-        # Load additional context from history
+        # Current context (server state, bust status, etc.) - always included
+        server_context = await self._get_server_context(message)
+        if server_context:
+            context_section = "# Current Context\n" + "\n".join(
+                f"- {line}" for line in server_context
+            )
+            sections.append(context_section)
+
+        # Extract relevant context from conversation history
+        mentioned_triggers, mentioned_users = self._extract_history_context(history)
+
+        # People info - only include users mentioned in conversation
+        if self._context_data.user_info and mentioned_users:
+            people_lines = []
+            for user in self._context_data.user_info.values():
+                if user.info and user.name.lower() in mentioned_users:
+                    people_lines.append(f"- {user.name}: {user.info}")
+            if people_lines:
+                sections.append("# People You Know\n" + "\n".join(people_lines))
+
+        # Topic knowledge - only include triggers mentioned in conversation
+        if self._context_data.word_triggers and mentioned_triggers:
+            trigger_lines = [
+                f"- {word}: {info}"
+                for word, info in self._context_data.word_triggers.items()
+                if word in mentioned_triggers
+            ]
+            if trigger_lines:
+                sections.append("# Topic Knowledge\n" + "\n".join(trigger_lines))
+
+        # Response guidelines
+        guidelines = """# Response Guidelines
+Use the provided functions to choose how to respond:
+- send_message: Reply with text
+- add_reactions: Just react with emoji(s)
+- send_message_and_react: Do both (for emphasis)
+- ignore: Stay silent
+
+Choose based on context - you don't always need to respond!"""
+        sections.append(guidelines)
+
+        return {"role": "system", "content": "\n\n".join(sections)}
+
+    def _extract_history_context(
+        self, history: list[dict[str, str]]
+    ) -> tuple[set[str], set[str]]:
+        """Extract word triggers and user mentions from conversation history.
+
+        This is used to filter the system message to only include relevant context,
+        reducing token usage and cost.
+
+        Args:
+            history: List of message dicts with 'content' key.
+
+        Returns:
+            Tuple of (word_triggers, user_names) sets found in history.
+        """
+        if self._context_data is None:
+            return set(), set()
+
         word_triggers = set()
-        user_triggers = set()
-        for content, _ in history:
-            for word in self._word_trigger_pattern.findall(content):
-                word_triggers.add(word)
-            for user in self._user_trigger_pattern.findall(content):
-                user_triggers.add(user)
+        user_names = set()
 
-        # Return context about users + word triggers from history
-        return [
-            f"{user} info: {self._user_info_map[user]}" for user in user_triggers
-        ] + [self._context_data["word_triggers"][word] for word in word_triggers]
+        for msg in history:
+            content = msg["content"].lower()
+
+            # Find word triggers that appear in conversation
+            if self._word_trigger_pattern:
+                for word in self._word_trigger_pattern.findall(content):
+                    word_triggers.add(word)
+
+            # Find user names that appear in conversation
+            if self._user_trigger_pattern:
+                for user_name in self._user_trigger_pattern.findall(content):
+                    user_names.add(user_name)
+
+        return word_triggers, user_names

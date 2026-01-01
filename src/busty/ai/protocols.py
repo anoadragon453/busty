@@ -1,6 +1,6 @@
 """Protocol definitions for AI services."""
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from busty.track import Track
 
@@ -31,6 +31,21 @@ class AIService(Protocol):
 
         Returns:
             Response text, or None if AI unavailable or error occurs.
+        """
+        ...
+
+    async def complete_chat_with_tools(
+        self, messages: list[dict[str, str]], tools: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Send messages to AI with tool/function calling.
+
+        Args:
+            messages: List of {"role": ..., "content": ...} dicts.
+            tools: List of tool definitions for function calling.
+
+        Returns:
+            Response dict with 'content' and 'tool_calls' keys.
+            Raises exception if error occurs.
         """
         ...
 
