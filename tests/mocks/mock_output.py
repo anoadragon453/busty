@@ -1,5 +1,6 @@
 """Mock implementations of protocols for testing."""
 
+from busty.config import constants
 from busty.track import Track
 
 
@@ -13,15 +14,26 @@ class MockUserPreferences:
             guild_id: Mock guild ID (default for testing).
         """
         self.guild_id = guild_id
-        self._preferences: dict[int, bool] = {}
+        self._ai_art_preferences: dict[int, bool] = {}
+        self._mailbox_preview_preferences: dict[int, bool] = {}
 
     def should_generate_ai_album_art(self, user_id: int) -> bool:
-        """Check if AI art should be generated - defaults to True."""
-        return self._preferences.get(user_id, True)
+        """Check if AI art should be generated - uses constant default."""
+        return self._ai_art_preferences.get(user_id, constants.AI_ART_ENABLED_DEFAULT)
 
     def set_ai_album_art_enabled(self, user_id: int, enabled: bool) -> None:
         """Set AI art preference for testing."""
-        self._preferences[user_id] = enabled
+        self._ai_art_preferences[user_id] = enabled
+
+    def should_show_mailbox_preview(self, user_id: int) -> bool:
+        """Check if mailbox preview DMs are enabled - uses constant default."""
+        return self._mailbox_preview_preferences.get(
+            user_id, constants.MAILBOX_PREVIEW_ENABLED_DEFAULT
+        )
+
+    def set_mailbox_preview_enabled(self, user_id: int, enabled: bool) -> None:
+        """Set mailbox preview preference for testing."""
+        self._mailbox_preview_preferences[user_id] = enabled
 
 
 class MockAIService:

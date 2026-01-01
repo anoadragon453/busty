@@ -6,7 +6,6 @@ import os
 import random
 import subprocess
 import tempfile
-from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,7 +14,6 @@ from discord import (
     Embed,
     FFmpegOpusAudio,
     FFmpegPCMAudio,
-    File,
     Message,
     StageChannel,
     TextChannel,
@@ -72,20 +70,13 @@ class DiscordBustOutput:
         # Choose random emoji for display
         random_emoji = random.choice(self.settings.emoji_list)
 
-        # Build "Now Playing" embed
-        embed = song_utils.embed_song(track, random_emoji)
-
-        # Send embed with cover art if available
-        if cover_art_data:
-            # Convert bytes to Discord File
-            image_fp = BytesIO(cover_art_data)
-            cover_art_file = File(image_fp, filename="cover.jpg")
-            embed.set_image(url=f"attachment://{cover_art_file.filename}")
-            self._now_playing_msg = await self.channel.send(
-                file=cover_art_file, embed=embed
-            )
-        else:
-            self._now_playing_msg = await self.channel.send(embed=embed)
+        # Send embed with cover art using new utility function
+        self._now_playing_msg = await song_utils.send_track_embed_with_cover_art(
+            self.channel,
+            track,
+            random_emoji,
+            cover_art_data,
+        )
 
         # Pin the message
         await discord_utils.try_set_pin(self._now_playing_msg, True)

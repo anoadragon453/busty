@@ -116,6 +116,7 @@ The complete list of environment variable configuration options is:
 1. `BUSTY_DATA_DIR` - Base directory for all bot data (default = data)
 1. `BUSTY_AUTH_DIR` - Directory for authentication files (default = auth)
 1. `BUSTY_DJ_ROLE` - Name of role with permissions to run commands (default = bangermeister)
+1. `BUSTY_MAILBOX_PREFIX` - Channel name prefix for automatic preview detection. When users post audio/video attachments in channels whose names start with this prefix, the bot will automatically send a DM preview (unless the user has opted out via `/preferences mailbox-preview false`) showing what their "Now Playing" message will look like (default = bustys-mailbox-)
 1. `BUSTY_CUSTOM_EMOJI_FILEPATH` - The Python module to import containing the emoji list (default = emoji_list)
 1. `BUSTY_OPENAI_API_KEY` - OpenAI API key for AI features (optional)
 1. `BUSTY_OPENAI_MODEL` - OpenAI model to use (default = gpt-3.5-turbo)

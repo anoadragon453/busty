@@ -29,5 +29,9 @@ COVER_ART_FETCH_TIMEOUT: Final = 10.0  # seconds
 COVER_ART_GENERATE_TIMEOUT: Final = 20.0  # seconds
 LLM_RESPONSE_TIMEOUT: Final = 10.0  # seconds
 
+# User preference defaults
+AI_ART_ENABLED_DEFAULT: Final = True  # opt-out system
+MAILBOX_PREVIEW_ENABLED_DEFAULT: Final = True  # opt-out system
+
 # Type aliases
 JSON_DATA_TYPE = str | int | float | bool | Mapping[str, Any] | Iterable[Any] | None

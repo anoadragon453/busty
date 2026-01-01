@@ -42,5 +42,31 @@ def register_commands(client: BustyBot) -> None:
             ephemeral=True,
         )
 
+    @preferences_group.command(name="mailbox-preview")
+    @guild_only()
+    async def mailbox_preview(
+        interaction: Interaction,
+        enabled: bool,
+    ) -> None:
+        """Enable or disable automatic preview DMs when posting in mailbox channels.
+
+        Args:
+            enabled: True to enable preview DMs, False to disable.
+        """
+        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+
+        user_id = interaction.user.id
+        guild_id = interaction.guild_id
+
+        # Update the user's preference for this guild
+        client.persistent_state.set_mailbox_preview_enabled(guild_id, user_id, enabled)
+
+        # Send confirmation
+        status = "enabled" if enabled else "disabled"
+        await interaction.response.send_message(
+            f"Mailbox preview DMs have been **{status}** for this server.",
+            ephemeral=True,
+        )
+
     # Add the group to the command tree
     client.tree.add_command(preferences_group)

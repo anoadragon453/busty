@@ -238,6 +238,8 @@ class PersistentState:
         Returns:
             True if AI art is enabled (default), False if user has opted out.
         """
+        from busty.config import constants
+
         result = self.get_state(
             [
                 "guilds",
@@ -247,9 +249,9 @@ class PersistentState:
                 "ai_art_enabled",
             ]
         )
-        # Default to True (opt-out system)
+        # Use constant for default
         if result is None:
-            return True
+            return constants.AI_ART_ENABLED_DEFAULT
         return bool(result)
 
     def set_ai_art_enabled(self, guild_id: int, user_id: int, enabled: bool) -> None:
@@ -277,4 +279,60 @@ class PersistentState:
             )
         except Exception as e:
             logger.error(f"Unable to set AI art preference: {e}")
+            raise
+
+    def get_mailbox_preview_enabled(self, guild_id: int, user_id: int) -> bool:
+        """
+        Check if mailbox preview DMs are enabled for a user in a guild.
+
+        Args:
+            guild_id: The guild ID to check the preference for.
+            user_id: The user ID to check the preference for.
+
+        Returns:
+            True if preview DMs are enabled (default), False if user has opted out.
+        """
+        from busty.config import constants
+
+        result = self.get_state(
+            [
+                "guilds",
+                str(guild_id),
+                "user_preferences",
+                str(user_id),
+                "mailbox_preview_enabled",
+            ]
+        )
+        # Use constant for default
+        if result is None:
+            return constants.MAILBOX_PREVIEW_ENABLED_DEFAULT
+        return bool(result)
+
+    def set_mailbox_preview_enabled(
+        self, guild_id: int, user_id: int, enabled: bool
+    ) -> None:
+        """
+        Set whether mailbox preview DMs are enabled for a user in a guild.
+
+        Args:
+            guild_id: The guild ID to set the preference for.
+            user_id: The user ID to set the preference for.
+            enabled: True to enable preview DMs, False to disable.
+
+        Raises:
+            Exception: If saving the preference fails.
+        """
+        try:
+            self.set_state(
+                [
+                    "guilds",
+                    str(guild_id),
+                    "user_preferences",
+                    str(user_id),
+                    "mailbox_preview_enabled",
+                ],
+                enabled,
+            )
+        except Exception as e:
+            logger.error(f"Unable to set mailbox preview preference: {e}")
             raise

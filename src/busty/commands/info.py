@@ -8,7 +8,6 @@ from busty import discord_utils, song_utils
 from busty.bot import BustyBot
 from busty.config import constants
 from busty.decorators import guild_only, has_dj_role
-from busty.track import Track
 
 
 def register_commands(client: BustyBot) -> None:
@@ -91,32 +90,28 @@ def register_commands(client: BustyBot) -> None:
 
         # Save attachment to disk for processing
         await uploaded_file.save(fp=attachment_filepath)
-        random_emoji = random.choice(client.settings.emoji_list)
 
-        # Create a temporary Track for preview
-        preview_track = Track(
-            local_filepath=attachment_filepath,
-            attachment_filename=uploaded_file.filename,
-            submitter_id=interaction.user.id,
-            submitter_name=interaction.user.display_name,
-            message_content=submit_message,
-            message_jump_url=constants.PREVIEW_JUMP_URL,
-            attachment_url=uploaded_file.url,
-            duration=song_utils.get_song_length(attachment_filepath),
+        # Create Track using new utility function
+        preview_track = song_utils.create_track_from_attachment(
+            attachment_filepath,
+            uploaded_file,
+            interaction.user.id,
+            interaction.user.display_name,
+            submit_message,
+            constants.PREVIEW_JUMP_URL,
         )
 
-        embed = song_utils.embed_song(preview_track, random_emoji)
+        # Get cover art
+        cover_art_bytes = song_utils.get_cover_art_bytes(attachment_filepath)
 
-        cover_art = song_utils.get_cover_art(attachment_filepath)
-
-        if cover_art is not None:
-            embed.set_image(url=f"attachment://{cover_art.filename}")
-            await interaction.response.send_message(
-                file=cover_art, embed=embed, ephemeral=True
-            )
-
-        else:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+        # Send preview using new utility function
+        random_emoji = random.choice(client.settings.emoji_list)
+        await song_utils.send_track_embed_with_cover_art(
+            interaction.followup,
+            preview_track,
+            random_emoji,
+            cover_art_bytes,
+        )
 
         # Delete the attachment from disk after processing
         attachment_filepath.unlink()
