@@ -29,7 +29,9 @@ def register_commands(client: BustyBot) -> None:
         interaction: Interaction, list_channel: TextChannel | None = None
     ) -> None:
         """Download and list all media sent in a chosen text channel."""
-        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
+        assert (
+            interaction.guild_id is not None
+        )  # Guaranteed by @app_commands.guild_only()
         bc = client.bust_registry.get(interaction.guild_id)
         if bc and bc.is_playing:
             await interaction.response.send_message(

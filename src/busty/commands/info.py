@@ -83,7 +83,11 @@ def register_commands(client: BustyBot) -> None:
             return
 
         # Use guild_id if in guild, otherwise use user_id for DM preview cache
-        cache_id = interaction.guild_id if interaction.guild_id is not None else interaction.user.id
+        cache_id = (
+            interaction.guild_id
+            if interaction.guild_id is not None
+            else interaction.user.id
+        )
         attachment_filepath = discord_utils.build_filepath_for_attachment(
             client.settings.attachment_cache_dir,
             cache_id,

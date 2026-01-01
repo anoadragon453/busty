@@ -179,7 +179,11 @@ def register_events(client: BustyBot) -> None:
         if isinstance(error, app_commands.CheckFailure):
             # Use the error message from the CheckFailure exception
             # This allows each check to provide its own specific error message
-            error_msg = str(error) if str(error) else "You don't have permission to use this command."
+            error_msg = (
+                str(error)
+                if str(error)
+                else "You don't have permission to use this command."
+            )
 
             # Try to respond or followup depending on interaction state
             try:
@@ -194,7 +198,9 @@ def register_events(client: BustyBot) -> None:
 
         # Handle other app command errors
         elif isinstance(error, app_commands.AppCommandError):
-            error_msg = f"An error occurred while running `/{command_name}`. Please try again."
+            error_msg = (
+                f"An error occurred while running `/{command_name}`. Please try again."
+            )
 
             try:
                 if interaction.response.is_done():
@@ -204,14 +210,10 @@ def register_events(client: BustyBot) -> None:
             except discord.HTTPException:
                 pass
 
-            logger.error(
-                f"AppCommandError in /{command_name}: {error}",
-                exc_info=error
-            )
+            logger.error(f"AppCommandError in /{command_name}: {error}", exc_info=error)
 
         # Handle unexpected errors
         else:
             logger.error(
-                f"Unexpected error in /{command_name}: {error}",
-                exc_info=error
+                f"Unexpected error in /{command_name}: {error}", exc_info=error
             )
