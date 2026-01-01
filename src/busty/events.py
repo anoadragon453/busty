@@ -29,30 +29,30 @@ async def _send_preview_dm_for_attachment(
         message: Discord message containing the attachment.
         attachment: The attachment to preview.
     """
-    try:
-        # guild is guaranteed to exist by caller check
-        assert message.guild is not None
+    # guild is guaranteed to exist by caller check
+    assert message.guild is not None
 
-        # Create UserPreferences instance for this guild
-        user_prefs = UserPreferences(message.guild.id, client.persistent_state)
+    # Create UserPreferences instance for this guild
+    user_prefs = UserPreferences(message.guild.id, client.persistent_state)
 
-        # Check if user has enabled preview DMs
-        if not user_prefs.should_show_mailbox_preview(message.author.id):
-            logger.debug(
-                f"Skipping preview for user {message.author.id} - preference disabled"
-            )
-            return
-
-        # Build temp filepath for this attachment
-        attachment_filepath = discord_utils.build_filepath_for_attachment(
-            client.settings.temp_dir,
-            message.guild.id,
-            attachment,
+    # Check if user has enabled preview DMs
+    if not user_prefs.should_show_mailbox_preview(message.author.id):
+        logger.debug(
+            f"Skipping preview for user {message.author.id} - preference disabled"
         )
+        return
 
-        # Ensure temp directory exists
-        attachment_filepath.parent.mkdir(parents=True, exist_ok=True)
+    # Build temp filepath for this attachment
+    attachment_filepath = discord_utils.build_filepath_for_attachment(
+        client.settings.temp_dir,
+        message.guild.id,
+        attachment,
+    )
 
+    # Ensure temp directory exists
+    attachment_filepath.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
         # Download attachment
         await attachment.save(fp=attachment_filepath)
 
@@ -76,7 +76,10 @@ async def _send_preview_dm_for_attachment(
         # Add nag message if no cover art
         if cover_art_bytes is None:
             # Check if AI art will be generated during the bust
-            if user_prefs.should_generate_ai_album_art(message.author.id):
+            if (
+                user_prefs.should_generate_ai_album_art(message.author.id)
+                and client.ai_service.is_configured
+            ):
                 dm_content += "\n\n**Note**: AI-generated art will be used during the bust. Consider adding custom album art to your track!"
             else:
                 dm_content += "\n\n**Tip**: Consider adding custom album art to your track, it will show up during the bust!"
@@ -88,9 +91,6 @@ async def _send_preview_dm_for_attachment(
             cover_art_bytes,
             content=dm_content,
         )
-
-        # Clean up temp file
-        attachment_filepath.unlink(missing_ok=True)
 
         logger.info(
             f"Sent preview DM for attachment {attachment.filename} "
@@ -108,6 +108,9 @@ async def _send_preview_dm_for_attachment(
             f"Failed to generate preview for {attachment.filename}: {e}",
             exc_info=True,
         )
+    finally:
+        # Always clean up temp file
+        attachment_filepath.unlink(missing_ok=True)
 
 
 def register_events(client: BustyBot) -> None:

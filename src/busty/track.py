@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-from busty import song_utils
 
 import discord
+
+from busty import song_utils
 
 
 @dataclass(frozen=True)
