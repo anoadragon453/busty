@@ -34,6 +34,7 @@ def settings() -> BustySettings:
         seconds_between_songs=0,  # No cooldown for tests
         num_longest_submitters=3,
         emoji_list=["🎵", "🎶", "🎸"],  # Sample emojis for tests
+        mailbox_channel_prefix="bustys-mailbox-",  # Default for tests
     )
 
 

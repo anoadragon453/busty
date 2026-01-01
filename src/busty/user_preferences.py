@@ -39,3 +39,27 @@ class UserPreferences:
             enabled: True to enable AI art, False to disable.
         """
         self._persistent_state.set_ai_art_enabled(self.guild_id, user_id, enabled)
+
+    def should_show_mailbox_preview(self, user_id: int) -> bool:
+        """Check if mailbox preview DMs are enabled for a user.
+
+        Args:
+            user_id: The user ID to check the preference for.
+
+        Returns:
+            True if preview DMs are enabled (default), False if user has opted out.
+        """
+        return self._persistent_state.get_mailbox_preview_enabled(
+            self.guild_id, user_id
+        )
+
+    def set_mailbox_preview_enabled(self, user_id: int, enabled: bool) -> None:
+        """Enable or disable mailbox preview DMs for a user.
+
+        Args:
+            user_id: The user ID to set the preference for.
+            enabled: True to enable preview DMs, False to disable.
+        """
+        self._persistent_state.set_mailbox_preview_enabled(
+            self.guild_id, user_id, enabled
+        )

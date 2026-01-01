@@ -49,6 +49,9 @@ class BustySettings:
     # Emoji list (derived from emoji module)
     emoji_list: list[str]
 
+    # Mailbox channel detection
+    mailbox_channel_prefix: str
+
     @staticmethod
     def from_environment() -> "BustySettings":
         """Load settings from environment variables.
@@ -107,6 +110,9 @@ class BustySettings:
                 os.environ.get("BUSTY_NUM_LONGEST_SUBMITTERS", "3")
             ),
             emoji_list=emoji_list,
+            mailbox_channel_prefix=os.environ.get(
+                "BUSTY_MAILBOX_PREFIX", "bustys-mailbox-"
+            ),
         )
 
     def validate(self, logger: logging.Logger) -> None:

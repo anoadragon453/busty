@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+import discord
 from discord import Embed, File
 from discord.utils import escape_markdown
 from mutagen import File as MutagenFile
@@ -301,3 +302,39 @@ def convert_timestamp_to_seconds(time_str: str | None) -> int | None:
         return None
 
     return (hours * 3600) + (minutes * 60) + seconds
+
+
+async def send_track_embed_with_cover_art(
+    destination: discord.abc.Messageable,
+    track: "Track",
+    emoji: str,
+    cover_art_bytes: bytes | None,
+    content: str | None = None,
+) -> discord.Message:
+    """Send a track embed with optional cover art to a destination.
+
+    This helper consolidates the common pattern of:
+    1. Creating an embed with song_utils.embed_song()
+    2. Attaching cover art if present
+    3. Sending to a channel/DM
+
+    Args:
+        destination: Where to send (channel, DM, etc.)
+        track: Track to display
+        emoji: Emoji to use in embed
+        cover_art_bytes: Optional cover art bytes
+        content: Optional message content to include
+
+    Returns:
+        The sent Message object
+    """
+    embed = embed_song(track, emoji)
+
+    if cover_art_bytes:
+        # Convert bytes to Discord File
+        image_fp = BytesIO(cover_art_bytes)
+        cover_art_file = File(image_fp, filename="cover.jpg")
+        embed.set_image(url=f"attachment://{cover_art_file.filename}")
+        return await destination.send(content=content, file=cover_art_file, embed=embed)
+    else:
+        return await destination.send(content=content, embed=embed)
