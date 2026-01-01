@@ -19,7 +19,9 @@ def register_commands(client: BustyBot) -> None:
     @app_commands.guild_only()
     async def info(interaction: Interaction) -> None:
         """Get info about currently listed songs."""
-        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
+        assert (
+            interaction.guild_id is not None
+        )  # Guaranteed by @app_commands.guild_only()
         bc = client.bust_registry.get(interaction.guild_id)
 
         if bc is None:
