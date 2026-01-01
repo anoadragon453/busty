@@ -134,7 +134,7 @@ def register_commands(client: BustyBot) -> None:
     @app_commands.guild_only()
     async def skip(interaction: Interaction) -> None:
         """Skip currently playing song."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only
+        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
         bc = client.bust_registry.get(interaction.guild_id)
 
         if not bc or not bc.is_playing:
@@ -158,7 +158,7 @@ def register_commands(client: BustyBot) -> None:
         timestamp: str | None = None,
     ) -> None:
         """Seek to time in the currently playing song."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only
+        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
         # Get seek offset
         seek_to_seconds = song_utils.convert_timestamp_to_seconds(timestamp)
         if seek_to_seconds is None:
@@ -186,7 +186,7 @@ def register_commands(client: BustyBot) -> None:
     @app_commands.guild_only()
     async def replay(interaction: Interaction) -> None:
         """Replay currently playing song from the beginning."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only
+        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
         bc = client.bust_registry.get(interaction.guild_id)
 
         if not bc or not bc.is_playing:
@@ -206,7 +206,7 @@ def register_commands(client: BustyBot) -> None:
     @app_commands.guild_only()
     async def stop(interaction: Interaction) -> None:
         """Stop playback."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only
+        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
         bc = client.bust_registry.get(interaction.guild_id)
 
         if not bc or not bc.is_playing:

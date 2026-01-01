@@ -26,7 +26,7 @@ class ImageGroup(app_commands.Group):
     async def upload(
         self, interaction: discord.Interaction, image_file: discord.Attachment
     ) -> None:
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by group allowed_contexts
         # TODO: Some basic validity filtering
         # Persist the image URL
         bot = cast(BustyBot, interaction.client)
@@ -50,7 +50,7 @@ class ImageGroup(app_commands.Group):
         name="url", description="Set a Google Forms image by pasting a URL."
     )
     async def url(self, interaction: discord.Interaction, image_url: str) -> None:
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by group allowed_contexts
         # TODO: Some basic validity filtering
 
         # Persist the image URL
@@ -73,7 +73,7 @@ class ImageGroup(app_commands.Group):
         name="clear", description="Clear the loaded Google Forms image."
     )
     async def clear(self, interaction: discord.Interaction) -> None:
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by group allowed_contexts
         bot = cast(BustyBot, interaction.client)
         image_existed = bot.persistent_state.clear_form_image_url(interaction.guild_id)
         if not image_existed:
@@ -88,7 +88,7 @@ class ImageGroup(app_commands.Group):
         name="view", description="View the loaded Google Forms image."
     )
     async def view(self, interaction: discord.Interaction) -> None:
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by group allowed_contexts
         bot = cast(BustyBot, interaction.client)
         loaded_image_url = bot.persistent_state.get_form_image_url(interaction.guild_id)
         if loaded_image_url is None:

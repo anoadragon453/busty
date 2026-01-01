@@ -28,7 +28,7 @@ def register_commands(client: BustyBot) -> None:
         Args:
             enabled: True to enable AI art generation, False to disable.
         """
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by group allowed_contexts
 
         user_id = interaction.user.id
         guild_id = interaction.guild_id
@@ -53,7 +53,7 @@ def register_commands(client: BustyBot) -> None:
         Args:
             enabled: True to enable preview DMs, False to disable.
         """
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by group allowed_contexts
 
         user_id = interaction.user.id
         guild_id = interaction.guild_id

@@ -19,7 +19,7 @@ def register_commands(client: BustyBot) -> None:
         channel: TextChannel | None = None,
     ) -> None:
         """Send a message as the bot into a channel wrapped in an embed."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
         await interaction.response.defer(ephemeral=True)
         if channel is None:
             if not isinstance(interaction.channel, TextChannel):
@@ -61,7 +61,7 @@ def register_commands(client: BustyBot) -> None:
         channel: TextChannel | None = None,
     ) -> None:
         """Send a message as the bot into a channel."""
-        assert interaction.guild_id is not None  # Guaranteed by @guild_only()
+        assert interaction.guild_id is not None  # Guaranteed by @app_commands.guild_only()
         await interaction.response.defer(ephemeral=True)
         if channel is None:
             if not isinstance(interaction.channel, TextChannel):
