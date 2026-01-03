@@ -52,6 +52,9 @@ class BustySettings:
     # Mailbox channel detection
     mailbox_channel_prefix: str
 
+    # Logging
+    log_level: int
+
     @staticmethod
     def from_environment() -> "BustySettings":
         """Load settings from environment variables.
@@ -85,6 +88,10 @@ class BustySettings:
         # Load OpenAI model (used for both model and tokenizer by default)
         openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-4o")
 
+        # Load log level
+        log_level_name = os.environ.get("BUSTY_LOG_LEVEL", "INFO").upper()
+        log_level = getattr(logging, log_level_name, logging.INFO)
+
         return BustySettings(
             discord_token=os.environ.get("BUSTY_DISCORD_TOKEN"),
             dj_role_name=os.environ.get("BUSTY_DJ_ROLE", "bangermeister"),
@@ -113,6 +120,7 @@ class BustySettings:
             mailbox_channel_prefix=os.environ.get(
                 "BUSTY_MAILBOX_PREFIX", "bustys-mailbox-"
             ),
+            log_level=log_level,
         )
 
     def validate(self, logger: logging.Logger) -> None:

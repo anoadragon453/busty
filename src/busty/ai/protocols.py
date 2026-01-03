@@ -21,13 +21,17 @@ class AIService(Protocol):
         ...
 
     async def complete_chat(
-        self, messages: list[dict[str, str]], max_tokens: int = 512
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 512,
+        temperature: float = 1.0,
     ) -> str | None:
         """Send messages to AI and return completion text.
 
         Args:
             messages: List of {"role": ..., "content": ...} dicts.
             max_tokens: Maximum tokens in response.
+            temperature: Sampling temperature (0.0-2.0). Higher = more random/creative.
 
         Returns:
             Response text, or None if AI unavailable or error occurs.
@@ -35,13 +39,17 @@ class AIService(Protocol):
         ...
 
     async def complete_chat_with_tools(
-        self, messages: list[dict[str, str]], tools: list[dict[str, Any]]
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]],
+        temperature: float = 1.0,
     ) -> dict[str, Any]:
         """Send messages to AI with tool/function calling.
 
         Args:
             messages: List of {"role": ..., "content": ...} dicts.
             tools: List of tool definitions for function calling.
+            temperature: Sampling temperature (0.0-2.0). Higher = more random/creative.
 
         Returns:
             Response dict with 'content' and 'tool_calls' keys.

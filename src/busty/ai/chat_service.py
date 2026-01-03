@@ -97,19 +97,23 @@ class LLMContextData:
 
 
 # Tool definitions for function calling
+# NOTE: These descriptions are intentionally casual/lowercase to match Busty's personality.
+# The LLM reads these descriptions when choosing actions, so formal tool descriptions
+# would make it "think" in a formal/robotic way. Casual descriptions reinforce the
+# human-like Discord user persona and influence more natural action selection.
 CHAT_TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "send_message",
             "strict": True,
-            "description": "Send a text message to the channel",
+            "description": "just send a normal message, like you're chatting casually on discord",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "content": {
                         "type": "string",
-                        "description": "The message content to send",
+                        "description": "what you want to say",
                     }
                 },
                 "required": ["content"],
@@ -122,14 +126,14 @@ CHAT_TOOLS = [
         "function": {
             "name": "add_reactions",
             "strict": True,
-            "description": "React to the message with emoji(s). Use this for quick acknowledgment or when words aren't needed.",
+            "description": "just react with emoji(s), no words. like when someone says something and you just hit them with a 👍 or whatever. good for quick vibes without typing",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "emojis": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of emoji to react with (e.g., ['👍', '❤️'])",
+                        "description": "emoji to react with, like ['👍', '❤️'] or whatever fits",
                         "minItems": 1,
                     }
                 },
@@ -143,15 +147,15 @@ CHAT_TOOLS = [
         "function": {
             "name": "send_message_and_react",
             "strict": True,
-            "description": "Both send a message AND add reaction(s). Use when you want to emphasize your response.",
+            "description": "send a message AND react to really emphasize. like when you reply to something funny/exciting and also add emojis for extra energy",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "content": {"type": "string", "description": "The message to send"},
+                    "content": {"type": "string", "description": "what you want to say"},
                     "emojis": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of emoji to react with",
+                        "description": "emoji to react with",
                         "minItems": 1,
                     },
                 },
@@ -165,7 +169,7 @@ CHAT_TOOLS = [
         "function": {
             "name": "ignore",
             "strict": True,
-            "description": "Don't respond or react to this message. Use when the conversation doesn't need your input.",
+            "description": "don't respond or react at all. just lurk. use this when people are having their own conversation, or when the message doesn't really need your input, or you just don't feel like saying anything",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -348,10 +352,15 @@ class ChatService:
         # Build messages array
         messages = [system_msg] + list(reversed(history))
 
+        logger.debug(f"Calling LLM with {len(messages)} total messages (1 system + {len(history)} history)")
+        logger.debug(f"Temperature: {constants.CHAT_TEMPERATURE}")
+        tool_names = [tool["function"]["name"] for tool in CHAT_TOOLS]  # type: ignore
+        logger.debug(f"Tools available: {tool_names}")
+
         # Call OpenAI with function calling
         try:
             response = await self._ai_service.complete_chat_with_tools(
-                messages, CHAT_TOOLS
+                messages, CHAT_TOOLS, temperature=constants.CHAT_TEMPERATURE
             )
 
             # Safety check: model shouldn't generate content when calling tools
@@ -372,17 +381,24 @@ class ChatService:
             function_name = tool_call["function"]["name"]
             arguments = json.loads(tool_call["function"]["arguments"])
 
+            logger.debug(f"LLM chose action: {function_name}")
+            logger.debug(f"Arguments: {arguments}")
+
             # Handle different action types
             if function_name == "send_message":
+                logger.debug(f"Sending message: {arguments['content'][:100]}...")
                 return arguments["content"], None
 
             elif function_name == "add_reactions":
+                logger.debug(f"Adding reactions: {arguments['emojis']}")
                 return None, arguments["emojis"]
 
             elif function_name == "send_message_and_react":
+                logger.debug(f"Sending message + reactions: {arguments['emojis']}")
                 return arguments["content"], arguments["emojis"]
 
             elif function_name == "ignore":
+                logger.debug("Ignoring message (no response)")
                 return None, None
 
             else:
@@ -665,6 +681,13 @@ class ChatService:
 
         # Extract relevant context from conversation history
         mentioned_triggers, mentioned_users = self._extract_history_context(history)
+        logger.debug(
+            f"Extracted context from history: {len(mentioned_users)} users, {len(mentioned_triggers)} triggers"
+        )
+        if mentioned_users:
+            logger.debug(f"Mentioned users: {mentioned_users}")
+        if mentioned_triggers:
+            logger.debug(f"Mentioned triggers: {mentioned_triggers}")
 
         # People info - only include users mentioned in conversation
         if self._context_data.user_info and mentioned_users:
@@ -686,17 +709,21 @@ class ChatService:
                 sections.append("# Topic Knowledge\n" + "\n".join(trigger_lines))
 
         # Response guidelines
-        guidelines = """# Response Guidelines
-Use the provided functions to choose how to respond:
-- send_message: Reply with text
-- add_reactions: Just react with emoji(s)
-- send_message_and_react: Do both (for emphasis)
-- ignore: Stay silent
+        guidelines = """# How to Respond
+pick one of these based on the vibe:
+- send_message: just chat normally
+- add_reactions: react with emoji, no words
+- send_message_and_react: reply AND react for emphasis
+- ignore: don't say anything, just lurk
 
-Choose based on context - you don't always need to respond!"""
+you don't gotta respond to everything. sometimes just vibing is fine"""
         sections.append(guidelines)
 
-        return {"role": "system", "content": "\n\n".join(sections)}
+        system_message = {"role": "system", "content": "\n\n".join(sections)}
+        logger.debug(f"Built system message with {len(sections)} sections")
+        logger.debug(f"System message content:\n{system_message['content']}")
+
+        return system_message
 
     def _extract_history_context(
         self, history: list[dict[str, str]]

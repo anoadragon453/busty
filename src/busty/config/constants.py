@@ -33,6 +33,7 @@ LLM_RESPONSE_TIMEOUT: Final = 10.0  # seconds
 CHAT_BUSY_EMOJI: Final = "\N{RAISED HAND}"  # No skin tone modifier for neutrality
 CHAT_MESSAGE_TOO_LONG_REPLY: Final = "I'm not reading all that."
 CHAT_ERROR_REPLY: Final = "busy rn"
+CHAT_TEMPERATURE: Final = 1.2  # Higher temperature for varied, human-like responses
 
 # User preference defaults
 AI_ART_ENABLED_DEFAULT: Final = True  # opt-out system
