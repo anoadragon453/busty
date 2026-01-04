@@ -20,7 +20,7 @@ from discord import (
     VoiceChannel,
     VoiceClient,
 )
-from discord.voice_client import AudioSource
+from discord.voice_client import AudioSource  # type: ignore[attr-defined]
 
 from busty import discord_utils, song_utils
 from busty.config import constants

@@ -69,6 +69,18 @@ typeCheckingMode = "strict"
 
 [tool.mypy]
 python_version = "3.13"
+disallow_any_generics = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_return_any = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+warn_no_return = true
+no_implicit_reexport = true
+extra_checks = true
+
+# These stay permissive for discord.py and other untyped dependencies
 disallow_untyped_decorators = false
 ignore_missing_imports = true
 [[tool.mypy.overrides]]

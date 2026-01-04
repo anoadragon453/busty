@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Any
 
 import openai
 import requests
@@ -50,7 +51,7 @@ class OpenAIService:
         try:
             response = await self._client.chat.completions.create(
                 model=self.settings.openai_model,
-                messages=messages,  # type: ignore
+                messages=messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 timeout=constants.LLM_RESPONSE_TIMEOUT,
             )
@@ -62,9 +63,9 @@ class OpenAIService:
     async def complete_chat_with_tools(
         self,
         messages: list[dict[str, str]],
-        tools: list[dict],
+        tools: list[dict[str, Any]],
         temperature: float = 1.0,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Send messages to OpenAI with tool/function calling.
 
         Args:
@@ -83,11 +84,11 @@ class OpenAIService:
 
         response = await self._client.chat.completions.create(
             model=self.settings.openai_model,
-            messages=messages,  # type: ignore
-            tools=tools,  # type: ignore
+            messages=messages,
+            tools=tools,
             tool_choice="required",  # Force the model to call a function
             temperature=temperature,
-            timeout=constants.LLM_RESPONSE_TIMEOUT,
+            timeout=constants.LLM_RESPONSE_TIMEOUT,  # type: ignore[call-overload]
         )
 
         message = response.choices[0].message

@@ -14,7 +14,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any
 
 import tiktoken
 import yaml
@@ -47,7 +47,7 @@ class LLMContextData:
     user_info: dict[str, UserInfo]
 
     @staticmethod
-    def from_dict(data: dict) -> "LLMContextData":
+    def from_dict(data: dict[str, Any]) -> "LLMContextData":
         """Parse raw YAML dict into structured context data.
 
         Args:
@@ -207,14 +207,23 @@ class ChatService:
         self._lock = asyncio.Lock()
 
         # Token counter
-        self._encoding = tiktoken.encoding_for_model(settings.openai_tokenizer_model)
+        try:
+            self._encoding: tiktoken.Encoding | None = tiktoken.encoding_for_model(
+                settings.openai_tokenizer_model
+            )
+        except (KeyError, ValueError):
+            logger.warning(
+                f"Could not load tokenizer for model {settings.openai_tokenizer_model}, "
+                "falling back to word count (inaccurate)"
+            )
+            self._encoding = None
 
         # Load context data
         self._context_data = self._load_context_data()
 
         # Compile regex patterns
-        self._word_trigger_pattern: re.Pattern | None = None
-        self._user_trigger_pattern: re.Pattern | None = None
+        self._word_trigger_pattern: re.Pattern[str] | None = None
+        self._user_trigger_pattern: re.Pattern[str] | None = None
         self._user_info_map: dict[str, str] = {}
 
         if self._context_data:
@@ -442,12 +451,12 @@ class ChatService:
             return "Busty"
 
         if self._context_data is None:
-            return cast(str, user.name)
+            return user.name
 
         user_id = str(user.id)
         if user_id in self._context_data.user_info:
             return self._context_data.user_info[user_id].name
-        return cast(str, user.name)
+        return user.name
 
     async def _get_server_context(self, message: Message) -> list[str]:
         """Build context about server state (bust status, events, user roles)."""
@@ -528,7 +537,7 @@ class ChatService:
             content = content.replace(channel.mention, channel.name)
         for role in message.role_mentions:
             content = content.replace(role.mention, role.name)
-        return cast(str, content)
+        return content
 
     async def _fetch_history(
         self, token_limit: int, speaking_turn_limit: int, message: Message

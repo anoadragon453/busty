@@ -1,5 +1,7 @@
 """BustyBot Discord bot class and initialization."""
 
+from typing import Any
+
 from discord.ext import commands
 
 from busty import bust, persistent_state
@@ -10,7 +12,7 @@ from busty.config.settings import BustySettings
 class BustyBot(commands.Bot):
     """Custom Busty bot class."""
 
-    def __init__(self, settings: BustySettings, *args, **kwargs):
+    def __init__(self, settings: BustySettings, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.settings = settings
         self.bust_registry = bust.BustRegistry()

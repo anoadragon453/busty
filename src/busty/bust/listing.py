@@ -12,7 +12,7 @@ The core BustController logic remains in controller.py.
 import logging
 from typing import TYPE_CHECKING
 
-from discord import Embed, Interaction, TextChannel
+from discord import Embed, Interaction, Message, TextChannel
 
 from busty import discord_utils, forms, song_utils
 from busty.bust.controller import BustController
@@ -110,7 +110,7 @@ async def list_bust(
     return controller
 
 
-async def _send_list_embeds(channel: TextChannel, tracks: list[Track]) -> list:
+async def _send_list_embeds(channel: TextChannel, tracks: list[Track]) -> list[Message]:
     """Build and send list embeds to the channel.
 
     Args:

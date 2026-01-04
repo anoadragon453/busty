@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import discord
-from discord import Embed, File
+from discord import Embed, File, Webhook
 from discord.utils import escape_markdown
-from mutagen import File as MutagenFile
-from mutagen import MutagenError
+from mutagen import File as MutagenFile  # type: ignore[attr-defined]
+from mutagen import MutagenError  # type: ignore[attr-defined]
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import ID3FileType, PictureType
+from mutagen.id3 import ID3FileType, PictureType  # type: ignore[attr-defined]
 from mutagen.ogg import OggFileType
 from mutagen.wave import WAVE
 from PIL import Image, UnidentifiedImageError
@@ -192,7 +192,7 @@ def get_cover_art_bytes(filename: Path) -> bytes | None:
     """Extract cover art from audio file as raw bytes."""
     # Get image data as bytes
     try:
-        image_data = None
+        image_data: bytes | None = None
         audio = MutagenFile(filename)
 
         # In each case, ensure audio tags are not None or empty
@@ -207,9 +207,12 @@ def get_cover_art_bytes(filename: Path) -> bytes | None:
                             and tag_value.type == PictureType.COVER_FRONT
                         ):
                             image_data = tag_value.data
+            # Mypy bug: when pattern matching on Any type and accessing same attribute
+            # (.tags) in multiple cases, mypy incorrectly marks later cases as unreachable.
+            # This case IS reachable for .ogg files. Ignore directive added below.
             case OggFileType():
                 if audio.tags:
-                    artwork_tags = audio.tags.get("metadata_block_picture", [])
+                    artwork_tags = audio.tags.get("metadata_block_picture", [])  # type: ignore[unreachable]
                     if artwork_tags:
                         # artwork_tags[0] is the base64-encoded data
                         raw_data = base64.b64decode(artwork_tags[0])
@@ -305,7 +308,7 @@ def convert_timestamp_to_seconds(time_str: str | None) -> int | None:
 
 
 async def send_track_embed_with_cover_art(
-    destination: discord.abc.Messageable,
+    destination: discord.abc.Messageable | Webhook,
     track: "Track",
     emoji: str,
     cover_art_bytes: bytes | None,
@@ -335,6 +338,11 @@ async def send_track_embed_with_cover_art(
         image_fp = BytesIO(cover_art_bytes)
         cover_art_file = File(image_fp, filename="cover.jpg")
         embed.set_image(url=f"attachment://{cover_art_file.filename}")
-        return await destination.send(content=content, file=cover_art_file, embed=embed)
+        # Webhook typing is strict but accepts None at runtime
+        msg = await destination.send(content=content, file=cover_art_file, embed=embed)  # type: ignore[arg-type]
     else:
-        return await destination.send(content=content, embed=embed)
+        msg = await destination.send(content=content, embed=embed)  # type: ignore[arg-type]
+
+    # Type narrow: Webhook.send() returns Message when wait=True (default)
+    assert msg is not None
+    return msg

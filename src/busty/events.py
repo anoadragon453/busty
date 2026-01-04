@@ -197,7 +197,7 @@ def register_events(client: BustyBot) -> None:
                 )
 
         # Handle other app command errors
-        elif isinstance(error, app_commands.AppCommandError):
+        else:
             error_msg = (
                 f"An error occurred while running `/{command_name}`. Please try again."
             )
@@ -211,9 +211,3 @@ def register_events(client: BustyBot) -> None:
                 pass
 
             logger.error(f"AppCommandError in /{command_name}: {error}", exc_info=error)
-
-        # Handle unexpected errors
-        else:
-            logger.error(
-                f"Unexpected error in /{command_name}: {error}", exc_info=error
-            )
