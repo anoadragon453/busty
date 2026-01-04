@@ -1,5 +1,6 @@
 """Shared test fixtures and utilities."""
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,7 @@ def settings() -> BustySettings:
         num_longest_submitters=3,
         emoji_list=["🎵", "🎶", "🎸"],  # Sample emojis for tests
         mailbox_channel_prefix="bustys-mailbox-",  # Default for tests
+        log_level=logging.INFO,  # Default log level for tests
     )
 
 

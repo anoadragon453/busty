@@ -29,13 +29,17 @@ class OpenAIService:
         return self._client is not None
 
     async def complete_chat(
-        self, messages: list[dict[str, str]], max_tokens: int = 512
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 512,
+        temperature: float = 1.0,
     ) -> str | None:
         """Send messages to OpenAI and return completion text.
 
         Args:
             messages: List of {"role": ..., "content": ...} dicts.
             max_tokens: Maximum tokens in response.
+            temperature: Sampling temperature (0.0-2.0). Higher = more random/creative.
 
         Returns:
             Response text, or None if AI unavailable or error occurs.
@@ -47,12 +51,64 @@ class OpenAIService:
             response = await self._client.chat.completions.create(
                 model=self.settings.openai_model,
                 messages=messages,  # type: ignore
+                temperature=temperature,
                 timeout=constants.LLM_RESPONSE_TIMEOUT,
             )
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"OpenAI API exception: {e}")
             return None
+
+    async def complete_chat_with_tools(
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict],
+        temperature: float = 1.0,
+    ) -> dict:
+        """Send messages to OpenAI with tool/function calling.
+
+        Args:
+            messages: List of {"role": ..., "content": ...} dicts.
+            tools: List of tool definitions for function calling.
+            temperature: Sampling temperature (0.0-2.0). Higher = more random/creative.
+
+        Returns:
+            Response dict with 'content' and 'tool_calls' keys.
+
+        Raises:
+            Exception: If client not configured or API error occurs.
+        """
+        if self._client is None:
+            raise RuntimeError("OpenAI client not configured")
+
+        response = await self._client.chat.completions.create(
+            model=self.settings.openai_model,
+            messages=messages,  # type: ignore
+            tools=tools,  # type: ignore
+            tool_choice="required",  # Force the model to call a function
+            temperature=temperature,
+            timeout=constants.LLM_RESPONSE_TIMEOUT,
+        )
+
+        message = response.choices[0].message
+
+        # Convert to dict format for easier handling
+        result = {"content": message.content, "tool_calls": []}
+
+        if message.tool_calls:
+            result["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in message.tool_calls
+            ]
+
+        return result
 
     async def generate_image(self, prompt: str) -> str | None:
         """Generate an image from a text prompt.

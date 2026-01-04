@@ -39,12 +39,14 @@ def setup_logging(log_level: int) -> None:
 
 def run_bot() -> None:
     """Entry point for the busty script."""
-    # Setup logging
-    setup_logging(logging.INFO)
+    # Load settings first
+    settings = BustySettings.from_environment()
+
+    # Setup logging with configured level
+    setup_logging(settings.log_level)
     logger.info("Starting Busty bot")
 
-    # Load settings
-    settings = BustySettings.from_environment()
+    # Validate settings (uses logger, so must come after setup_logging)
     settings.validate(logger)
 
     if settings.testing_guild:
