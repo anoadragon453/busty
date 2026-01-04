@@ -151,7 +151,10 @@ CHAT_TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "content": {"type": "string", "description": "what you want to say"},
+                    "content": {
+                        "type": "string",
+                        "description": "what you want to say",
+                    },
                     "emojis": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -352,7 +355,9 @@ class ChatService:
         # Build messages array
         messages = [system_msg] + list(reversed(history))
 
-        logger.debug(f"Calling LLM with {len(messages)} total messages (1 system + {len(history)} history)")
+        logger.debug(
+            f"Calling LLM with {len(messages)} total messages (1 system + {len(history)} history)"
+        )
         logger.debug(f"Temperature: {constants.CHAT_TEMPERATURE}")
         tool_names = [tool["function"]["name"] for tool in CHAT_TOOLS]  # type: ignore
         logger.debug(f"Tools available: {tool_names}")
