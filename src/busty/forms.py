@@ -44,7 +44,9 @@ def get_google_services(
         if isinstance(e, FileNotFoundError):
             error_msg = f"Could not find {google_auth_file}"
         else:
-            error_msg = f"Encountered {type(e).__name__} reading {google_auth_file}"
+            error_msg = (
+                f"Encountered {type(e).__name__} reading {google_auth_file}: {e}"
+            )
         logger.error(f"{error_msg}. Skipping form generation")
         return None, None
 
