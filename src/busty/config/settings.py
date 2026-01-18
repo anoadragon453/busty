@@ -83,7 +83,7 @@ class BustySettings:
         # Compute file paths (hardcoded structure)
         bot_state_file = state_dir / "bot_state.json"
         llm_context_file = config_dir / "llm_context.yaml"
-        google_auth_file = auth_dir / "oauth_token.json"
+        google_auth_file = auth_dir / "service_account.json"
 
         # Load OpenAI model (used for both model and tokenizer by default)
         openai_model = os.environ.get("BUSTY_OPENAI_MODEL", "gpt-4o")
@@ -135,7 +135,7 @@ class BustySettings:
             )
         elif not self.google_auth_file.is_file():
             logger.warning(
-                f"{self.google_auth_file} is not a valid file, Google Forms generation will be disabled"
+                f"{self.google_auth_file} not found, Google Forms generation will be disabled"
             )
 
         if self.openai_api_key is None:
