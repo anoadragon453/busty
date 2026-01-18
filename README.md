@@ -61,49 +61,39 @@ servers maximum, unless you verify your bot with Discord.
 Copy the bot token, and ensure that the environment variable `BUSTY_DISCORD_TOKEN` contains
 the bot token when running the bot.
 
-If you'd like automatic Google Form generation, you need to set up Google OAuth credentials.
+If you'd like automatic Google Form generation, you need to set up a Google service account.
 
 ### Setting up Google Forms Integration
 
 1. **Create a Google Cloud Project** (or use an existing one):
    - Go to [Google Cloud Console](https://console.cloud.google.com)
    - Create a new project or select an existing one
+   - Note your project name in the top-left dropdown - all following steps must be done in this same project
 
-2. **Enable Required APIs**:
-   - Enable [Google Forms API](https://console.developers.google.com/apis/api/forms.googleapis.com/overview)
-   - Enable [Google Drive API](https://console.cloud.google.com/apis/api/drive.googleapis.com/metrics)
+2. **Enable Required APIs** (in the same project):
+   - Go to **APIs & Services** > **Library** (or use the search bar)
+   - Search for "Google Forms API", click it, and click **Enable**
+   - Search for "Google Drive API", click it, and click **Enable**
 
-3. **Create OAuth 2.0 Credentials**:
-   - Create the auth directory: `mkdir -p auth/`
+3. **Create a Service Account** (in the same project):
    - Go to **APIs & Services** > **Credentials**
-   - Click **Create Credentials** > **OAuth 2.0 Client ID**
-   - If prompted, configure the OAuth consent screen:
-     - User type: **External** (or Internal if you have Google Workspace)
-     - App name: **Busty Bot**
-     - Add your support email
-     - Scopes: Click **Save and Continue** (scopes are set in code)
-     - **Test users** (may be called "Audience"): Click **Add Users** and add the email of the Google account you'll use for the bot
-     - Click **Save and Continue**
-   - Back on the Credentials page, click **Create Credentials** > **OAuth 2.0 Client ID** again
-   - Choose **Desktop app** as the application type
-   - Name it **Busty Bot**
-   - Click **Create** and download the JSON file
-   - Save it as `auth/oauth_credentials.json` in your project directory
+   - Click **Create Credentials** > **Service account**
+   - Name it **Busty Bot** and click **Create and Continue**
+   - Skip the optional role assignment and click **Done**
+   - Click on the newly created service account to open its details
+   - Go to the **Keys** tab
+   - Click **Add Key** > **Create new key**
+   - Choose **JSON** and click **Create**
+   - Save the downloaded file as `auth/service_account.json` in your project directory
 
-4. **Run the OAuth Setup Script**:
-   ```bash
-   uv run python scripts/setup_oauth.py
-   ```
-   - A browser window will open
-   - Sign in with the Google account you want the bot to use
-   - Grant the requested permissions
-   - The script will save your token to `auth/oauth_token.json`
-
-5. **Create a Google Drive Folder** for forms:
-   - Create a folder in Google Drive (using the same account from step 4)
+4. **Create a Google Drive Folder** for forms:
+   - Create a folder in Google Drive
    - Navigate inside the folder in your browser
    - Copy the folder ID from the URL (the part after `/folders/`)
+   - Share the folder with your service account email (found in the service account details, looks like `busty-bot@your-project.iam.gserviceaccount.com`) with **Editor** permissions
    - Set `BUSTY_GOOGLE_FORM_FOLDER` to this ID
+
+**Troubleshooting**: If form generation fails with a 500 error, verify that both APIs are enabled in the correct project by going to **APIs & Services** > **Enabled APIs & services** and confirming both "Google Forms API" and "Google Drive API" appear in the list.
 
 Finally, add the bot to your desired Discord server.
 

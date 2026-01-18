@@ -2,8 +2,7 @@ import logging
 from pathlib import Path
 
 import googleapiclient.discovery
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource
 
 logger = logging.getLogger(__name__)
@@ -12,34 +11,20 @@ logger = logging.getLogger(__name__)
 def get_google_services(
     google_auth_file: Path,
 ) -> tuple[Resource | None, Resource | None]:
-    """Get Google Forms and Drive services using OAuth 2.0.
+    """Get Google Forms and Drive services using a service account.
 
     Args:
-        google_auth_file: Path to the OAuth token file.
+        google_auth_file: Path to the service account key file.
 
     Returns:
         Tuple of (forms_service, drive_service), or (None, None) if auth fails.
     """
-    SCOPES = [
-        "https://www.googleapis.com/auth/drive",
-        "https://www.googleapis.com/auth/forms.body",
-    ]
+    SCOPES = ["https://www.googleapis.com/auth/drive"]
 
     try:
-        # Load OAuth 2.0 credentials
-        creds = Credentials.from_authorized_user_file(str(google_auth_file), SCOPES)
-
-        # Refresh token if expired
-        if creds.expired and creds.refresh_token:
-            logger.info("OAuth token expired, refreshing...")
-            creds.refresh(Request())
-
-            # Save refreshed token
-            with open(google_auth_file, "w") as token:
-                token.write(creds.to_json())
-
-            logger.info("OAuth token refreshed successfully")
-
+        creds = Credentials.from_service_account_file(
+            str(google_auth_file), scopes=SCOPES
+        )
     except Exception as e:
         if isinstance(e, FileNotFoundError):
             error_msg = f"Could not find {google_auth_file}"
@@ -73,7 +58,7 @@ def create_remote_form(
         high_val: Maximum rating value.
         low_label: Label for low rating.
         high_label: Label for high rating.
-        google_auth_file: Path to the OAuth token file.
+        google_auth_file: Path to the service account key file.
         google_form_folder: Google Drive folder ID to move form to, or None.
         image_url: Optional image URL to include at top of form.
 

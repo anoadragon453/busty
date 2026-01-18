@@ -27,7 +27,7 @@ def settings() -> BustySettings:
         attachment_cache_dir=Path("data/cache/attachments"),
         bot_state_file=Path("data/state/bot_state.json"),
         llm_context_file=Path("data/config/llm_context.json"),
-        google_auth_file=Path("auth/oauth_token.json"),
+        google_auth_file=Path("auth/service_account.json"),
         google_form_folder=None,
         openai_api_key=None,
         openai_model="gpt-4o",
