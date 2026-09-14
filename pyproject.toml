@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "discord_emoji>=1.4.1",
     "mutagen>=1.47.0",
-    "discord.py[voice] @ git+https://github.com/Rapptz/discord.py.git@cb7300990f656c0964ea48115354f9416e96dcd1",
+    "discord.py[voice]==2.7.1",
     "PyNaCl>=1.5.0",
     "google-api-python-client>=2.57.0",
     "google-auth>=2.45.0",
